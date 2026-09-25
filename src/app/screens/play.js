@@ -1,7 +1,8 @@
 // Practice: notation on a staff, a tower that builds as she plays.
 //   learn — waits for the right note (a wrong one shows a ghost note)
 //   go    — "keep going": any note advances; wrong ones are marked, a quick
-//           fix right after a mistake repairs it; hesitations are counted
+//           fix right after a mistake repairs it; rhythm is judged against
+//           her own tempo (stalls, rushing, dragging)
 //   beat  — count-in, then she keeps the beat herself (no moving line);
 //           graded on timing
 import { h } from '../dom.js';
@@ -13,9 +14,9 @@ import { characterUrl, BAND, bandSprite } from '../pixels.js';
 import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
 import { renderJingle, renderTick } from '../instruments.js';
+import { rhythmReview, scoreLearn, scoreGo, scoreBeat, beatGrade } from '../scoring.js';
 
-const MODES = [['learn', '🐢 Learn'], ['go', '🏃 Keep going'], ['beat', '🥁 Beat']];
-const GRADE_SCORE = { perfect: 1, good: 0.75, ok: 0.45, wrong: 0.2, miss: 0 };
+const MODES = [['learn', '🐢', 'Learn'], ['go', '🏃', 'Keep going'], ['beat', '🥁', 'Beat']];
 const FIX_WINDOW = 1.5; // s: a correct replay of a just-missed note counts as fixing it
 
 export function play(root, id) {
@@ -39,13 +40,14 @@ export function play(root, id) {
     const avail = stageEl.clientHeight - 150 - 10; // keep ≥150px of scene
     staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: avail >= 2 * H ? 2 : 1 });
     staffBox.replaceChildren(staff.el);
-    build = createBuild(staff.targets.length, characterUrl(st.character));
+    build = createBuild(staff.targets.length, characterUrl(st.character), song.plays ?? 0);
     sceneBox.replaceChildren(build.el);
   }
 
   // --- header ---
-  const modeBtns = MODES.map(([m, label]) =>
-    h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) }, label));
+  const modeBtns = MODES.map(([m, icon, label]) =>
+    h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) },
+      icon, h('span', { class: 'seg-label' }, ' ' + label)));
   function setMode(m, initial = false) {
     abort();
     mode = m;
@@ -88,8 +90,9 @@ export function play(root, id) {
 
   root.append(h('div', { class: 'screen play' },
     h('header', { class: 'bar' },
-      h('a', { class: 'btn', href: `#/song/${song.id}` }, '⬅'),
+      h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, song.title),
+      h('a', { class: 'btn small', href: `#/song/${song.id}`, title: 'See the blocks / edit' }, '✏️'),
       h('div', { class: 'spacer' }),
       h('div', { class: 'segs' }, modeBtns),
       speedBox, ear),
@@ -224,7 +227,7 @@ export function play(root, id) {
       staff.ghost(t[best], n.midi);
       return;
     }
-    const grade = bestErr < 0.08 ? 'perfect' : bestErr < 0.16 ? 'good' : 'ok';
+    const grade = beatGrade(n.time - session.expected.get(best));
     session.grades.set(best, grade);
     staff.mark(t[best], 'hit ' + grade);
     build.place(best, n.midi);
@@ -252,19 +255,6 @@ export function play(root, id) {
     if (now > session.end) finish();
   }
 
-  // Gaps much longer than the music asks for, relative to her own pace.
-  function hesitations(s) {
-    const t = staff.targets, ratios = [];
-    for (let k = 1; k < t.length; k++) {
-      const beats = staff.laid[t[k]].start - staff.laid[t[k - 1]].start;
-      const gap = s.times[k] - s.times[k - 1];
-      if (beats > 0 && Number.isFinite(gap)) ratios.push({ r: gap / beats, gap });
-    }
-    if (!ratios.length) return 0;
-    const med = [...ratios].sort((a, b) => a.r - b.r)[ratios.length >> 1].r;
-    return ratios.filter((x) => x.r > 1.7 * med && x.gap > 0.5).length;
-  }
-
   function finishSoon(ms) {
     const s = session;
     setTimeout(() => { if (session === s) finish(); }, ms);
@@ -277,27 +267,34 @@ export function play(root, id) {
     s.off();
     await engine.listen(false);
     count.style.display = 'none';
-    const n = staff.targets.length;
+    const t = staff.targets, n = t.length;
 
-    let stars, detail;
+    // Score, and leave review marks on the staff for going over it together.
+    let result, chips;
     if (s.mode === 'learn') {
-      stars = s.wrong <= 1 ? 3 : s.wrong <= 4 ? 2 : 1;
-      detail = `wrong notes: ${s.wrong}`;
+      result = scoreLearn(s.wrong);
+      chips = [['🎯', s.wrong ? `${s.wrong} wrong ${s.wrong === 1 ? 'try' : 'tries'}` : 'no wrong notes']];
     } else if (s.mode === 'go') {
-      let right = 0;
-      for (let k = 0; k < n; k++) right += { hit: 1, fixed: 0.6 }[s.grades.get(k)] ?? 0;
-      const hes = hesitations(s);
-      const score = 0.6 * (right / n) + 0.4 * Math.max(0, 1 - hes / Math.max(1, (n - 1) / 3));
-      stars = score >= 0.9 ? 3 : score >= 0.7 ? 2 : score >= 0.4 ? 1 : 0;
-      detail = `notes ${Math.round(right * 10) / 10}/${n} · hesitations ${hes}`;
+      const review = rhythmReview(staff.laid, t, s.times);
+      for (const [k, m] of review.marks) if (m !== 'ok') staff.review(t[k], m, t[k - 1]);
+      result = scoreGo(n, s.grades, review);
+      chips = [
+        ['🎯', `${Math.round(result.right * 10) / 10}/${n} notes`],
+        ['🥁', Number.isFinite(review.rhythm) ? `rhythm ${Math.round(review.rhythm * 100)}%` : 'rhythm –'],
+        ['⏸', review.stalls ? `${review.stalls} ${review.stalls === 1 ? 'stop' : 'stops'}` : 'no stops'],
+      ];
     } else {
-      const score = [...Array(n).keys()].reduce((a, k) => a + GRADE_SCORE[s.grades.get(k) ?? 'miss'], 0) / Math.max(1, n);
-      stars = score >= 0.85 ? 3 : score >= 0.6 ? 2 : score >= 0.3 ? 1 : 0;
-      const c = { perfect: 0, good: 0, ok: 0, wrong: 0, miss: 0 };
-      for (let k = 0; k < n; k++) c[s.grades.get(k) ?? 'miss']++;
-      detail = `✨ ${c.perfect} · 👍 ${c.good + c.ok} · wrong ${c.wrong} · missed ${c.miss}`;
+      for (let k = 0; k < n; k++) {
+        const g = s.grades.get(k);
+        if (g === 'early' || g === 'late') staff.review(t[k], g);
+      }
+      result = scoreBeat(n, s.grades);
+      const c = result.counts;
+      chips = [['✨', `${c.perfect} perfect`], ['👍', `${c.good + c.early + c.late} close`], ['❓', `${c.wrong + c.miss} missed`]];
     }
+    const { stars } = result;
     song.plays = (song.plays ?? 0) + 1;
+    song.best = Math.max(song.best ?? 0, stars);
     let joined = null;
     if (stars >= 2 && song.band < BAND.length) {
       joined = BAND[song.band];
@@ -309,18 +306,20 @@ export function play(root, id) {
       engine.play(renderJingle(engine.ctx.sampleRate));
     }
 
+    // Results sit over the scene, leaving the staff (and its marks) visible.
     setTimeout(() => {
-      overlay.replaceChildren(h('div', { class: 'panel results' },
+      const legend = s.mode === 'go' && staff.el.querySelector('.review')
+        ? h('div', { class: 'legend' }, '⏸ stopped · » rushed · « dragged')
+        : s.mode === 'beat' && staff.el.querySelector('.review') ? h('div', { class: 'legend' }, '‹ early · › late') : null;
+      build.el.append(h('div', { class: 'results-bar' },
         h('div', { class: 'stars' }, [0, 1, 2].map((k) => h('span', { class: 'star' + (k < stars ? ' on' : '') }, '★'))),
+        h('div', { class: 'chips' }, chips.map(([icon, text]) => h('span', { class: 'chip' }, icon, ' ', text)), legend),
         joined ? h('div', { class: 'joined' },
           h('img', { class: 'join-sprite hop', src: bandSprite(joined) }),
-          h('div', {}, `${joined.name} joined your band!`)) : null,
+          h('div', {}, `${joined.name} joined!`)) : null,
         h('div', { class: 'row' },
-          h('button', { class: 'btn primary big', onclick: () => { rebuild(); ready(); } }, '🔁 Again'),
-          h('a', { class: 'btn big', href: `#/band/${song.id}` }, '🎸 Band'),
-          h('a', { class: 'btn big', href: `#/song/${song.id}` }, '✏️')),
-        h('div', { class: 'detail' }, detail)));
-      overlay.style.display = '';
+          h('button', { class: 'btn primary big', onclick: () => { rebuild(); ready(); } }, '🔁'),
+          h('a', { class: 'btn big', href: `#/band/${song.id}` }, '🎸'))));
     }, stars >= 2 ? 1200 : 300);
   }
 

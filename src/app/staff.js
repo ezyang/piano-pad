@@ -177,6 +177,21 @@ export function createStaff(song, { s = 20, width = 1000, letters = true, visibl
       fxs[systemOf[i]].append(g);
       setTimeout(() => g.remove(), 1200);
     },
+    // After a run: mark a timing problem. Gap marks (stall/rushed/dragged)
+    // sit between note `prev` and note i; early/late sit above note i.
+    review(i, kind, prev) {
+      const sameLine = prev != null && systemOf[prev] === systemOf[i];
+      const x = kind === 'early' || kind === 'late' || !sameLine ? headXs[i] - (sameLine ? 0 : s * 1.6) : (headXs[prev] + headXs[i]) / 2;
+      const y = s * 1.2;
+      const g = svg('g', { class: 'review ' + kind });
+      if (kind === 'stall') {
+        g.append(svg('rect', { x: x - s * 0.45, y: y - s * 0.55, width: s * 0.3, height: s * 1.1, rx: 1 }),
+          svg('rect', { x: x + s * 0.15, y: y - s * 0.55, width: s * 0.3, height: s * 1.1, rx: 1 }));
+      } else {
+        g.append(svg('text', { x, y: y + s * 0.4, 'font-size': s * 1.3 }, { rushed: '»', dragged: '«', early: '‹', late: '›' }[kind]));
+      }
+      fxs[systemOf[i]].append(g);
+    },
     // Page so note i's line shows, with the next line below when there's room.
     show(i) {
       const si = systemOf[i] ?? 0;

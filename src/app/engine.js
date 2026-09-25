@@ -25,6 +25,11 @@ class Engine {
     // on iOS, and granting mic permission itself fires devicechange. The
     // rebuild happens on the next tap (see start()).
     navigator.mediaDevices?.addEventListener?.('devicechange', () => { this.stale = true; });
+    // iOS suspends audio when the app is backgrounded; resume on return so
+    // listening keeps working without needing another tap.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    });
   }
 
   // Call from user gestures (any tap does, see main.js). Must not await

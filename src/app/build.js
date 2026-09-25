@@ -1,35 +1,69 @@
-// The practice payoff: each note places a block in a little pyramid tower,
-// and her character climbs onto the newest block.
+// The practice payoff: each note places a block in a little build, and her
+// character climbs onto the newest block. The setting and the shape of the
+// build change from one playthrough to the next (she dislikes repetition).
 import { h, flash, sparkle } from './dom.js';
 import { material, texture } from './pixels.js';
 
 const CHAR_ASPECT = 14 / 10;
+const GROUND = 40;
 
-export function createBuild(count, charUrl) {
-  // Smallest pyramid base that fits every note.
-  let base = 1;
-  while ((base * (base + 1)) / 2 < count) base++;
-  const slots = [];
-  for (let row = 0, k = 0; k < count; row++) {
-    for (let c = 0; c < base - row && k < count; c++, k++) slots.push({ row, col: c + row / 2 });
-  }
-  const rows = slots.length ? slots[slots.length - 1].row + 1 : 1;
+const BIOMES = [
+  { name: 'day', sky: 'linear-gradient(#7ec8f5, #b9e3fb)', ground: 'grass' },
+  { name: 'sunset', sky: 'linear-gradient(#ff8a65, #ffcf8a)', ground: 'grass' },
+  { name: 'night', sky: 'linear-gradient(#0d1633, #27366e)', ground: 'grass', stars: true },
+  { name: 'snow', sky: 'linear-gradient(#bfdff3, #eef7fd)', ground: 'snow' },
+  { name: 'desert', sky: 'linear-gradient(#8fd3ff, #fde7b0)', ground: 'sand' },
+];
+
+// Slot positions {col, row} (row 0 = on the ground), in building order.
+const SHAPES = {
+  pyramid(count) {
+    let base = 1;
+    while ((base * (base + 1)) / 2 < count) base++;
+    const out = [];
+    for (let row = 0; out.length < count; row++)
+      for (let c = 0; c < base - row && out.length < count; c++) out.push({ row, col: c + row / 2 });
+    return out;
+  },
+  stairs(count) {
+    const out = [];
+    for (let col = 0; out.length < count; col++)
+      for (let row = 0; row <= col && out.length < count; row++) out.push({ row, col });
+    return out;
+  },
+  tower(count) {
+    const out = [];
+    for (let k = 0; k < count; k++) out.push({ row: Math.floor(k / 2), col: k % 2 });
+    return out;
+  },
+};
+
+export function createBuild(count, charUrl, variant = 0) {
+  const biome = BIOMES[variant % BIOMES.length];
+  let shape = ['pyramid', 'stairs', 'tower'][variant % 3];
+  if (shape === 'tower' && count > 16) shape = 'pyramid'; // too tall to be fun
+  const slots = SHAPES[shape](count);
+  const cols = Math.max(1, ...slots.map((s) => s.col + 1));
+  const rows = Math.max(1, ...slots.map((s) => s.row + 1));
 
   const tower = h('div', { class: 'tower' });
   const blocks = slots.map(() => null);
   const charImg = h('img', { src: charUrl });
   const char = h('div', { class: 'climber' }, charImg);
-  const el = h('div', { class: 'build' },
-    h('div', { class: 'cloud c1' }), h('div', { class: 'cloud c2' }),
-    tower, char,
-    h('div', { class: 'build-ground', style: `background-image:url(${texture('grass')})` }));
+  const deco = biome.stars
+    ? [h('div', { class: 'moon' }), ...Array.from({ length: 24 }, (_, i) =>
+      h('div', { class: 'star-px', style: `left:${(i * 37) % 97}%;top:${(i * 53) % 55 + 3}%` }))]
+    : [h('div', { class: 'cloud c1' }), h('div', { class: 'cloud c2' })];
+  const el = h('div', { class: `build biome-${biome.name}`, style: `background:${biome.sky}` },
+    ...deco, tower, char,
+    h('div', { class: 'build-ground', style: `background-image:url(${texture(biome.ground)})` }));
 
   let B = 40, at = -1;
   // Sizes depend on the scene's rendered size; recompute on layout changes.
   function layoutScene() {
-    const w = el.clientWidth, hgt = el.clientHeight - 40; // minus ground
-    B = Math.max(18, Math.min(56, Math.floor(Math.min((hgt - B * CHAR_ASPECT - 10) / rows, (w * 0.6) / base))));
-    tower.style.width = `${base * B}px`;
+    const w = el.clientWidth, hgt = el.clientHeight - GROUND;
+    B = Math.max(14, Math.min(72, Math.floor(Math.min((hgt - 10) / (rows + CHAR_ASPECT), (w * 0.6) / cols))));
+    tower.style.width = `${cols * B}px`;
     tower.style.height = `${rows * B}px`;
     slots.forEach((s, k) => {
       const b = blocks[k];
@@ -47,15 +81,15 @@ export function createBuild(count, charUrl) {
 
   function moveChar(k, hop = true) {
     at = k;
-    const cw = B, chh = Math.round(B * CHAR_ASPECT);
+    const chh = Math.round(B * CHAR_ASPECT);
     let x, y;
     if (k < 0) {
       const r = tower.getBoundingClientRect(), p = el.getBoundingClientRect();
-      x = r.left - p.left - cw * 1.6;
-      y = el.clientHeight - 40 - chh;
+      x = r.left - p.left - B * 1.6;
+      y = el.clientHeight - GROUND - chh;
     } else {
       const s = slotPos(k);
-      x = s.x + (B - cw) / 2;
+      x = s.x;
       y = s.y - chh + 2;
     }
     char.style.transform = `translate(${x}px, ${y}px)`;

@@ -37,9 +37,11 @@ export function save() {
 export const getState = () => state;
 export const getSong = (id) => state.songs.find((s) => s.id === id);
 
-export function newSong() {
-  const n = state.songs.filter((s) => s.by !== 'teacher').length + 1;
-  const song = { id: 's' + Date.now().toString(36), title: `My Song ${n}`, by: 'me', bpm: 80, notes: [], band: 1, plays: 0 };
+// by: 'me' (her own song) or 'teacher' (homework a grown-up enters).
+export function newSong(by = 'me') {
+  const n = state.songs.filter((s) => s.by === by).length + 1;
+  const title = by === 'teacher' ? `Homework ${n}` : `My Song ${n}`;
+  const song = { id: 's' + Date.now().toString(36), title, by, bpm: 80, notes: [], band: 1, plays: 0 };
   state.songs.push(song);
   save();
   return song;

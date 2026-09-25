@@ -53,8 +53,6 @@ export function createTrack(song, { rowH = 58, ppb = Math.round(rowH * 1.7), ext
     const end = totalBeats(song.notes);
     grid.append(h('div', { class: 'append-hint', style: `left:${x(end)}px;width:${Math.min(ppb, width - x(end) - pad)}px` }, '+'));
   }
-  const playhead = h('div', { class: 'playhead', style: 'display:none' });
-  grid.append(playhead);
 
   const inner = h('div', { class: 'track-inner', style: `width:${width}px` }, line, grid);
   const scroller = h('div', { class: 'track' }, inner);
@@ -81,25 +79,11 @@ export function createTrack(song, { rowH = 58, ppb = Math.round(rowH * 1.7), ext
 
   return {
     el, blocks, laid, rows, x, ppb,
-    setPlayhead(beat) {
-      if (beat == null) { playhead.style.display = 'none'; return; }
-      playhead.style.display = '';
-      playhead.style.transform = `translateX(${x(beat)}px)`;
-    },
-    // Keep a beat position in view: 'continuous' pins it at 30% of the width
-    // (a scrolling score); otherwise page smoothly when it nears the edge.
-    follow(beat, how = 'page') {
-      const w = scroller.clientWidth, px = x(beat), target = Math.max(0, px - w * 0.3);
-      if (how === 'continuous') { if (target > scroller.scrollLeft) scroller.scrollLeft = target; return; }
-      const rel = px - scroller.scrollLeft;
-      if (rel < w * 0.1 || rel > w * 0.7) scroller.scrollTo({ left: target, behavior: 'smooth' });
+    scrollToBeat(beat) {
+      scroller.scrollLeft = Math.max(0, x(beat) - ppb);
     },
     scrollToEnd() {
       scroller.scrollLeft = Math.max(0, x(totalBeats(song.notes)) - scroller.clientWidth * 0.6);
-    },
-    blockTop(i) {
-      const n = laid[i];
-      return n.p == null ? yOfRow(Math.floor((rows.length - 1) / 2)) : yOfRow(rowOf(rows, n.p)) + 3;
     },
     grid,
   };

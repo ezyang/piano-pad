@@ -14,8 +14,8 @@ function route() {
   dispose?.();
   dispose = null;
   root.replaceChildren();
-  const [name, id] = location.hash.replace(/^#\/?/, '').split('/');
-  dispose = (ROUTES[name] ?? home)(root, id) ?? null;
+  const [name, id, extra] = location.hash.replace(/^#\/?/, '').split('/');
+  dispose = (ROUTES[name] ?? home)(root, id, extra) ?? null;
 }
 
 document.body.style.setProperty('--dirt', `url(${texture('dirt')})`);

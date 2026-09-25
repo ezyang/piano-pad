@@ -14,10 +14,13 @@ const TOOLS = [
   { id: 'rest', notes: () => [{ d: 1, p: null }] },
 ];
 
-export function editor(root, id) {
+export function editor(root, id, extra) {
   const song = getSong(id);
   if (!song) { location.hash = '#/'; return; }
-  const readOnly = song.by === 'teacher';
+  // Homework is read-only for her (she can remix it); a grown-up edits it via
+  // #/song/<id>/edit (⚙︎ menu, or the 🔒 button here).
+  const grownup = song.by === 'teacher' && extra === 'edit';
+  const readOnly = song.by === 'teacher' && !grownup;
   let tool = 'ta';
   const history = [];
   let track;
@@ -54,13 +57,14 @@ export function editor(root, id) {
   };
 
   const trackBox = h('div', { class: 'track-box' });
-  function redraw(toEnd = false) {
+  function redraw(toEnd = false, toBeat = null) {
     const left = track?.el.querySelector('.track').scrollLeft ?? 0;
     track = createTrack(song, { onTap, extraBeats: readOnly ? 0 : 4, rowH: fitRowH(song, innerHeight - 200, 80) });
     trackBox.replaceChildren(track.el);
     const sc = track.el.querySelector('.track');
     sc.scrollLeft = left;
-    if (toEnd || writing) track.scrollToEnd();
+    if (toBeat != null) track.scrollToBeat(toBeat);
+    else if (toEnd || writing) track.scrollToEnd();
     undoBtn.disabled = !history.length;
   }
 
@@ -99,6 +103,7 @@ export function editor(root, id) {
     root.querySelector('.screen').classList.add('is-writing');
   }
   function stopWriting(keep) {
+    const base = writing.base;
     writing.off();
     engine.listen(false);
     song.notes.splice(writing.base);
@@ -113,7 +118,8 @@ export function editor(root, id) {
     writeBtn.classList.remove('recording');
     cancelBtn.style.display = 'none';
     root.querySelector('.screen').classList.remove('is-writing');
-    redraw(true);
+    // Show what was just written, from its start.
+    redraw(false, song.notes.slice(0, base).reduce((a, n) => a + n.d, 0));
   }
 
   const title = h('input', {
@@ -155,10 +161,12 @@ export function editor(root, id) {
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       title,
       h('div', { class: 'spacer' }),
+      readOnly ? h('a', { class: 'btn small faint', href: `#/song/${song.id}/edit`, title: 'Grown-ups: edit this homework' }, '🔒') : null,
       readOnly ? null : clefBtn,
       readOnly ? h('button', { class: 'btn', onclick: remix }, '🔀 Remix') : del,
       h('a', { class: 'btn', href: `#/band/${song.id}` }, '🎸 Band'),
       h('a', { class: 'btn primary big', href: `#/play/${song.id}` }, '▶ Play')),
+    grownup ? h('div', { class: 'grownup-note' }, '📝 Editing homework. Easiest: tap 🎹 Play to write and play it on the piano, then fix blocks by tapping. Set the clef if needed.') : null,
     trackBox,
     readOnly
       ? h('div', { class: 'toolbar note' }, 'This is your teacher\'s song. Tap 🔀 Remix to make your own version!')

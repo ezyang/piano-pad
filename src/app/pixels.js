@@ -33,6 +33,14 @@ const DRAW = {
       for (let y = 0; y < h; y++) px(g, x, y, pick(rng, ['#5d9e36', '#6fb43f', '#4f8a2c']));
     }
   },
+  snow(g, rng) {
+    speckle(g, rng, ['#866043', '#79553a', '#96704f', '#6b4a32']);
+    for (let x = 0; x < 16; x++) {
+      const h = 3 + Math.floor(rng() * 3);
+      for (let y = 0; y < h; y++) px(g, x, y, pick(rng, ['#ffffff', '#eef6fb', '#dbe9f2']));
+    }
+  },
+  sand(g, rng) { speckle(g, rng, ['#e8d59a', '#dcc88a', '#f0e0a8', '#d6c07e']); },
   dirt(g, rng) { speckle(g, rng, ['#866043', '#79553a', '#96704f', '#6b4a32']); },
   planks(g, rng) {
     speckle(g, rng, ['#b8945f', '#a88452', '#c29d68']);

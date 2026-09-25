@@ -1,6 +1,6 @@
 import { h, flash } from '../dom.js';
 import { getSong, getState, save } from '../store.js';
-import { createTrack } from '../track.js';
+import { createStaff, systemHeight, resolveClef } from '../staff.js';
 import { BAND, bandSprite, characterUrl, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
@@ -30,13 +30,16 @@ export function band(root, id) {
     return { m, el, img, unlocked };
   });
 
-  const track = createTrack(song, { extraBeats: 0, rowH: 40 });
+  // The real notation, lit up note by note as the band plays: hearing it
+  // while following along on the page.
+  const staffBox = h('div', { class: 'staff-box' });
+  let staff = null;
   const playBtn = h('button', { class: 'btn primary huge', onclick: () => (playing ? stop() : start()) }, '▶ Play');
   const need = BAND.length - song.band;
 
   root.append(h('div', { class: 'screen band' },
     h('header', { class: 'bar' },
-      h('a', { class: 'btn', href: `#/song/${song.id}` }, '⬅'),
+      h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, song.title),
       h('div', { class: 'spacer' }),
       h('a', { class: 'btn primary', href: `#/play/${song.id}` }, '🎹 Practice')),
@@ -45,7 +48,14 @@ export function band(root, id) {
       ? `Play your song with 2 or more stars to meet the next band member! (${need} more to find)`
       : 'Your whole band is here! 🎉 Tap a band member to make them quiet.'),
     h('div', { class: 'row center' }, playBtn),
-    h('div', { class: 'track-box small' }, track.el)));
+    staffBox));
+  {
+    const clef = resolveClef(song), letters = st.showLetters !== false;
+    const s = Math.max(12, Math.min(18, Math.round(innerHeight / 48)));
+    const H = systemHeight(s, clef, letters);
+    staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: innerHeight > 900 && 2 * H < innerHeight * 0.45 ? 2 : 1 });
+    staffBox.replaceChildren(staff.el);
+  }
 
   async function start() {
     if (!song.notes.length) return;
@@ -55,21 +65,22 @@ export function band(root, id) {
     const { startTime } = engine.play(audio);
     const beatSec = 60 / song.bpm;
     playing = { t0: startTime + lead, beatSec, end: startTime + lead + totalBeats(song.notes) * beatSec + 0.3, last: -1, active };
-    playBtn.textContent = '⏹ Stop';
+    playBtn.textContent = '⏹\uFE0F Stop';
     loop();
   }
 
   function loop() {
     raf = requestAnimationFrame(loop);
     const beat = (engine.now() - playing.t0) / playing.beatSec;
-    track.setPlayhead(Math.max(0, beat));
-    if (beat > 0) track.follow(beat, 'continuous');
-    // Bounce everyone on each new note; the drummer bounces on every beat.
-    const idx = track.laid.findIndex((n) => beat >= n.start && beat < n.start + n.d);
+    // Light the note being played; bounce everyone on each new note, and the
+    // drummer on every beat.
+    const idx = staff.laid.findIndex((n) => beat >= n.start && beat < n.start + n.d);
     if (idx !== playing.last && idx >= 0) {
+      if (playing.last >= 0) staff.mark(playing.last, '');
       playing.last = idx;
+      staff.mark(idx, 'current');
+      staff.show(idx);
       for (const x of playing.active) if (x.m.instrument !== 'drums') flash(x.img, 'hop', 300);
-      if (track.laid[idx].p != null) flash(track.blocks[idx], 'pop', 300);
     }
     const whole = Math.floor(beat);
     if (whole !== playing.lastBeat && beat >= 0) {
@@ -82,8 +93,8 @@ export function band(root, id) {
   function stop() {
     cancelAnimationFrame(raf);
     engine.stopAll();
+    if (playing.last >= 0) staff.mark(playing.last, '');
     playing = null;
-    track.setPlayhead(null);
     playBtn.textContent = '▶ Play';
   }
 
