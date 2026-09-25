@@ -39,16 +39,30 @@ export function play(root, id) {
   // --- header ---
   const modeBtns = MODES.map(([m, label]) =>
     h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) }, label));
-  function setMode(m) {
-    if (session) return;
+  function setMode(m, initial = false) {
+    if (session?.mode === 'beat') return;
+    abort();
     mode = m;
     st.playMode = m;
     save();
     for (const b of modeBtns) b.classList.toggle('on', b.dataset.mode === m);
     speedBox.style.display = m === 'beat' ? '' : 'none';
+    if (!initial) { rebuild(); ready(); }
+  }
+  let gen = 0; // bumps whenever a session is abandoned, to cancel stale async work
+  function abort() {
+    gen++;
+    if (!session) return;
+    session.off();
+    session = null;
+  }
+  // Untimed modes just start listening; the beat mode waits for Start.
+  function ready() {
+    if (mode === 'beat') showStart();
+    else begin();
   }
   const bpmLabel = h('span', { class: 'bpm' }, String(bpm));
-  const setBpm = (v) => { if (session) return; bpm = Math.max(40, Math.min(160, v)); song.playBpm = bpm; save(); bpmLabel.textContent = String(bpm); };
+  const setBpm = (v) => { if (session?.mode === 'beat') return; bpm = Math.max(40, Math.min(160, v)); song.playBpm = bpm; save(); bpmLabel.textContent = String(bpm); };
   const speedBox = h('div', { class: 'speed' },
     h('button', { class: 'btn small', onclick: () => setBpm(bpm - 10) }, '🐌'), bpmLabel,
     h('button', { class: 'btn small', onclick: () => setBpm(bpm + 10) }, '🐇'));
@@ -67,8 +81,8 @@ export function play(root, id) {
     h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay),
     testKeyboard()));
   rebuild();
-  setMode(mode);
-  showStart();
+  setMode(mode, true);
+  ready();
   meterLoop();
 
   function meterLoop() {
@@ -83,15 +97,21 @@ export function play(root, id) {
   }
 
   async function begin() {
+    const myGen = ++gen;
     overlay.style.display = 'none';
     try {
-      await engine.listen(true);
+      // Without a recent tap (e.g. opened straight onto this screen) iOS
+      // won't start audio; fall back to a Start button then.
+      const ok = await Promise.race([engine.listen(true).then(() => true), new Promise((r) => setTimeout(() => r(false), 1500))]);
+      if (myGen !== gen) return;
+      if (!ok || engine.ctx.state !== 'running') { showStart(); return; }
     } catch (err) {
       overlay.replaceChildren(h('div', { class: 'panel' }, 'I need the microphone to hear the piano! 🎤', h('br'), String(err.message ?? err)),
         h('button', { class: 'btn primary', onclick: begin }, 'Try again'));
       overlay.style.display = '';
       return;
     }
+    if (myGen !== gen) return;
     rebuild();
     const t = staff.targets;
     session = {
@@ -134,7 +154,7 @@ export function play(root, id) {
         staff.mark(t[k], 'hit');
         build.place(k, n.midi);
         session.cur++;
-        if (session.cur >= t.length) setTimeout(finish, 700);
+        if (session.cur >= t.length) finishSoon(700);
         else markCurrent();
       } else {
         session.wrong++;
@@ -171,7 +191,7 @@ export function play(root, id) {
         session.lastWrong = { k, time: n.time };
       }
       session.cur++;
-      if (session.cur >= t.length) setTimeout(finish, FIX_WINDOW * 1000); // leave time for a last fix
+      if (session.cur >= t.length) finishSoon(FIX_WINDOW * 1000); // leave time for a last fix
       else markCurrent();
       return;
     }
@@ -231,6 +251,11 @@ export function play(root, id) {
     return ratios.filter((x) => x.r > 1.7 * med && x.gap > 0.5).length;
   }
 
+  function finishSoon(ms) {
+    const s = session;
+    setTimeout(() => { if (session === s) finish(); }, ms);
+  }
+
   async function finish() {
     if (!session) return;
     const s = session;
@@ -278,7 +303,7 @@ export function play(root, id) {
           h('img', { class: 'join-sprite hop', src: bandSprite(joined) }),
           h('div', {}, `${joined.name} joined your band!`)) : null,
         h('div', { class: 'row' },
-          h('button', { class: 'btn primary big', onclick: () => { rebuild(); showStart(); } }, '🔁 Again'),
+          h('button', { class: 'btn primary big', onclick: () => { rebuild(); ready(); } }, '🔁 Again'),
           h('a', { class: 'btn big', href: `#/band/${song.id}` }, '🎸 Band'),
           h('a', { class: 'btn big', href: `#/song/${song.id}` }, '✏️')),
         h('div', { class: 'detail' }, detail)));
@@ -288,7 +313,7 @@ export function play(root, id) {
 
   return () => {
     cancelAnimationFrame(raf);
-    if (session) { session.off(); session = null; }
+    abort();
     engine.listen(false);
   };
 }
