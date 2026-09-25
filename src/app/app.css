@@ -161,6 +161,7 @@ button { font: inherit; color: inherit; }
 .tool:disabled { opacity: 0.4; }
 .tool .icon { width: 56px; height: 64px; }
 .erase-icon { font-size: 34px; }
+.clef-btn { font-family: 'Noto Music', var(--small); font-size: 26px; min-width: 64px; }
 .btn.write { font-size: 20px; min-height: 64px; }
 .btn.write.recording { background: #e8433a; color: #fff; animation: glow-red 1s infinite alternate; }
 @keyframes glow-red { to { box-shadow: 0 0 18px #e8433a; } }
@@ -252,8 +253,8 @@ button { font: inherit; color: inherit; }
 .climber img { display: block; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); }
 
 .staff-box { flex: 0 0 auto; }
-.staff-wrap { display: flex; background: var(--paper); border: 3px solid #000; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); }
-.staff-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+.staff-page { background: var(--paper); border: 3px solid #000; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); overflow: hidden; box-sizing: content-box; }
+.staff-systems { transition: transform 0.3s ease-out; }
 .staff { display: block; }
 .staff .sl { stroke: #3b3226; stroke-width: 1.6; }
 .staff .bl { stroke: #3b3226; stroke-width: 2.4; }
@@ -268,7 +269,6 @@ button { font: inherit; color: inherit; }
 .staff .clef-glyph, .staff .rest-glyph { font-family: 'Noto Music', serif; fill: var(--ink); }
 .staff .rest-glyph { dominant-baseline: middle; }
 .staff .letter { font-family: var(--pixel); font-size: 17px; fill: #3b3226; text-anchor: middle; }
-.staff .syl { font-family: var(--small); font-size: 13px; fill: #9a8360; text-anchor: middle; }
 .staff .halo { fill: none; }
 .staff .n.current .halo { fill: rgba(255, 216, 74, 0.55); stroke: #e0a800; stroke-width: 3; animation: halo 0.9s ease-in-out infinite alternate; }
 @keyframes halo { to { fill: rgba(255, 216, 74, 0.2); } }

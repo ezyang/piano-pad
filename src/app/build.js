@@ -64,25 +64,20 @@ export function createBuild(count, charUrl) {
 
   return {
     el,
-    // kind: 'good' (note's material) or 'cracked' (cobblestone)
-    place(k, midi, kind = 'good') {
+    place(k, midi) {
       if (k >= slots.length) return;
       let b = blocks[k];
       if (!b) {
         b = blocks[k] = h('div', { class: 'tblock' });
         tower.append(b);
       }
-      b.style.backgroundImage = `url(${kind === 'cracked' ? texture('cobble') : material(midi).url})`;
-      b.classList.toggle('cracked', kind === 'cracked');
+      b.style.backgroundImage = `url(${material(midi).url})`;
       layoutScene();
       flash(b, 'drop', 300);
       const s = slotPos(k);
-      if (kind !== 'cracked') sparkle(el, s.x + B / 2, s.y + B / 2, [material(midi).color, '#ffffff'], 8);
+      sparkle(el, s.x + B / 2, s.y + B / 2, [material(midi).color, '#ffffff'], 8);
       moveChar(k);
     },
-    // Where the character stands without placing anything (e.g. after a miss).
-    stand(k) { moveChar(k); },
-    shake() { flash(charImg, 'shake', 400); },
     celebrate() {
       const r = el.getBoundingClientRect();
       for (let i = 0; i < 4; i++) {

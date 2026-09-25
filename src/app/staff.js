@@ -1,142 +1,189 @@
-// Treble-staff notation for practice: real noteheads/stems/beams/rests on a
-// five-line staff, the letter under each note, and the rhythm syllable below
-// that. Spacing is engraving-style (compressed, not proportional to
-// duration), so width isn't a cue for rhythm; she reads the symbols.
-import { layout, totalBeats, isSharp, letter, SYLLABLE, REST_SYLLABLE } from './music.js';
+// Practice notation, laid out like a page: the song wraps into systems (lines)
+// that each start with a clef and are justified to the full width. Treble,
+// bass, or grand staff (middle C and up on treble). Engraving-style spacing,
+// so width isn't a cue for rhythm; she reads the symbols. Optional letter
+// names under the notes.
+//
+// Only `visible` systems show at once. show(i) pages so the line with note i
+// is on screen with (when there's room) the next line below it: a discrete
+// line-by-line step, never motion tied to time.
+import { layout, isSharp, letter } from './music.js';
 import { h, svg } from './dom.js';
 
 const STEP_OF = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // C C# D D# E F F# G G# A A# B
 const step = (m) => Math.floor(m / 12) * 7 + STEP_OF[((m % 12) + 12) % 12]; // diatonic index
-const E4 = step(64), B4 = step(71);
+const REF = { treble: step(64), bass: step(43) }; // bottom line: E4 / G2
 
-export function createStaff(song, { s = 20, extraBeats = 1 } = {}) {
-  const laid = layout(song.notes);
-  const beats = Math.max(4, Math.ceil((totalBeats(song.notes) + extraBeats) / 4) * 4);
-  const pad = s * 1.2;
-  const unit = s * 3.2; // space for a quarter note
-  const space = (d) => unit * d ** 0.6; // half ≈ 1.5×, whole ≈ 2.3×, eighth ≈ 0.66×
-  const barGap = s * 0.9; // room after a barline
-  // Breakpoints [beat, x]; x(beat) interpolates within a note's space.
-  const pts = [];
-  let cx = pad;
-  for (const n of laid) {
-    if (n.start > 0 && n.start % 4 === 0) cx += barGap;
-    pts.push([n.start, cx]);
-    cx += space(n.d);
-  }
-  const end = totalBeats(song.notes);
-  pts.push([end, cx]);
-  for (let b = end + 1; b <= beats; b++) {
-    if ((b - 1) % 4 === 0 && b - 1 > 0 && b - 1 !== end) cx += barGap;
-    cx += unit;
-    pts.push([b, cx]);
-  }
-  const x = (beat) => {
-    for (let i = 1; i < pts.length; i++) {
-      const [b0, x0] = pts[i - 1], [b1, x1] = pts[i];
-      if (beat <= b1) return b1 === b0 ? x1 : x0 + ((beat - b0) / (b1 - b0)) * (x1 - x0);
-    }
-    return pts[pts.length - 1][1];
-  };
-  const headX = (n) => x(n.start) + s * 0.9;
-  const width = x(beats) + pad;
+export function resolveClef(song) {
+  if (song.clef && song.clef !== 'auto') return song.clef;
+  const ps = song.notes.filter((n) => n.p != null).map((n) => n.p);
+  if (!ps.length || ps.every((p) => p >= 57)) return 'treble';
+  if (ps.every((p) => p <= 64)) return 'bass';
+  return 'grand';
+}
+
+// Vertical metrics for one system.
+function metrics(s, clef, letters) {
   const top = s * 3.2; // room for ledger lines above
-  const bottom = top + 4 * s; // bottom staff line (E4)
-  const yOf = (m) => bottom - (step(m) - E4) * (s / 2);
-  const letterY = bottom + s * 3.4;
-  const sylY = bottom + s * 4.6;
-  const H = sylY + s * 0.8;
-
-  const root = svg('svg', { class: 'staff', width, height: H, viewBox: `0 0 ${width} ${H}` });
-  for (let i = 0; i < 5; i++) root.append(svg('line', { x1: 0, x2: width, y1: bottom - i * s, y2: bottom - i * s, class: 'sl' }));
-  for (let b = 0; b <= beats; b += 4) {
-    const bx = b === 0 ? x(0) - s * 0.4 : x(b) - barGap * 0.55;
-    root.append(svg('line', { x1: bx, x2: bx, y1: bottom - 4 * s, y2: bottom, class: b === 0 ? 'bl thin' : 'bl' }));
+  const staves = [];
+  if (clef === 'grand') {
+    staves.push({ clef: 'treble', bottom: top + 4 * s });
+    staves.push({ clef: 'bass', bottom: top + 4 * s + 4.6 * s + 4 * s });
+  } else {
+    staves.push({ clef, bottom: top + 4 * s });
   }
-  const fx = svg('g', { class: 'fx' }); // ghosts etc. go on top
+  const last = staves[staves.length - 1].bottom;
+  const letterY = last + s * 3.4;
+  return { staves, letterY, height: letters ? letterY + s * 1.1 : last + s * 3 };
+}
+export const systemHeight = (s, clef, letters) => metrics(s, clef, letters).height;
+
+export function createStaff(song, { s = 20, width = 1000, letters = true, visible = 2 } = {}) {
+  const clef = resolveClef(song);
+  const laid = layout(song.notes);
+  const { staves, letterY, height: H } = metrics(s, clef, letters);
+  const staffOf = (m) => (clef === 'grand' ? staves[m >= 60 ? 0 : 1] : staves[0]);
+  const yOf = (m) => { const st = staffOf(m); return st.bottom - (step(m) - REF[st.clef]) * (s / 2); };
+
+  // Horizontal: engraving-style spacing, bars grouped greedily into systems.
+  const unit = s * 3.2;
+  const space = (d) => unit * d ** 0.6;
+  const barGap = s * 0.9;
+  const clefW = s * 4.4;
+  const bars = [];
+  laid.forEach((n, i) => {
+    const b = Math.floor(n.start / 4);
+    (bars[b] ??= { notes: [] }).notes.push(i);
+  });
+  const barList = bars.filter(Boolean).map((b) => ({ ...b, w: b.notes.reduce((a, i) => a + space(laid[i].d), 0) + barGap }));
+  const avail = width - clefW - s * 1.5;
+  const systems = [];
+  for (const b of barList) {
+    const cur = systems[systems.length - 1];
+    if (cur && cur.w + b.w <= avail) { cur.bars.push(b); cur.w += b.w; } else systems.push({ bars: [b], w: b.w });
+  }
+  if (!systems.length) systems.push({ bars: [], w: 0 });
 
   const groups = laid.map((n) => svg('g', { class: 'n' + (n.p == null ? ' rest' : '') }));
-  // Pair up ti-ti for beaming.
+  const headXs = [], systemOf = [];
+  const svgs = systems.map((sys, si) => {
+    const lastSys = si === systems.length - 1;
+    const stretch = lastSys ? 1 : avail / sys.w; // justify all but the last line
+    const root = svg('svg', { class: 'staff', width, height: H, viewBox: `0 0 ${width} ${H}` });
+    let cx = clefW;
+    const barXs = [];
+    for (const b of sys.bars) {
+      for (const i of b.notes) {
+        headXs[i] = cx + s * 0.9;
+        systemOf[i] = si;
+        cx += space(laid[i].d) * stretch;
+      }
+      cx += barGap * stretch * 0.45;
+      barXs.push(cx);
+      cx += barGap * stretch * 0.55;
+    }
+    const lineEnd = barXs.length ? barXs[barXs.length - 1] : width - s;
+    for (const st of staves) {
+      for (let k = 0; k < 5; k++) root.append(svg('line', { x1: 0, x2: lineEnd, y1: st.bottom - k * s, y2: st.bottom - k * s, class: 'sl' }));
+      root.append(st.clef === 'treble'
+        ? svg('text', { x: s * 0.3, y: st.bottom - s, class: 'clef-glyph', 'font-size': s * 4 }, '\u{1D11E}')
+        : svg('text', { x: s * 0.3, y: st.bottom - 0.4 * s, class: 'clef-glyph', 'font-size': s * 4 }, '\u{1D122}'));
+    }
+    const y0 = staves[0].bottom - 4 * s, y1 = staves[staves.length - 1].bottom;
+    root.append(svg('line', { x1: 1, x2: 1, y1: y0, y2: y1, class: 'bl thin' }));
+    barXs.forEach((bx, k) => {
+      root.append(svg('line', { x1: bx, x2: bx, y1: y0, y2: y1, class: 'bl' }));
+      if (lastSys && k === barXs.length - 1) {
+        root.append(svg('line', { x1: bx + s * 0.35, x2: bx + s * 0.35, y1: y0, y2: y1, class: 'bl', 'stroke-width': s * 0.3 }));
+      }
+    });
+    return root;
+  });
+  const fxs = svgs.map(() => svg('g', { class: 'fx' }));
+
+  // Ledger lines for pitch m at x.
+  const ledgers = (g, m, x) => {
+    const st = staffOf(m), ref = REF[st.clef], sp = step(m);
+    const line = (k) => g.append(svg('line', { x1: x - s, x2: x + s, y1: st.bottom - ((k - ref) * s) / 2, y2: st.bottom - ((k - ref) * s) / 2, class: 'ledger' }));
+    for (let k = ref - 2; k >= sp; k -= 2) line(k);
+    for (let k = ref + 10; k <= sp; k += 2) line(k);
+  };
+  const stemUp = (m) => step(m) < REF[staffOf(m).clef] + 4;
+
+  // Beamed ti-ti pairs (same staff, same line).
   const beamed = new Set(), pairs = [];
   for (let i = 0; i + 1 < laid.length; i++) {
     const a = laid[i], b = laid[i + 1];
-    if (a.d === 0.5 && b.d === 0.5 && a.p != null && b.p != null && a.start % 1 === 0) { beamed.add(i); beamed.add(i + 1); pairs.push(i); i++; }
+    if (a.d === 0.5 && b.d === 0.5 && a.p != null && b.p != null && a.start % 1 === 0 &&
+        staffOf(a.p) === staffOf(b.p) && systemOf[i] === systemOf[i + 1]) {
+      beamed.add(i); beamed.add(i + 1); pairs.push(i); i++;
+    }
   }
 
+  let restStaff = staves[0];
   laid.forEach((n, i) => {
-    const g = groups[i];
-    const hx = headX(n);
+    const g = groups[i], hx = headXs[i];
     if (n.p == null) {
       for (let k = 0; k < n.d; k++) {
-        g.append(svg('text', { x: x(n.start) + s * 0.9 + (k * space(n.d)) / n.d, y: bottom - 1.5 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
+        g.append(svg('text', { x: hx + (k * space(n.d)) / n.d, y: restStaff.bottom - 1.5 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
       }
-      g.append(svg('text', { x: hx, y: sylY, class: 'syl' }, REST_SYLLABLE));
       return;
     }
+    restStaff = staffOf(n.p);
     const y = yOf(n.p);
-    // ledger lines
-    for (let st = E4 - 2; st >= step(n.p); st -= 2) g.append(svg('line', { x1: hx - s * 1.0, x2: hx + s * 1.0, y1: bottom - (st - E4) * s / 2, y2: bottom - (st - E4) * s / 2, class: 'ledger' }));
-    for (let st = E4 + 10; st <= step(n.p); st += 2) g.append(svg('line', { x1: hx - s * 1.0, x2: hx + s * 1.0, y1: bottom - (st - E4) * s / 2, y2: bottom - (st - E4) * s / 2, class: 'ledger' }));
+    ledgers(g, n.p, hx);
     g.append(svg('circle', { cx: hx, cy: y, r: s * 1.15, class: 'halo' }));
     if (isSharp(n.p)) g.append(svg('text', { x: hx - s * 1.3, y: y + s * 0.45, class: 'acc', 'font-size': s * 1.5 }, '♯'));
-    const hollow = n.d >= 2;
-    g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: hollow ? 'head hollow' : 'head' }));
-    const up = step(n.p) < B4;
-    const sx = up ? hx + s * 0.62 : hx - s * 0.62;
-    const sy = up ? y - s * 3.4 : y + s * 3.4;
+    g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: n.d >= 2 ? 'head hollow' : 'head' }));
+    const up = stemUp(n.p);
+    const sx = up ? hx + s * 0.62 : hx - s * 0.62, sy = up ? y - s * 3.4 : y + s * 3.4;
     if (n.d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
     if (n.d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
-    if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === E4 % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
-    g.append(svg('text', { x: hx, y: letterY, class: 'letter' }, letter(n.p) + (isSharp(n.p) ? '♯' : '')));
-    g.append(svg('text', { x: hx, y: sylY, class: 'syl' }, beamed.has(i) ? 'ti' : SYLLABLE[n.d] ?? ''));
+    if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
+    if (letters) g.append(svg('text', { x: hx, y: letterY, class: 'letter' }, letter(n.p) + (isSharp(n.p) ? '♯' : '')));
   });
-
-  // Beamed pairs: stems in a shared direction with a beam across.
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];
-    const up = (step(a.p) + step(b.p)) / 2 < B4;
-    const ax = headX(a) + (up ? s * 0.62 : -s * 0.62), bx = headX(b) + (up ? s * 0.62 : -s * 0.62);
-    const ay = yOf(a.p), by = yOf(b.p);
+    const up = (step(a.p) + step(b.p)) / 2 < REF[staffOf(a.p).clef] + 4;
+    const off = up ? s * 0.62 : -s * 0.62;
+    const ax = headXs[i] + off, bx = headXs[i + 1] + off, ay = yOf(a.p), by = yOf(b.p);
     const beamY = up ? Math.min(ay, by) - s * 3.4 : Math.max(ay, by) + s * 3.4;
-    groups[i].append(svg('line', { x1: ax, x2: ax, y1: ay, y2: beamY, class: 'stem' }));
+    groups[i].append(svg('line', { x1: ax, x2: ax, y1: ay, y2: beamY, class: 'stem' }),
+      svg('line', { x1: ax, x2: bx, y1: beamY, y2: beamY, class: 'beam', 'stroke-width': s * 0.45 }));
     groups[i + 1].append(svg('line', { x1: bx, x2: bx, y1: by, y2: beamY, class: 'stem' }));
-    groups[i].append(svg('line', { x1: ax, x2: bx, y1: beamY, y2: beamY, class: 'beam', 'stroke-width': s * 0.45 }));
   }
-  root.append(...groups, fx);
+  groups.forEach((g, i) => svgs[systemOf[i]].append(g));
+  svgs.forEach((r, k) => r.append(fxs[k]));
 
-
-  const clef = svg('svg', { class: 'staff clef', width: s * 3.4, height: H, viewBox: `0 0 ${s * 3.4} ${H}` });
-  for (let i = 0; i < 5; i++) clef.append(svg('line', { x1: 0, x2: s * 3.4, y1: bottom - i * s, y2: bottom - i * s, class: 'sl' }));
-  clef.append(svg('line', { x1: 1, x2: 1, y1: bottom - 4 * s, y2: bottom, class: 'bl thin' }));
-  clef.append(svg('text', { x: s * 0.3, y: bottom - s, class: 'clef-glyph', 'font-size': s * 4 }, '\u{1D11E}'));
-
-  const scroller = h('div', { class: 'staff-scroll' }, root);
-  const el = h('div', { class: 'staff-wrap' }, clef, scroller);
+  const V = Math.max(1, Math.min(visible, systems.length));
+  const strip = h('div', { class: 'staff-systems' }, svgs);
+  const el = h('div', { class: 'staff-page', style: `height:${V * H}px` }, strip);
+  let first = 0;
 
   return {
-    el, laid, x, s,
+    el, laid,
     targets: laid.map((n, i) => i).filter((i) => laid[i].p != null),
     // state: current | hit | perfect | good | ok | wrong | miss | fixed | '' (clear)
     mark(i, state) {
-      const g = groups[i];
-      g.setAttribute('class', 'n' + (laid[i].p == null ? ' rest' : '') + (state ? ' ' + state : ''));
+      groups[i].setAttribute('class', 'n' + (laid[i].p == null ? ' rest' : '') + (state ? ' ' + state : ''));
     },
     // Show the note she actually played, faintly, beside note i.
     ghost(i, midi) {
-      const n = laid[i], hx = headX(n) + s * 1.6, y = yOf(midi);
+      const hx = headXs[i] + s * 1.6, y = yOf(midi);
       const g = svg('g', { class: 'ghost' });
-      for (let st = E4 - 2; st >= step(midi); st -= 2) g.append(svg('line', { x1: hx - s, x2: hx + s, y1: bottom - (st - E4) * s / 2, y2: bottom - (st - E4) * s / 2, class: 'ledger' }));
-      for (let st = E4 + 10; st <= step(midi); st += 2) g.append(svg('line', { x1: hx - s, x2: hx + s, y1: bottom - (st - E4) * s / 2, y2: bottom - (st - E4) * s / 2, class: 'ledger' }));
+      ledgers(g, midi, hx);
       g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: 'head' }));
-      g.append(svg('text', { x: hx, y: letterY - s * 1.3, class: 'letter' }, letter(midi) + (isSharp(midi) ? '♯' : '')));
-      fx.append(g);
+      if (letters) g.append(svg('text', { x: hx, y: letterY - s * 1.3, class: 'letter' }, letter(midi) + (isSharp(midi) ? '♯' : '')));
+      fxs[systemOf[i]].append(g);
       setTimeout(() => g.remove(), 1200);
     },
-    follow(beat, how = 'page') {
-      const w = scroller.clientWidth, px = x(beat), target = Math.max(0, px - w * 0.3);
-      if (how === 'continuous') { if (target > scroller.scrollLeft) scroller.scrollLeft = target; return; }
-      const rel = px - scroller.scrollLeft;
-      if (rel < w * 0.1 || rel > w * 0.7) scroller.scrollTo({ left: target, behavior: 'smooth' });
+    // Page so note i's line shows, with the next line below when there's room.
+    show(i) {
+      const si = systemOf[i] ?? 0;
+      const want = Math.max(0, Math.min(si - Math.max(0, V - 2), systems.length - V));
+      if (want === first) return;
+      first = want;
+      strip.style.transform = `translateY(${-first * H}px)`;
     },
   };
 }

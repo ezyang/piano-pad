@@ -29,6 +29,9 @@ export function home(root) {
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: st.testKeyboard || null, onchange: (e) => { st.testKeyboard = e.target.checked; save(); } }),
         'Test keyboard (silent, on Play and Compose screens)'),
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: st.showLetters !== false || null, onchange: (e) => { st.showLetters = e.target.checked; save(); } }),
+        'Letter names under notes'),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {

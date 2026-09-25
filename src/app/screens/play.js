@@ -6,7 +6,7 @@
 //           graded on timing
 import { h } from '../dom.js';
 import { getSong, getState, save } from '../store.js';
-import { createStaff } from '../staff.js';
+import { createStaff, systemHeight, resolveClef } from '../staff.js';
 import { createBuild } from '../build.js';
 import { pitchClass, totalBeats } from '../music.js';
 import { characterUrl, BAND, bandSprite } from '../pixels.js';
@@ -31,7 +31,13 @@ export function play(root, id) {
   const staffBox = h('div', { class: 'staff-box' });
   let staff, build;
   function rebuild() {
-    staff = createStaff(song, { s: Math.max(14, Math.min(22, Math.round(innerHeight / 40))) });
+    // Size the staff so two lines fit when possible (reading ahead), leaving
+    // the rest of the height to the building scene.
+    const clef = resolveClef(song), letters = st.showLetters !== false;
+    const s = Math.max(12, Math.min(22, Math.round(innerHeight / (clef === 'grand' ? 52 : 40))));
+    const H = systemHeight(s, clef, letters);
+    const avail = stageEl.clientHeight - 150 - 10; // keep ≥150px of scene
+    staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: avail >= 2 * H ? 2 : 1 });
     staffBox.replaceChildren(staff.el);
     build = createBuild(staff.targets.length, characterUrl(st.character));
     sceneBox.replaceChildren(build.el);
@@ -41,18 +47,19 @@ export function play(root, id) {
   const modeBtns = MODES.map(([m, label]) =>
     h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) }, label));
   function setMode(m, initial = false) {
-    if (session?.mode === 'beat') return;
     abort();
     mode = m;
     st.playMode = m;
     save();
     for (const b of modeBtns) b.classList.toggle('on', b.dataset.mode === m);
-    speedBox.style.display = m === 'beat' ? '' : 'none';
+    speedBox.style.visibility = m === 'beat' ? '' : 'hidden'; // keep its space so the header doesn't shift
     if (!initial) { rebuild(); ready(); }
   }
   let gen = 0; // bumps whenever a session is abandoned, to cancel stale async work
   function abort() {
     gen++;
+    count.style.display = 'none';
+    if (session?.mode === 'beat') engine.stopAll(); // cancel scheduled count-in ticks
     if (!session) return;
     session.off();
     session = null;
@@ -63,7 +70,13 @@ export function play(root, id) {
     else begin();
   }
   const bpmLabel = h('span', { class: 'bpm' }, String(bpm));
-  const setBpm = (v) => { if (session?.mode === 'beat') return; bpm = Math.max(40, Math.min(160, v)); song.playBpm = bpm; save(); bpmLabel.textContent = String(bpm); };
+  const setBpm = (v) => {
+    if (session) { abort(); rebuild(); ready(); } // tapping controls stops a run in progress
+    bpm = Math.max(40, Math.min(160, v));
+    song.playBpm = bpm;
+    save();
+    bpmLabel.textContent = String(bpm);
+  };
   const speedBox = h('div', { class: 'speed' },
     h('button', { class: 'btn small', onclick: () => setBpm(bpm - 10) }, '🐌'), bpmLabel,
     h('button', { class: 'btn small', onclick: () => setBpm(bpm + 10) }, '🐇'));
@@ -71,6 +84,7 @@ export function play(root, id) {
   const ear = h('div', { class: 'ear', title: 'Microphone' }, '👂', h('div', { class: 'meter' }, meterFill));
   const overlay = h('div', { class: 'overlay' });
   const count = h('div', { class: 'countin' });
+  const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay);
 
   root.append(h('div', { class: 'screen play' },
     h('header', { class: 'bar' },
@@ -79,7 +93,7 @@ export function play(root, id) {
       h('div', { class: 'spacer' }),
       h('div', { class: 'segs' }, modeBtns),
       speedBox, ear),
-    h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay),
+    stageEl,
     testKeyboard()));
   rebuild();
   setMode(mode, true);
@@ -142,7 +156,7 @@ export function play(root, id) {
     const i = staff.targets[session.cur];
     if (i == null) return;
     staff.mark(i, 'current');
-    staff.follow(staff.laid[i].start);
+    staff.show(i);
   }
 
   function onNote(n) {
@@ -160,7 +174,6 @@ export function play(root, id) {
       } else {
         session.wrong++;
         staff.ghost(t[k], n.midi);
-        build.shake();
       }
       return;
     }
@@ -188,7 +201,6 @@ export function play(root, id) {
         session.grades.set(k, 'wrong');
         staff.mark(t[k], 'wrong');
         staff.ghost(t[k], n.midi);
-        build.place(k, n.midi, 'cracked');
         session.lastWrong = { k, time: n.time };
       }
       session.cur++;
@@ -210,7 +222,6 @@ export function play(root, id) {
       session.grades.set(best, 'wrong');
       staff.mark(t[best], 'wrong');
       staff.ghost(t[best], n.midi);
-      build.place(best, n.midi, 'cracked');
       return;
     }
     const grade = bestErr < 0.08 ? 'perfect' : bestErr < 0.16 ? 'good' : 'ok';
@@ -224,14 +235,14 @@ export function play(root, id) {
     const beat = (now - session.t0) / session.beatSec;
     if (beat < 0) {
       count.textContent = String(Math.ceil(-beat));
-      count.style.display = '';
+      count.style.display = 'block';
     } else {
       count.style.display = 'none';
     }
     // Page along with her progress (not smooth scrolling, which would be a
     // timing cue in disguise).
     const next = staff.targets[[...session.expected.keys()].find((k) => !session.grades.has(k)) ?? staff.targets.length - 1];
-    if (next != null) staff.follow(staff.laid[next].start);
+    if (next != null) staff.show(next);
     for (const [k, time] of session.expected) {
       if (!session.grades.has(k) && now > time + session.window) {
         session.grades.set(k, 'miss');

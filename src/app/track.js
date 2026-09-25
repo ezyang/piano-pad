@@ -2,17 +2,18 @@
 // syllables) above rows of pitch blocks, one row per natural note.
 import { layout, totalBeats, rowsFor, rowOf, notationGroups, letter, isSharp, SYLLABLE, REST_SYLLABLE } from './music.js';
 import { material } from './pixels.js';
+import { resolveClef } from './staff.js';
 import { h, svg } from './dom.js';
 
 export const RHYTHM_H = 78;
 
 // Row height that fills `avail` px of vertical space.
 export const fitRowH = (song, avail, max = 96) =>
-  Math.round(Math.max(44, Math.min(max, (avail - RHYTHM_H) / rowsFor(song.notes).length)));
+  Math.round(Math.max(36, Math.min(max, (avail - RHYTHM_H) / rowsFor(song.notes, resolveClef(song)).length)));
 
 export function createTrack(song, { rowH = 58, ppb = Math.round(rowH * 1.7), extraBeats = 2, onTap, labels = true } = {}) {
   const laid = layout(song.notes);
-  const rows = rowsFor(song.notes);
+  const rows = rowsFor(song.notes, resolveClef(song));
   const beats = Math.max(8, Math.ceil((totalBeats(song.notes) + extraBeats) / 4) * 4);
   const pad = 24; // left padding inside the scroller
   const x = (beat) => pad + beat * ppb;

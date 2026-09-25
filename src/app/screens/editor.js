@@ -128,6 +128,19 @@ export function editor(root, id) {
     location.hash = `#/song/${copy.id}`;
   };
 
+  // Clef: auto picks from the notes; the lesson book uses treble, bass, or both.
+  const CLEFS = [['auto', 'Auto'], ['treble', '𝄞'], ['bass', '𝄢'], ['grand', '𝄞𝄢']];
+  const clefBtn = h('button', {
+    class: 'btn clef-btn', title: 'Clef',
+    onclick: () => {
+      const i = CLEFS.findIndex(([c]) => c === (song.clef ?? 'auto'));
+      song.clef = CLEFS[(i + 1) % CLEFS.length][0];
+      save();
+      clefBtn.textContent = CLEFS.find(([c]) => c === song.clef)[1];
+      redraw();
+    },
+  }, CLEFS.find(([c]) => c === (song.clef ?? 'auto'))[1]);
+
   let delArmed = false;
   const del = h('button', {
     class: 'btn small danger', onclick: () => {
@@ -142,6 +155,7 @@ export function editor(root, id) {
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       title,
       h('div', { class: 'spacer' }),
+      readOnly ? null : clefBtn,
       readOnly ? h('button', { class: 'btn', onclick: remix }, '🔀 Remix') : del,
       h('a', { class: 'btn', href: `#/band/${song.id}` }, '🎸 Band'),
       h('a', { class: 'btn primary big', href: `#/play/${song.id}` }, '▶ Play')),

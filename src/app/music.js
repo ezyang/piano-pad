@@ -25,10 +25,13 @@ export function layout(notes) {
 
 export const totalBeats = (notes) => notes.reduce((s, n) => s + n.d, 0);
 
-// Natural-note rows (low to high) covering the song, at least C4..G4.
-export function rowsFor(notes) {
+// Natural-note rows (low to high) covering the song and at least the clef's
+// home range: treble C4..G4, bass C3..G3, grand C3..G4.
+const HOME = { treble: [60, 67], bass: [48, 55], grand: [48, 67] };
+export function rowsFor(notes, clef = 'treble') {
   const ps = notes.filter((n) => n.p != null).map((n) => n.p - (isSharp(n.p) ? 1 : 0));
-  let lo = Math.min(60, ...ps), hi = Math.max(67, ...ps);
+  const [homeLo, homeHi] = HOME[clef] ?? HOME.treble;
+  let lo = Math.min(homeLo, ...ps), hi = Math.max(homeHi, ...ps);
   const rows = [];
   for (let m = lo; m <= hi; m++) if (!isSharp(m)) rows.push(m);
   return rows;
