@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { getState, newSong, resetAll } from '../store.js';
+import { getState, newSong, resetAll, save } from '../store.js';
 import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 
 export function home(root) {
@@ -26,6 +26,9 @@ export function home(root) {
   const parent = h('details', { class: 'parent' },
     h('summary', {}, '⚙︎'),
     h('div', { class: 'parent-menu' },
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: st.testKeyboard || null, onchange: (e) => { st.testKeyboard = e.target.checked; save(); } }),
+        'Test keyboard (silent, on Play and Compose screens)'),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {

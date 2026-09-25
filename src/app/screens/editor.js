@@ -3,6 +3,7 @@ import { getSong, save, getState, deleteSong } from '../store.js';
 import { createTrack, glyphIcon, fitRowH } from '../track.js';
 import { quantize } from '../music.js';
 import { engine } from '../engine.js';
+import { testKeyboard } from '../keyboard.js';
 import { renderNote } from '../../synth.js';
 
 const TOOLS = [
@@ -147,7 +148,8 @@ export function editor(root, id) {
     trackBox,
     readOnly
       ? h('div', { class: 'toolbar note' }, 'This is your teacher\'s song. Tap 🔀 Remix to make your own version!')
-      : h('div', { class: 'toolbar' }, toolBtns, undoBtn, h('div', { class: 'spacer' }), cancelBtn, writeBtn)));
+      : h('div', { class: 'toolbar' }, toolBtns, undoBtn, h('div', { class: 'spacer' }), cancelBtn, writeBtn),
+    testKeyboard()));
   redraw();
 
   return () => { if (writing) stopWriting(true); };

@@ -99,13 +99,13 @@ class Engine {
   }
 
   // Pretend a piano key was struck: synthesize it straight into the detector.
-  async simulate(midi) {
+  async simulate(midi, { audible = !this.listening } = {}) {
     await this.start();
     const sr = this.ctx.sampleRate;
     const audio = new Float32Array(Math.round(1.0 * sr));
     renderNote(audio, 0, { midi, vel: 0.7, dur: 0.5 }, sr, Math.random);
-    // Keep it quiet while the mic is on, or the mic would hear it twice.
-    this.play(audio, { toDetector: true, audible: !this.listening });
+    // Quiet by default while the mic is on, or the mic would hear it twice.
+    this.play(audio, { toDetector: true, audible });
   }
 }
 

@@ -4,6 +4,7 @@ import { createTrack, fitRowH } from '../track.js';
 import { pitchClass, totalBeats, letter } from '../music.js';
 import { characterUrl, material, BAND, bandSprite } from '../pixels.js';
 import { engine } from '../engine.js';
+import { testKeyboard } from '../keyboard.js';
 import { renderJingle } from '../instruments.js';
 
 const SPRITE_W = 40, SPRITE_H = 56;
@@ -70,7 +71,8 @@ export function play(root, id) {
       h('div', { class: 'spacer' }),
       h('div', { class: 'segs' }, modeBtns),
       speedBox, ear),
-    h('div', { class: 'stage' }, trackBox, count, overlay)));
+    h('div', { class: 'stage' }, trackBox, count, overlay),
+    testKeyboard()));
   build();
   setMode(mode);
   showStart();

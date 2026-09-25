@@ -222,3 +222,14 @@ button { font: inherit; color: inherit; }
   .me-body { flex-direction: column; }
   .board { height: auto; width: min(100%, 360px); }
 }
+
+/* ---------- Test keyboard ---------- */
+.test-kb { display: flex; gap: 8px; align-items: stretch; flex: 0 0 auto; height: 96px; }
+.kb-label { color: #fff; font-size: 13px; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; opacity: 0.7; }
+.kb-keys { position: relative; flex: 1; max-width: 720px; margin: 0 auto; }
+.kb-keys button { position: absolute; top: 0; padding: 0; border: 2px solid #000; touch-action: none; }
+.kb-keys .wk { width: calc(100% / var(--n)); height: 100%; background: #fafaf7; border-radius: 0 0 6px 6px; color: #666; font-family: var(--pixel); font-size: 11px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; }
+.kb-keys .bk { width: calc(100% / var(--n) * 0.6); height: 60%; background: #1b1b1b; border-radius: 0 0 4px 4px; z-index: 1; }
+.kb-keys .wk.down { background: #ffe98a; }
+.kb-keys .bk.down { background: #6b5a1a; }
+.parent-menu .check { display: flex; gap: 8px; align-items: flex-start; }
