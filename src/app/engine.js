@@ -17,17 +17,31 @@ class Engine {
     this.level = -100; // latest input level, dB
     this.sources = new Set();
     this.starting = null;
-    // Output routes are fixed when the context starts (e.g. plugging in
-    // headphones later keeps playing on the speaker), so rebuild on changes.
-    navigator.mediaDevices?.addEventListener?.('devicechange', () => this._rebuild());
+    this.stale = false;
+    this.acquiring = false;
+    // Output routes are fixed when the context starts (plugging in headphones
+    // later keeps playing on the speaker), so rebuild after device changes.
+    // Only mark it here: a context made outside a user gesture stays suspended
+    // on iOS, and granting mic permission itself fires devicechange. The
+    // rebuild happens on the next tap (see start()).
+    navigator.mediaDevices?.addEventListener?.('devicechange', () => { this.stale = true; });
   }
 
+  // Call from user gestures (any tap does, see main.js). Must not await
+  // before creating a context, so creation stays inside the gesture.
   async start() {
     if (!this.ctx) this.starting ??= this._create();
+    else if (this.stale && !this.listening && !this.acquiring && !this.sources.size) {
+      this.stale = false;
+      const old = this.ctx;
+      this.starting = this._create().then(() => old.close());
+    }
     await this.starting;
     if (this.ctx.state !== 'running') await this.ctx.resume();
   }
 
+  // Build a context + detector, then swap it in (the old one stays usable
+  // until the new one is ready).
   async _create() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
     const node = await createDetectorNode(ctx, { debug: true });
@@ -44,17 +58,15 @@ class Engine {
     };
     this.ctx = ctx;
     this.node = node;
-    if (this.stream) this.mic = ctx.createMediaStreamSource(this.stream);
-    if (this.listening) this.mic.connect(node);
+    this._attachMic();
   }
 
-  async _rebuild() {
-    if (!this.ctx || this.sources.size) return; // don't interrupt playback
-    const old = this.ctx;
-    this.ctx = null;
-    this.starting = null;
-    old.close();
-    await this.start();
+  // (Re)connect the mic stream to the current context's detector.
+  _attachMic() {
+    if (!this.stream) return;
+    if (!this.mic || this.mic.context !== this.ctx) this.mic = this.ctx.createMediaStreamSource(this.stream);
+    this.mic.disconnect();
+    if (this.listening) this.mic.connect(this.node);
   }
 
   now() { return this.ctx ? this.ctx.currentTime : 0; }
@@ -67,14 +79,19 @@ class Engine {
   async listen(on) {
     await this.start();
     if (on && !this.stream) {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      this.mic = this.ctx.createMediaStreamSource(this.stream);
+      this.acquiring = true;
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+      } finally {
+        this.acquiring = false;
+      }
     }
-    if (on && !this.listening) this.mic.connect(this.node);
-    if (!on && this.listening) this.mic.disconnect(this.node);
     this.listening = on;
+    this._attachMic();
+    // iOS can interrupt the context when the mic starts.
+    if (on && this.ctx.state !== 'running') await this.ctx.resume();
   }
 
   // Play a Float32Array. Returns {source, startTime}.
