@@ -71,6 +71,14 @@ const DRAW = {
     speckle(g, rng, ['#9a5cc6', '#8a4bb8', '#b374dc', '#7a3fa6']);
     for (let i = 0; i < 5; i++) { const x = Math.floor(rng() * 14), y = Math.floor(rng() * 14); g.fillStyle = '#e2b8ff'; g.fillRect(x, y, 2, 1); g.fillRect(x, y + 1, 1, 1); }
   },
+  cobble(g, rng) {
+    speckle(g, rng, ['#7a7a7a', '#6a6a6a']);
+    for (let i = 0; i < 9; i++) {
+      const x = Math.floor(rng() * 13), y = Math.floor(rng() * 13), w = 3 + Math.floor(rng() * 3);
+      g.fillStyle = pick(rng, ['#9a9a9a', '#8c8c8c', '#a8a8a8']); g.fillRect(x, y, w, 3);
+      g.fillStyle = '#4a4a4a'; g.fillRect(x, y + 3, w, 1);
+    }
+  },
   bedrock(g, rng) { speckle(g, rng, ['#3a3a3a', '#555555', '#2b2b2b', '#6a6a6a']); },
   cloud(g) { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 16, 16); },
 };

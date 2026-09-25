@@ -233,3 +233,58 @@ button { font: inherit; color: inherit; }
 .kb-keys .wk.down { background: #ffe98a; }
 .kb-keys .bk.down { background: #6b5a1a; }
 .parent-menu .check { display: flex; gap: 8px; align-items: flex-start; }
+
+/* ---------- Practice: tower scene + staff ---------- */
+.play .stage { flex-direction: column; gap: 10px; }
+.scene-box { flex: 1; min-height: 150px; display: flex; }
+.build { position: relative; flex: 1; overflow: hidden; border: 3px solid #000;
+  background: linear-gradient(#7ec8f5, #b9e3fb); box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); }
+.build .cloud { position: absolute; background: #fff; height: 18px; box-shadow: 18px -10px 0 #fff, 36px 0 0 #fff; width: 36px; opacity: 0.9; }
+.build .cloud.c1 { top: 22px; left: 12%; }
+.build .cloud.c2 { top: 50px; right: 18%; transform: scale(0.7); }
+.build-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background-size: 40px 40px; image-rendering: pixelated; border-top: 3px solid #000; }
+.tower { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); }
+.tblock { position: absolute; image-rendering: pixelated; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55); }
+.tblock.cracked { filter: brightness(0.9); }
+.drop { animation: drop 0.28s ease-in; }
+@keyframes drop { from { transform: translateY(-60px); opacity: 0.2; } to { transform: none; opacity: 1; } }
+.climber { position: absolute; left: 0; top: 0; z-index: 3; transition: transform 0.25s ease-out; pointer-events: none; }
+.climber img { display: block; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); }
+
+.staff-box { flex: 0 0 auto; }
+.staff-wrap { display: flex; background: var(--paper); border: 3px solid #000; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); }
+.staff-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+.staff { display: block; }
+.staff .sl { stroke: #3b3226; stroke-width: 1.6; }
+.staff .bl { stroke: #3b3226; stroke-width: 2.4; }
+.staff .bl.thin { stroke-width: 2; }
+.staff .ledger { stroke: #3b3226; stroke-width: 1.8; }
+.staff .head { fill: var(--ink); }
+.staff .head.hollow { fill: var(--paper); stroke: var(--ink); stroke-width: 2.6; }
+.staff .stem, .staff .flag { stroke: var(--ink); stroke-width: 2.2; fill: none; }
+.staff .beam { stroke: var(--ink); }
+.staff .dot { fill: var(--ink); }
+.staff .acc { font-family: 'Noto Music', serif; fill: var(--ink); text-anchor: middle; }
+.staff .clef-glyph, .staff .rest-glyph { font-family: 'Noto Music', serif; fill: var(--ink); }
+.staff .rest-glyph { dominant-baseline: middle; }
+.staff .letter { font-family: var(--pixel); font-size: 17px; fill: #3b3226; text-anchor: middle; }
+.staff .syl { font-family: var(--small); font-size: 13px; fill: #9a8360; text-anchor: middle; }
+.staff .halo { fill: none; }
+.staff .n.current .halo { fill: rgba(255, 216, 74, 0.55); stroke: #e0a800; stroke-width: 3; animation: halo 0.9s ease-in-out infinite alternate; }
+@keyframes halo { to { fill: rgba(255, 216, 74, 0.2); } }
+.staff .n.current .letter { fill: #b07a00; }
+.staff .n.hit .head, .staff .n.fixed .head { fill: #2e8b3a; }
+.staff .n.hit .head.hollow, .staff .n.fixed .head.hollow { fill: #bfe8c3; stroke: #2e8b3a; }
+.staff .n.hit .letter { fill: #2e8b3a; }
+.staff .n.perfect .halo { fill: rgba(255, 216, 74, 0.35); }
+.staff .n.wrong .head { fill: #d9822b; }
+.staff .n.wrong .head.hollow { fill: #f7d6b5; stroke: #d9822b; }
+.staff .n.wrong .letter { fill: #d9822b; }
+.staff .n.fixed .letter { fill: #2e8b3a; }
+.staff .n.miss { opacity: 0.35; }
+.staff .ghost { opacity: 0.45; animation: ghost 1.2s ease-out forwards; }
+.staff .ghost .head { fill: #d94a3b; }
+.staff .ghost .letter { fill: #d94a3b; font-size: 14px; }
+@keyframes ghost { 0% { opacity: 0.75; } 70% { opacity: 0.55; } 100% { opacity: 0; } }
+.staff-playhead { stroke: #e8433a; stroke-width: 4; }
+.results .detail { font-size: 13px; color: #555; }
