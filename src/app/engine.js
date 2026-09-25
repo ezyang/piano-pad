@@ -14,6 +14,9 @@ class Engine {
     this.mic = null;
     this.listening = false;
     this.listeners = new Set();
+    this.rawListeners = new Set();
+    this.simListeners = new Set(); // pretend key presses (test keyboard / computer keys)
+    this.levelStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
     this.level = -100; // latest input level, dB
     this.sources = new Set();
     this.starting = null;
@@ -52,11 +55,20 @@ class Engine {
     const node = await createDetectorNode(ctx, { debug: true });
     const onsets = new Map();
     node.port.onmessage = ({ data: e }) => {
-      if (e.type === 'frames') this.level = e.frames[e.frames.length - 1].db;
-      else if (e.type === 'onset') {
+      if (e.type === 'frames') {
+        this.level = e.frames[e.frames.length - 1].db;
+        const L = this.levelStats;
+        for (const f of e.frames) { L.min = Math.min(L.min, f.db); L.max = Math.max(L.max, f.db); L.sum += f.db; L.n++; }
+        return;
+      }
+      if (e.type === 'onset') {
         onsets.set(e.sample, e);
         if (onsets.size > 50) onsets.delete(onsets.keys().next().value);
-      } else if (e.type === 'pitch' && e.midi != null && e.clarity > 0.6) {
+      }
+      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > 0.6;
+      // Everything the detector says, for the practice log.
+      for (const fn of this.rawListeners) fn({ ...e, time: e.sample / ctx.sampleRate, detectedTime: e.detectedAt / ctx.sampleRate, accepted });
+      if (accepted) {
         const note = { time: e.sample / ctx.sampleRate, midi: e.midi, clarity: e.clarity };
         for (const fn of this.listeners) fn(note);
       }
@@ -79,6 +91,19 @@ class Engine {
   onNote(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  // Raw detector events (onsets, pitches including rejected ones).
+  onRaw(fn) {
+    this.rawListeners.add(fn);
+    return () => this.rawListeners.delete(fn);
+  }
+
+  // Input level summary (dB) since the last call.
+  takeLevelStats() {
+    const L = this.levelStats;
+    this.levelStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    return L.n ? { min: +L.min.toFixed(1), max: +L.max.toFixed(1), mean: +(L.sum / L.n).toFixed(1) } : null;
   }
 
   async listen(on) {
@@ -123,6 +148,7 @@ class Engine {
   // Pretend a piano key was struck: synthesize it straight into the detector.
   async simulate(midi, { audible = !this.listening } = {}) {
     await this.start();
+    for (const fn of this.simListeners) fn(midi);
     const sr = this.ctx.sampleRate;
     const audio = new Float32Array(Math.round(1.0 * sr));
     renderNote(audio, 0, { midi, vel: 0.7, dur: 0.5 }, sr, Math.random);

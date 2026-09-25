@@ -15,6 +15,7 @@ import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
 import { renderJingle, renderTick } from '../instruments.js';
 import { rhythmReview, scoreLearn, scoreGo, scoreBeat, beatGrade } from '../scoring.js';
+import * as log from '../telemetry.js';
 
 const MODES = [['learn', '🐢', 'Learn'], ['go', '🏃', 'Keep going'], ['beat', '🥁', 'Beat']];
 const FIX_WINDOW = 1.5; // s: a correct replay of a just-missed note counts as fixing it
@@ -65,6 +66,7 @@ export function play(root, id) {
     if (!session) return;
     session.off();
     session = null;
+    log.endSession({ aborted: true });
   }
   // Untimed modes just start listening; the beat mode waits for Start.
   function ready() {
@@ -136,6 +138,10 @@ export function play(root, id) {
       mode, cur: 0, wrong: 0, grades: new Map(), times: [], lastWrong: null,
       off: engine.onNote(onNote),
     };
+    log.startSession('practice', {
+      song: { id: song.id, title: song.title, by: song.by, clef: resolveClef(song), bpm: song.bpm, notes: song.notes },
+      mode, ...(mode === 'beat' ? { bpm } : {}), plays: song.plays ?? 0,
+    });
     if (mode === 'beat') {
       const beatSec = 60 / bpm;
       Object.assign(session, {
@@ -145,6 +151,10 @@ export function play(root, id) {
       });
       session.expected = new Map(t.map((i, k) => [k, session.t0 + staff.laid[i].start * beatSec]));
       session.end = session.t0 + totalBeats(song.notes) * beatSec + 0.4;
+      log.event('expect', {
+        beatSec, window: session.window,
+        times: [...session.expected.values()].map(log.ctxMs),
+      });
       // Audible count-in; anything heard before the song starts is ignored.
       const sr = engine.ctx.sampleRate;
       for (let k = 4; k >= 1; k--) engine.play(renderTick(sr, k === 4), { when: session.t0 - k * beatSec });
@@ -168,6 +178,7 @@ export function play(root, id) {
     if (session.mode === 'learn') {
       const k = session.cur;
       if (k >= t.length) return;
+      log.event('judge', { k, want: staff.laid[t[k]].p, got: n.midi, grade: pitchClass(n.midi) === pc(k) ? 'hit' : 'wrong' });
       if (pitchClass(n.midi) === pc(k)) {
         staff.mark(t[k], 'hit');
         build.place(k, n.midi);
@@ -188,6 +199,7 @@ export function play(root, id) {
       if (lw && lw.k === k - 1 && n.time - lw.time < FIX_WINDOW &&
           pitchClass(n.midi) === pc(k - 1) && (k >= t.length || pitchClass(n.midi) !== pc(k))) {
         session.grades.set(k - 1, 'fixed');
+        log.event('judge', { k: k - 1, want: staff.laid[t[k - 1]].p, got: n.midi, grade: 'fixed' });
         staff.mark(t[k - 1], 'fixed');
         build.place(k - 1, n.midi);
         session.lastWrong = null;
@@ -195,6 +207,7 @@ export function play(root, id) {
       }
       if (k >= t.length) return;
       session.times[k] = n.time;
+      log.event('judge', { k, want: staff.laid[t[k]].p, got: n.midi, grade: pitchClass(n.midi) === pc(k) ? 'hit' : 'wrong' });
       if (pitchClass(n.midi) === pc(k)) {
         session.grades.set(k, 'hit');
         staff.mark(t[k], 'hit');
@@ -220,14 +233,16 @@ export function play(root, id) {
       const err = Math.abs(n.time - time);
       if (err < session.window && err < bestErr) { best = k; bestErr = err; }
     }
-    if (best < 0) return;
+    if (best < 0) { log.event('judge', { got: n.midi, grade: 'stray' }); return; }
     if (pitchClass(n.midi) !== pc(best)) {
+      log.event('judge', { k: best, want: staff.laid[t[best]].p, got: n.midi, grade: 'wrong', err: Math.round((n.time - session.expected.get(best)) * 1000) });
       session.grades.set(best, 'wrong');
       staff.mark(t[best], 'wrong');
       staff.ghost(t[best], n.midi);
       return;
     }
     const grade = beatGrade(n.time - session.expected.get(best));
+    log.event('judge', { k: best, want: staff.laid[t[best]].p, got: n.midi, grade, err: Math.round((n.time - session.expected.get(best)) * 1000) });
     session.grades.set(best, grade);
     staff.mark(t[best], 'hit ' + grade);
     build.place(best, n.midi);
@@ -249,6 +264,7 @@ export function play(root, id) {
     for (const [k, time] of session.expected) {
       if (!session.grades.has(k) && now > time + session.window) {
         session.grades.set(k, 'miss');
+        log.event('judge', { k, want: staff.laid[staff.targets[k]].p, grade: 'miss' });
         staff.mark(staff.targets[k], 'miss');
       }
     }
@@ -293,6 +309,8 @@ export function play(root, id) {
       chips = [['✨', `${c.perfect} perfect`], ['👍', `${c.good + c.early + c.late} close`], ['❓', `${c.wrong + c.miss} missed`]];
     }
     const { stars } = result;
+    log.endSession({ stars, chips: chips.map(([icon, text]) => `${icon} ${text}`), wrong: s.wrong,
+      marks: [...staff.el.querySelectorAll('.review')].map((g) => g.getAttribute('class').replace('review ', '')) });
     song.plays = (song.plays ?? 0) + 1;
     song.best = Math.max(song.best ?? 0, stars);
     let joined = null;

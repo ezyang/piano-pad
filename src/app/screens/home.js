@@ -1,6 +1,7 @@
 import { h } from '../dom.js';
 import { getState, newSong, resetAll, save } from '../store.js';
 import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js';
+import { shareLogs, sessionCount } from '../telemetry.js';
 
 export function home(root) {
   const st = getState();
@@ -38,6 +39,10 @@ export function home(root) {
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: st.showLetters !== false || null, onchange: (e) => { st.showLetters = e.target.checked; save(); } }),
         'Letter names under notes'),
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: st.keepLogs !== false || null, onchange: (e) => { st.keepLogs = e.target.checked; save(); } }),
+        'Keep practice logs (notes heard, no audio)'),
+      h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {

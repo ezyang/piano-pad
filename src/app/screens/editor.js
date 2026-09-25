@@ -4,6 +4,7 @@ import { createTrack, glyphIcon, fitRowH } from '../track.js';
 import { quantize } from '../music.js';
 import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
+import * as log from '../telemetry.js';
 import { renderNote } from '../../synth.js';
 
 const TOOLS = [
@@ -91,6 +92,7 @@ export function editor(root, id, extra) {
     try { await engine.listen(true); } catch { flash(writeBtn, 'shake'); return; }
     history.push(JSON.stringify(song.notes));
     writing = { played: [], base: song.notes.length };
+    log.startSession('write', { song: { id: song.id, title: song.title, by: song.by } });
     writing.off = engine.onNote((n) => {
       writing.played.push(n);
       song.notes.push({ d: 1, p: n.midi }); // placeholder rhythm until done
@@ -109,9 +111,11 @@ export function editor(root, id, extra) {
     song.notes.splice(writing.base);
     if (keep && writing.played.length) {
       const q = quantize(writing.played);
+      log.endSession({ kept: true, notes: q.notes, bpm: q.bpm });
       song.notes.push(...q.notes);
       if (writing.base === 0) song.bpm = Math.min(120, Math.max(50, q.bpm));
     } else if (!keep) history.pop();
+    log.endSession({ kept: false });
     writing = null;
     save();
     writeBtn.textContent = '🎹 Play to write';
