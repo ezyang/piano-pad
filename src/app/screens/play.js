@@ -5,7 +5,7 @@ import { pitchClass, totalBeats, letter } from '../music.js';
 import { characterUrl, material, BAND, bandSprite } from '../pixels.js';
 import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
-import { renderJingle } from '../instruments.js';
+import { renderJingle, renderTick } from '../instruments.js';
 
 const SPRITE_W = 40, SPRITE_H = 56;
 
@@ -105,6 +105,9 @@ export function play(root, id) {
       session.expected = new Map(targets.map((i) => [i, session.t0 + track.laid[i].start * beatSec]));
       session.window = Math.min(0.4, 0.5 * beatSec);
       session.end = session.t0 + totalBeats(song.notes) * beatSec + 0.4;
+      // Audible count-in; anything heard before the song starts is ignored.
+      const sr = engine.ctx.sampleRate;
+      for (let k = 4; k >= 1; k--) engine.play(renderTick(sr, k === 4), { when: session.t0 - k * beatSec });
     }
     tick();
   }
@@ -134,6 +137,7 @@ export function play(root, id) {
       }
       return;
     }
+    if (n.time < session.t0 - session.window) return; // count-in
     // Keep the beat: judge against the nearest unjudged note in time.
     let best = -1, bestErr = Infinity;
     for (const [i, t] of session.expected) {

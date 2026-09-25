@@ -83,3 +83,10 @@ export function renderJingle(sr) {
   [72, 76, 79, 84].forEach((m, i) => addTone(out, Math.round(i * 0.1 * sr), sr, 0.5, midiToHz(m), 0.12, 0.25, 'square'));
   return out;
 }
+
+// Woodblock-ish count-in tick; accented ticks are higher.
+export function renderTick(sr, accent = false) {
+  const out = new Float32Array(Math.round(0.06 * sr));
+  addTone(out, 0, sr, 0.05, accent ? 2000 : 1500, 0.35, 0.012, 'sine');
+  return out;
+}
