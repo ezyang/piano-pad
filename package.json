@@ -1,0 +1,10 @@
+{
+  "name": "piano-pad",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node test/bench.mjs",
+    "serve": "python3 -m http.server 8000",
+    "deploy": "sh deploy/deploy.sh"
+  }
+}

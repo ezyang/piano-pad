@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Detector Jig</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #deded8;
+    --accent: #2f6fdf; --ok: #1f9d55; --warn: #d98a00; --bad: #d64545; --truth: #9cc0f5;
+    --flux: #7b4fd6; --rise: #0f9b9b; --level: #888;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --ink: #ecece8; --muted: #9a9a93; --line: #34342f;
+      --accent: #6a9cff; --ok: #3cc47a; --warn: #f0a830; --bad: #ff6b6b; --truth: #35598f;
+      --flux: #a88af0; --rise: #3fc6c6; --level: #999;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { touch-action: manipulation; } /* no double-tap zoom on iPad */
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  fieldset { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 0; padding: 10px 12px; }
+  legend { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; padding: 0 4px; }
+  label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0; }
+  label span.v { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4em; text-align: right; }
+  input[type=range] { flex: 1; }
+  input[type=text], input[type=number], select { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font: inherit; min-width: 0; }
+  input[type=text] { flex: 1; }
+  input[type=number] { width: 5em; }
+  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  button.on { background: var(--bad); color: white; border-color: var(--bad); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+  canvas { width: 100%; height: 360px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: block; }
+  #stats { font-variant-numeric: tabular-nums; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0; white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .keys { display: flex; gap: 2px; margin-top: 6px; }
+  .keys, button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  /* Piano keys look like piano keys in both themes. */
+  .keys button { flex: 1; padding: 18px 0; border-radius: 0 0 5px 5px; font-size: 11px; background: #fafaf7; color: #333; border-color: #bbb; }
+  .keys button.black { background: #1b1b1b; color: #ddd; border-color: #000; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; }
+  td, th { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { color: var(--muted); font-weight: 500; }
+  .legend { color: var(--muted); font-size: 12px; margin: 6px 0; }
+  .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin: 0 3px 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Piano detector jig <span id="sr" style="color:var(--muted);font-weight:400;font-size:13px"></span></h1>
+
+  <div class="controls">
+    <fieldset>
+      <legend>Scenario</legend>
+      <label><select id="scenario" style="flex:1"></select></label>
+      <label>Rhythm <input type="text" id="rhythm" value="ta-a ta-a ta ta titi ta"></label>
+      <label>Notes <input type="text" id="notes" value="G4"></label>
+      <label>Tempo <input type="range" id="bpm" min="40" max="180" value="90"><span class="v" id="bpmV"></span></label>
+      <label>Timing jitter <input type="range" id="jitter" min="0" max="80" value="0"><span class="v" id="jitterV"></span></label>
+      <label>Velocity spread <input type="range" id="velSpread" min="0" max="0.6" step="0.05" value="0"><span class="v" id="velSpreadV"></span></label>
+    </fieldset>
+    <fieldset>
+      <legend>Conditions</legend>
+      <label>Signal path
+        <select id="path">
+          <option value="direct">Direct (synth → detector)</option>
+          <option value="mic">Speakers → mic</option>
+        </select>
+      </label>
+      <label>Noise <input type="range" id="noise" min="-90" max="-30" value="-90"><span class="v" id="noiseV"></span></label>
+      <label>Reverb <input type="range" id="reverb" min="0" max="0.6" step="0.05" value="0"><span class="v" id="reverbV"></span></label>
+      <label>Gain <input type="range" id="gain" min="-30" max="6" value="0"><span class="v" id="gainV"></span></label>
+      <label>Hear it (direct mode) <input type="checkbox" id="monitor" checked></label>
+    </fieldset>
+    <fieldset>
+      <legend>Detector</legend>
+      <label>Flux K <input type="range" id="thresholdK" min="2" max="10" step="0.5"><span class="v" id="thresholdKV"></span></label>
+      <label>Min flux <input type="range" id="minFlux" min="2" max="30" step="1"><span class="v" id="minFluxV"></span></label>
+      <label>Min rise dB <input type="range" id="minRiseDb" min="2" max="12" step="0.5"><span class="v" id="minRiseDbV"></span></label>
+      <label>Gate dB <input type="range" id="gateDb" min="0" max="30" step="1"><span class="v" id="gateDbV"></span></label>
+      <label>Pitch clarity <input type="range" id="clarity" min="0.5" max="0.99" step="0.01"><span class="v" id="clarityV"></span></label>
+    </fieldset>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="run">▶ Run scenario</button>
+    <button id="listen">🎤 Listen live</button>
+    <span style="color:var(--muted)">Play live: keys A–K (white), W E T Y U (black), or tap:</span>
+  </div>
+  <div class="keys" id="keys"></div>
+
+  <div class="legend">
+    <b style="background:var(--truth)"></b>played
+    <b style="background:var(--ok)"></b>detected, right note
+    <b style="background:var(--warn)"></b>wrong note
+    <b style="background:var(--bad)"></b>extra / missed
+    <b style="background:var(--flux)"></b>flux / threshold
+    <b style="background:var(--rise)"></b>energy rise / threshold
+    <b style="background:var(--level)"></b>level / noise floor
+  </div>
+  <canvas id="view"></canvas>
+  <div id="stats">Press Run (or play some keys) to start.</div>
+  <table id="notes-table"></table>
+</main>
+<script type="module" src="src/jig.js"></script>
+</body>
+</html>
