@@ -286,5 +286,4 @@ button { font: inherit; color: inherit; }
 .staff .ghost .head { fill: #d94a3b; }
 .staff .ghost .letter { fill: #d94a3b; font-size: 14px; }
 @keyframes ghost { 0% { opacity: 0.75; } 70% { opacity: 0.55; } 100% { opacity: 0; } }
-.staff-playhead { stroke: #e8433a; stroke-width: 4; }
 .results .detail { font-size: 13px; color: #555; }

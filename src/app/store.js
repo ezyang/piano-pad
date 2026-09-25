@@ -26,6 +26,9 @@ try {
 } catch {
   state = fresh();
 }
+// Fill in anything missing from older or partial saves.
+if (!Array.isArray(state.character) || !state.character.length) state.character = defaultCharacter();
+if (!Array.isArray(state.songs)) state.songs = fresh().songs;
 
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ }

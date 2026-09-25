@@ -2,7 +2,8 @@
 //   learn — waits for the right note (a wrong one shows a ghost note)
 //   go    — "keep going": any note advances; wrong ones are marked, a quick
 //           fix right after a mistake repairs it; hesitations are counted
-//   beat  — count-in and a moving playhead; graded on timing
+//   beat  — count-in, then she keeps the beat herself (no moving line);
+//           graded on timing
 import { h } from '../dom.js';
 import { getSong, getState, save } from '../store.js';
 import { createStaff } from '../staff.js';
@@ -227,8 +228,10 @@ export function play(root, id) {
     } else {
       count.style.display = 'none';
     }
-    staff.setPlayhead(Math.max(0, beat));
-    if (beat > 0) staff.follow(beat, 'continuous');
+    // Page along with her progress (not smooth scrolling, which would be a
+    // timing cue in disguise).
+    const next = staff.targets[[...session.expected.keys()].find((k) => !session.grades.has(k)) ?? staff.targets.length - 1];
+    if (next != null) staff.follow(staff.laid[next].start);
     for (const [k, time] of session.expected) {
       if (!session.grades.has(k) && now > time + session.window) {
         session.grades.set(k, 'miss');
@@ -262,7 +265,6 @@ export function play(root, id) {
     session = null;
     s.off();
     await engine.listen(false);
-    staff.setPlayhead(null);
     count.style.display = 'none';
     const n = staff.targets.length;
 

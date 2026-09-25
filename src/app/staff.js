@@ -1,7 +1,7 @@
 // Treble-staff notation for practice: real noteheads/stems/beams/rests on a
 // five-line staff, the letter under each note, and the rhythm syllable below
-// that. Horizontal spacing is proportional to duration, so a playhead moving
-// at constant speed lines up with the beats.
+// that. Spacing is engraving-style (compressed, not proportional to
+// duration), so width isn't a cue for rhythm; she reads the symbols.
 import { layout, totalBeats, isSharp, letter, SYLLABLE, REST_SYLLABLE } from './music.js';
 import { h, svg } from './dom.js';
 
@@ -9,11 +9,35 @@ const STEP_OF = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // C C# D D# E F F# G G# A
 const step = (m) => Math.floor(m / 12) * 7 + STEP_OF[((m % 12) + 12) % 12]; // diatonic index
 const E4 = step(64), B4 = step(71);
 
-export function createStaff(song, { s = 20, ppb = Math.round(s * 4.6), extraBeats = 1 } = {}) {
+export function createStaff(song, { s = 20, extraBeats = 1 } = {}) {
   const laid = layout(song.notes);
   const beats = Math.max(4, Math.ceil((totalBeats(song.notes) + extraBeats) / 4) * 4);
   const pad = s * 1.2;
-  const x = (beat) => pad + beat * ppb;
+  const unit = s * 3.2; // space for a quarter note
+  const space = (d) => unit * d ** 0.6; // half ≈ 1.5×, whole ≈ 2.3×, eighth ≈ 0.66×
+  const barGap = s * 0.9; // room after a barline
+  // Breakpoints [beat, x]; x(beat) interpolates within a note's space.
+  const pts = [];
+  let cx = pad;
+  for (const n of laid) {
+    if (n.start > 0 && n.start % 4 === 0) cx += barGap;
+    pts.push([n.start, cx]);
+    cx += space(n.d);
+  }
+  const end = totalBeats(song.notes);
+  pts.push([end, cx]);
+  for (let b = end + 1; b <= beats; b++) {
+    if ((b - 1) % 4 === 0 && b - 1 > 0 && b - 1 !== end) cx += barGap;
+    cx += unit;
+    pts.push([b, cx]);
+  }
+  const x = (beat) => {
+    for (let i = 1; i < pts.length; i++) {
+      const [b0, x0] = pts[i - 1], [b1, x1] = pts[i];
+      if (beat <= b1) return b1 === b0 ? x1 : x0 + ((beat - b0) / (b1 - b0)) * (x1 - x0);
+    }
+    return pts[pts.length - 1][1];
+  };
   const headX = (n) => x(n.start) + s * 0.9;
   const width = x(beats) + pad;
   const top = s * 3.2; // room for ledger lines above
@@ -26,7 +50,7 @@ export function createStaff(song, { s = 20, ppb = Math.round(s * 4.6), extraBeat
   const root = svg('svg', { class: 'staff', width, height: H, viewBox: `0 0 ${width} ${H}` });
   for (let i = 0; i < 5; i++) root.append(svg('line', { x1: 0, x2: width, y1: bottom - i * s, y2: bottom - i * s, class: 'sl' }));
   for (let b = 0; b <= beats; b += 4) {
-    const bx = b === 0 ? x(0) - s * 0.4 : x(b) - s * 0.15;
+    const bx = b === 0 ? x(0) - s * 0.4 : x(b) - barGap * 0.55;
     root.append(svg('line', { x1: bx, x2: bx, y1: bottom - 4 * s, y2: bottom, class: b === 0 ? 'bl thin' : 'bl' }));
   }
   const fx = svg('g', { class: 'fx' }); // ghosts etc. go on top
@@ -44,7 +68,7 @@ export function createStaff(song, { s = 20, ppb = Math.round(s * 4.6), extraBeat
     const hx = headX(n);
     if (n.p == null) {
       for (let k = 0; k < n.d; k++) {
-        g.append(svg('text', { x: x(n.start + k) + s * 0.9, y: bottom - 2 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
+        g.append(svg('text', { x: x(n.start) + s * 0.9 + (k * space(n.d)) / n.d, y: bottom - 1.5 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
       }
       g.append(svg('text', { x: hx, y: sylY, class: 'syl' }, REST_SYLLABLE));
       return;
@@ -80,8 +104,6 @@ export function createStaff(song, { s = 20, ppb = Math.round(s * 4.6), extraBeat
   }
   root.append(...groups, fx);
 
-  const playhead = svg('line', { x1: 0, x2: 0, y1: top - s * 2, y2: letterY + s * 0.5, class: 'staff-playhead', style: 'display:none' });
-  root.append(playhead);
 
   const clef = svg('svg', { class: 'staff clef', width: s * 3.4, height: H, viewBox: `0 0 ${s * 3.4} ${H}` });
   for (let i = 0; i < 5; i++) clef.append(svg('line', { x1: 0, x2: s * 3.4, y1: bottom - i * s, y2: bottom - i * s, class: 'sl' }));
@@ -109,11 +131,6 @@ export function createStaff(song, { s = 20, ppb = Math.round(s * 4.6), extraBeat
       g.append(svg('text', { x: hx, y: letterY - s * 1.3, class: 'letter' }, letter(midi) + (isSharp(midi) ? '♯' : '')));
       fx.append(g);
       setTimeout(() => g.remove(), 1200);
-    },
-    setPlayhead(beat) {
-      if (beat == null) { playhead.style.display = 'none'; return; }
-      playhead.style.display = '';
-      playhead.setAttribute('x1', x(beat)); playhead.setAttribute('x2', x(beat));
     },
     follow(beat, how = 'page') {
       const w = scroller.clientWidth, px = x(beat), target = Math.max(0, px - w * 0.3);
