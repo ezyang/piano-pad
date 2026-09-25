@@ -2,16 +2,22 @@
 // write" take) is recorded as a session: what was expected, everything the
 // detector reported (including rejected pitches and why a pitch was chosen),
 // how each note was judged, mic level once a second, simulated key presses,
-// and errors. Sessions are kept on the device and can be shared as a JSON
-// file (⚙︎ menu) or, once UPLOAD_URL is set, uploaded.
+// and errors. Sessions are kept on the device, shared as a JSON file from the
+// ⚙︎ menu, and uploaded to the home log server (server/logsrv.py) when the
+// device is on the home network.
 //
-// No audio is recorded, and nothing identifies the player beyond song titles.
+// Audio is recorded only when the grown-ups turn it on (⚙︎ menu): the raw mic
+// stream the detector hears, for the length of a run, kept in IndexedDB
+// until it reaches the home server. Nothing identifies the player beyond song
+// titles.
 import { engine } from './engine.js';
 import { getState } from './store.js';
 
 const KEY = 'pianopad.logs';
 const MAX_BYTES = 1_500_000; // localStorage is ~5 MB on Safari; leave room for songs
-export const UPLOAD_URL = null; // set once the log endpoint exists
+// Home LAN only. localStorage 'pianopad.uploadUrl' overrides it (development).
+export const UPLOAD_URL = (() => { try { return localStorage.getItem('pianopad.uploadUrl'); } catch { return null; } })() ?? 'https://logs.cranbury.ezyang.com';
+const MAX_AUDIO_BYTES = 150e6; // recordings waiting to upload
 
 let current = null;
 let levelTimer = 0;
@@ -67,6 +73,7 @@ export function startSession(kind, info) {
       });
     }
   }));
+  if (getState().recordAudio && engine.stream) startAudio(current);
   const sim = (midi) => event('sim', { midi });
   engine.simListeners.add(sim);
   unsubs.push(() => engine.simListeners.delete(sim));
@@ -89,7 +96,9 @@ export function endSession(result = {}) {
   const s = current;
   current = null;
   // An abandoned run where nothing was heard isn't worth keeping.
-  if (result.aborted && !s.events.some((e) => e[1] === 'onset' || e[1] === 'sim')) return;
+  const keep = !(result.aborted && !s.events.some((e) => e[1] === 'onset' || e[1] === 'sim'));
+  stopAudio(s, keep);
+  if (!keep) return;
   s.ended = new Date().toISOString();
   s.duration = Math.round(performance.now() - s.t0);
   s.result = result;
@@ -124,19 +133,101 @@ export async function shareLogs() {
 
 export function clearLogs() { store([]); }
 
-// Send sessions that haven't been uploaded yet. Safe to call any time.
+// Send sessions and recordings that haven't been uploaded yet. Safe to call
+// any time; away from home the server is unreachable and they wait.
+let uploading = false;
 export async function upload() {
-  if (!UPLOAD_URL || !navigator.onLine) return;
-  const sessions = load();
-  const pending = sessions.filter((s) => !s.uploaded);
-  if (!pending.length) return;
+  if (!UPLOAD_URL || !navigator.onLine || uploading) return;
+  uploading = true;
   try {
-    const res = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
-    if (!res.ok) return;
-    const latest = load();
-    for (const s of latest) if (pending.some((p) => p.id === s.id)) s.uploaded = true;
-    store(latest);
-  } catch { /* offline; try again later */ }
+    const pending = load().filter((s) => !s.uploaded);
+    if (pending.length) {
+      const res = await fetch(`${UPLOAD_URL}/sessions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
+      if (!res.ok) return;
+      const latest = load();
+      for (const s of latest) if (pending.some((p) => p.id === s.id)) s.uploaded = true;
+      store(latest);
+    }
+    for (const [id, { blob, ext }] of await idb('entries')) {
+      const res = await fetch(`${UPLOAD_URL}/audio/${id}.${ext}`, { method: 'PUT', headers: { 'content-type': blob.type || 'application/octet-stream' }, body: blob });
+      if (!res.ok) return;
+      await idb('delete', id);
+    }
+  } catch { /* not home, or offline; try again later */ } finally {
+    uploading = false;
+  }
+}
+
+// --- audio ---
+
+let audioRec = null;
+
+function startAudio(s) {
+  if (typeof MediaRecorder === 'undefined') return;
+  const mimeType = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported(t));
+  let rec;
+  try { rec = new MediaRecorder(engine.stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 96000 }); } catch { return; }
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.onstart = () => {
+    // Where the recording starts on the session's audio clock (approximate;
+    // detector onsets can refine the alignment).
+    s.recording = { mime: rec.mimeType, startMs: Math.round(((engine.ctx?.currentTime ?? 0) - s.ctxT0) * 1000) };
+  };
+  rec.start(1000);
+  audioRec = { rec, chunks, s };
+  document.body.classList.add('rec-audio');
+}
+
+function stopAudio(s, keep) {
+  if (!audioRec || audioRec.s !== s) return;
+  const { rec, chunks } = audioRec;
+  audioRec = null;
+  document.body.classList.remove('rec-audio');
+  rec.onstop = async () => {
+    if (!keep || !chunks.length) return;
+    const blob = new Blob(chunks, { type: rec.mimeType });
+    const ext = /mp4/.test(rec.mimeType) ? 'mp4' : /ogg/.test(rec.mimeType) ? 'ogg' : 'webm';
+    try {
+      await idb('put', s.id, { blob, ext });
+      await trimAudio();
+    } catch { /* storage unavailable */ }
+    upload();
+  };
+  try { rec.stop(); } catch { /* already stopped */ }
+}
+
+async function trimAudio() {
+  const all = await idb('entries');
+  let total = all.reduce((a, [, v]) => a + v.blob.size, 0);
+  for (const [id, v] of all) { // keys sort oldest first (ids start with a timestamp)
+    if (total <= MAX_AUDIO_BYTES) break;
+    await idb('delete', id);
+    total -= v.blob.size;
+  }
+}
+
+// Tiny IndexedDB wrapper: idb('put', k, v) | idb('delete', k) | idb('entries').
+function idb(op, key, value) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('pianopad', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('audio');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction('audio', op === 'entries' ? 'readonly' : 'readwrite');
+      const st = tx.objectStore('audio');
+      if (op === 'put') st.put(value, key);
+      else if (op === 'delete') st.delete(key);
+      const out = [];
+      if (op === 'entries') {
+        const cur = st.openCursor();
+        cur.onsuccess = () => { const c = cur.result; if (c) { out.push([c.key, c.value]); c.continue(); } };
+      }
+      tx.oncomplete = () => { db.close(); resolve(out); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    };
+  });
 }
 
 // Errors land in the current session, or a small one of their own.

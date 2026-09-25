@@ -1,0 +1,12 @@
+[Unit]
+Description=Piano Pad practice-log receiver
+After=network.target
+
+[Service]
+User=ezyang
+ExecStart=/usr/bin/python3 /home/ezyang/piano-logs/logsrv.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
