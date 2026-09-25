@@ -3,6 +3,7 @@ import { SCENARIOS } from './scenarios.js';
 import { parseRhythm, rhythmToEvents } from './rhythm.js';
 import { evaluate } from './evaluate.js';
 import { DEFAULTS } from './detector.js';
+import { createDetectorNode } from './detector-node.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -66,17 +67,7 @@ let result = null;
 async function ensureAudio() {
   if (!ctx) {
     ctx = new AudioContext({ latencyHint: 'interactive' });
-    // Load detector.js + the worklet wrapper as one classic script.
-    const [a, b] = await Promise.all(['src/detector.js', 'src/detector-worklet.js'].map((u) => fetch(u).then((r) => r.text())));
-    const url = URL.createObjectURL(new Blob([a.replace(/^export /gm, '') + '\n' + b], { type: 'text/javascript' }));
-    await ctx.audioWorklet.addModule(url);
-    node = new AudioWorkletNode(ctx, 'piano-detector', {
-      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1],
-      processorOptions: { debug: true, ...detOpts() },
-    });
-    const sink = ctx.createGain();
-    sink.gain.value = 0;
-    node.connect(sink).connect(ctx.destination);
+    node = await createDetectorNode(ctx, { debug: true, ...detOpts() });
     node.port.onmessage = onDetector;
     $('sr').textContent = `${ctx.sampleRate} Hz · base latency ${(ctx.baseLatency * 1000).toFixed(1)} ms`;
     requestAnimationFrame(draw);
