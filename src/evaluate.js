@@ -16,6 +16,8 @@ export function evaluate(truth, detections, { tol = 0.05, autoOffset = false } =
   const latency = r.matches.map((m) => m.det.detectedAt - offset - m.truth.time);
   const withPitch = r.matches.filter((m) => m.det.midi != null);
   const pitchOk = withPitch.filter((m) => m.det.midi === m.truth.midi);
+  // The app only compares note letters (any octave), so track that too.
+  const letterOk = withPitch.filter((m) => (((m.det.midi - m.truth.midi) % 12) + 12) % 12 === 0);
   const pitchLatency = withPitch.map((m) => m.det.pitchAt - offset - m.truth.time);
   return {
     ...r,
@@ -25,6 +27,7 @@ export function evaluate(truth, detections, { tol = 0.05, autoOffset = false } =
     onsetErr: summarize(onsetErr),
     latency: summarize(latency),
     pitchAcc: pitchOk.length / Math.max(1, r.matches.length),
+    letterAcc: letterOk.length / Math.max(1, r.matches.length),
     pitchLatency: summarize(pitchLatency),
   };
 }

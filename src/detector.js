@@ -202,6 +202,7 @@ export class PianoDetector {
           const W0 = this.pitchWindows[0];
           const ringing = this._energy(job.onset - 32 - W0, W0) > this._energy(from, W0) * 10 ** (this.overlapDb / 10);
           const r0 = ringing ? this._pitch(job.onset - 32 - this.pitchWindows[1], this.pitchWindows[1]) : null;
+          job.ringing = ringing;
           job.old = r0 && r0.clarity >= 0.8 ? r0 : null;
         }
         const res = this._pitch(from, W);
@@ -211,9 +212,13 @@ export class PianoDetector {
         else { job.w++; continue; }
       }
       let out = job.r1;
-      if (job.old && job.r1.midi != null) {
+      // Arbitrate when a note is still ringing: always if we know its pitch,
+      // and otherwise when r1 looks like a mixture's low common period.
+      if (job.r1.midi != null && (job.old || (job.ringing && job.r1.midi < 48))) {
         if (this.pos < from + this.specWindow) continue; // need the longer window
-        out = this._arbitrate(job.r1, job.old, this._spectralPitch(job.onset));
+        const sp = this._spectralPitch(job.onset);
+        const { sal, ...picked } = this._arbitrate(job.r1, job.old, sp);
+        out = { ...picked, why: { r1: job.r1.midi, old: job.old?.midi, sp: sp?.midi } };
       }
       this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out });
       this.jobs.splice(j--, 1);
@@ -226,15 +231,22 @@ export class PianoDetector {
   _arbitrate(r1, old, sp) {
     if (!sp) return r1;
     const pc = (m) => ((m % 12) + 12) % 12;
-    const harmonic = (hi, lo) => { const r = hi / lo; return r > 1.5 && Math.abs(r - Math.round(r)) < 0.03 * Math.round(r); };
-    if (pc(sp.midi) === pc(r1.midi)) return r1; // agree; keep the precise estimate
-    if (pc(r1.midi) === pc(old.midi)) {
-      // r1 heard the old note. A spectral answer that's an overtone of the old
-      // note means a re-strike of the same key; otherwise a new, quieter note.
-      return harmonic(sp.f0, old.f0) ? r1 : sp;
+    const harmonic = (hi, lo) => { const r = hi / lo; return r > 1.5 && r < 8.5 && Math.abs(r - Math.round(r)) < 0.03 * Math.round(r); };
+    // r1 is the common period of the old and new notes (e.g. C3 under G4 + C5).
+    const commonPeriod = old && harmonic(old.f0, r1.f0);
+    if (pc(sp.midi) === pc(r1.midi)) return commonPeriod && sp.f0 > r1.f0 * 1.5 ? sp : r1; // agree; pick the octave
+    if (old && pc(r1.midi) === pc(old.midi)) {
+      // r1 heard the old note. If the new energy still fits the old note well
+      // (or sp is one of its overtones), the same key was struck again;
+      // otherwise a new, quieter note came in under it.
+      const restrike = harmonic(sp.f0, old.f0) || (sp.sal[old.midi] ?? 0) >= 0.5 * sp.sal[sp.midi];
+      return restrike ? r1 : sp;
     }
-    // r1 is a sub-harmonic of what's new (e.g. the common period of a third).
-    if (harmonic(sp.f0, r1.f0) || harmonic(old.f0, r1.f0)) return sp;
+    if (commonPeriod) return sp;
+    // sp is an overtone of r1, or r1 a phantom sub-harmonic of sp. If r1 is
+    // real, the new energy explains it nearly as well as sp (it includes r1's
+    // own fundamental); a phantom scores far lower.
+    if (harmonic(sp.f0, r1.f0)) return (sp.sal[r1.midi] ?? 0) >= 0.6 * sp.sal[sp.midi] ? r1 : sp;
     return r1.clarity >= 0.9 ? r1 : sp;
   }
 
@@ -267,10 +279,12 @@ export class PianoDetector {
     }
     // A re-strike of the same key barely changes the spectrum's shape; then
     // the whole post-attack spectrum is the best evidence.
-    const spec = eNew > 0.1 * ePost ? pre : post;
+    const spec = eNew > 0.02 * ePost ? pre : post;
     for (let k = 0; k < spec.length; k++) spec[k] = Math.sqrt(spec[k]);
     const binHz = this.sr / this.specN;
     let best = -1, bestS = 0;
+    const salience = this.salience ??= new Float32Array(128);
+    salience.fill(0);
     for (let m = 33; m <= 100; m++) {
       const f = 440 * 2 ** ((m - 69) / 12);
       if (f < this.minF0 || f > this.maxF0) continue;
@@ -283,10 +297,19 @@ export class PianoDetector {
         for (let k = lo; k <= hi; k++) if (spec[k] > mx) mx = spec[k];
         sal += (mx * (f + 27)) / (hh * f + 320);
       }
+      salience[m] = sal;
       if (sal > bestS) { bestS = sal; best = m; }
     }
     if (best < 0) return null;
-    return { f0: 440 * 2 ** ((best - 69) / 12), midi: best, cents: 0, clarity: 0.8, method: 'spectral' };
+    // If a note an octave, twelfth, ... below explains the new energy almost
+    // as well, the winner was probably one of its overtones.
+    let fund = best;
+    for (const hh of [2, 3, 4, 5]) {
+      const m = Math.round(best - 12 * Math.log2(hh));
+      if (m >= 33 && salience[m] >= 0.75 * bestS && salience[m] > salience[fund] * (fund === best ? 0 : 1)) fund = m;
+    }
+    best = fund;
+    return { f0: 440 * 2 ** ((best - 69) / 12), midi: best, cents: 0, clarity: 0.8, method: 'spectral', sal: salience };
   }
 
   // McLeod pitch method on buf[from, from + W).
