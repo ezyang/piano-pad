@@ -25,3 +25,6 @@ addEventListener('pointerdown', () => engine.start(), { capture: true });
 addEventListener('hashchange', route);
 route();
 window.__engine = engine; // for debugging from the console
+
+// Always load the latest deploy (see sw.js).
+navigator.serviceWorker?.register('sw.js').catch(() => {});
