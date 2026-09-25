@@ -2,6 +2,7 @@ import { h } from '../dom.js';
 import { getState, newSong, resetAll, save } from '../store.js';
 import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { shareLogs, sessionCount } from '../telemetry.js';
+import { engine } from '../engine.js';
 
 export function home(root) {
   const st = getState();
@@ -43,6 +44,9 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.keepLogs !== false || null, onchange: (e) => { st.keepLogs = e.target.checked; save(); } }),
         'Keep practice logs (notes heard, no audio)'),
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: st.detector === 'overlap' || null, onchange: (e) => { st.detector = e.target.checked ? 'overlap' : 'simple'; save(); engine.configure(); } }),
+        'Experimental: overlapping-note detector'),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {

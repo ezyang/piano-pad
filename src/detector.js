@@ -36,8 +36,11 @@ export const DEFAULTS = {
   maxF0: 2200,
   clarity: 0.85,
   // If the note before is still ringing (energy before the attack within this
-  // many dB of after), plain autocorrelation locks onto the mixture; use the
-  // spectral "what's new" estimate over a longer window instead.
+  // many dB of after), plain autocorrelation can lock onto the mixture; with
+  // overlapAware, a spectral "what's new" estimate over a longer window may
+  // override it. Tuned on synthesized audio only, and suspected of hurting
+  // on a real piano, so it's off by default until tuned on recordings.
+  overlapAware: false,
   overlapDb: -17,
   specWindow: 2048, // at 48 kHz
   debug: false,
@@ -197,7 +200,7 @@ export class PianoDetector {
       if (!job.r1) {
         const W = this.pitchWindows[job.w];
         if (this.pos < from + W) continue;
-        if (job.old === undefined) {
+        if (job.old === undefined && this.overlapAware) {
           // Is the previous note still ringing? If so, remember its pitch.
           const W0 = this.pitchWindows[0];
           const ringing = this._energy(job.onset - 32 - W0, W0) > this._energy(from, W0) * 10 ** (this.overlapDb / 10);
@@ -214,7 +217,7 @@ export class PianoDetector {
       let out = job.r1;
       // Arbitrate when a note is still ringing: always if we know its pitch,
       // and otherwise when r1 looks like a mixture's low common period.
-      if (job.r1.midi != null && (job.old || (job.ringing && job.r1.midi < 48))) {
+      if (this.overlapAware && job.r1.midi != null && (job.old || (job.ringing && job.r1.midi < 48))) {
         if (this.pos < from + this.specWindow) continue; // need the longer window
         const sp = this._spectralPitch(job.onset);
         const { sal, ...picked } = this._arbitrate(job.r1, job.old, sp);

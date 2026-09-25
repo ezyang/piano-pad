@@ -48,7 +48,7 @@ for (const name of names) {
     addReverb(audio, SR, c.reverb);
     scale(audio, c.gain);
     addNoise(audio, SR, c.noise);
-    const dets = runDetector(audio, SR);
+    const dets = runDetector(audio, SR, { overlapAware: args.includes('--overlap') });
     const r = evaluate(events, dets);
     worst = Math.min(worst, r.recall, r.precision, r.pitchAcc);
     letterSum += r.letterAcc; runs++;

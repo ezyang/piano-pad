@@ -5,6 +5,10 @@
 // fire when the pitch is known (~25 ms after the attack); `time` is the attack.
 import { createDetectorNode } from '../detector-node.js';
 import { renderNote } from '../synth.js';
+import { getState } from './store.js';
+
+// Detector options chosen in the grown-ups menu.
+export const detectorOptions = () => ({ overlapAware: getState().detector === 'overlap' });
 
 class Engine {
   constructor() {
@@ -52,7 +56,7 @@ class Engine {
   // until the new one is ready).
   async _create() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
-    const node = await createDetectorNode(ctx, { debug: true });
+    const node = await createDetectorNode(ctx, { debug: true, ...detectorOptions() });
     const onsets = new Map();
     node.port.onmessage = ({ data: e }) => {
       if (e.type === 'frames') {
@@ -91,6 +95,11 @@ class Engine {
   onNote(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  // Apply changed detector options to the running detector.
+  configure() {
+    this.node?.port.postMessage({ type: 'config', opts: detectorOptions() });
   }
 
   // Raw detector events (onsets, pitches including rejected ones).
