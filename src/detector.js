@@ -14,6 +14,10 @@
 // broadband noise, where per-bin noise fluctuation swamps the flux. The reported onset
 // sample is refined by looking for the jump in high-frequency energy.
 // Pitch: McLeod pitch method (NSDF) over a window starting just after the onset.
+// When the previous note is still sounding, instead: subtract the spectrum
+// just before the attack from the one just after, and pick the note whose
+// harmonics best explain the new energy (harmonic salience, Klapuri-style
+// weights so sub-octaves score lower).
 
 export const DEFAULTS = {
   fftSize: 512,
@@ -31,6 +35,11 @@ export const DEFAULTS = {
   minF0: 60,
   maxF0: 2200,
   clarity: 0.85,
+  // If the note before is still ringing (energy before the attack within this
+  // many dB of after), plain autocorrelation locks onto the mixture; use the
+  // spectral "what's new" estimate over a longer window instead.
+  overlapDb: -17,
+  specWindow: 2048, // at 48 kHz
   debug: false,
 };
 
@@ -42,6 +51,7 @@ export class PianoDetector {
     this.sr = sampleRate;
     const s = sampleRate / 48000;
     this.pitchWindows = this.pitchWindows.map((w) => Math.round(w * s));
+    this.specWindow = Math.round(this.specWindow * s);
     this.bufSize = 16384;
     this.mask = this.bufSize - 1;
     this.buf = new Float32Array(this.bufSize);
@@ -75,6 +85,14 @@ export class PianoDetector {
     this.pwin = new Float32Array(Math.max(...this.pitchWindows));
     this.nsdf = new Float32Array(Math.max(...this.pitchWindows));
     this.hp = biquadHighpass(80, sampleRate);
+    this.specN = 4096;
+    this.specFFT = makeFFT(this.specN);
+    this.specRe = new Float32Array(this.specN);
+    this.specIm = new Float32Array(this.specN);
+    this.specPre = new Float32Array(this.specN / 2);
+    this.specPost = new Float32Array(this.specN / 2);
+    this.specWin = new Float32Array(this.specWindow);
+    for (let i = 0; i < this.specWindow; i++) this.specWin[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.specWindow);
     this.onEvent = () => {};
   }
 
@@ -175,21 +193,100 @@ export class PianoDetector {
   _runJobs() {
     for (let j = 0; j < this.jobs.length; j++) {
       const job = this.jobs[j];
-      const W = this.pitchWindows[job.w];
       const from = job.onset + this.pitchSkip;
-      if (this.pos < from + W) continue;
-      const res = this._pitch(from, W);
-      const last = job.w === this.pitchWindows.length - 1;
-      if (res && (res.clarity >= this.clarity || last)) {
-        this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...res });
-        this.jobs.splice(j--, 1);
-      } else if (last) {
-        this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, f0: 0, midi: null, cents: 0, clarity: 0 });
-        this.jobs.splice(j--, 1);
-      } else {
-        job.w++;
+      if (!job.r1) {
+        const W = this.pitchWindows[job.w];
+        if (this.pos < from + W) continue;
+        if (job.old === undefined) {
+          // Is the previous note still ringing? If so, remember its pitch.
+          const W0 = this.pitchWindows[0];
+          const ringing = this._energy(job.onset - 32 - W0, W0) > this._energy(from, W0) * 10 ** (this.overlapDb / 10);
+          const r0 = ringing ? this._pitch(job.onset - 32 - this.pitchWindows[1], this.pitchWindows[1]) : null;
+          job.old = r0 && r0.clarity >= 0.8 ? r0 : null;
+        }
+        const res = this._pitch(from, W);
+        const last = job.w === this.pitchWindows.length - 1;
+        if (res && (res.clarity >= this.clarity || last)) job.r1 = res;
+        else if (last) job.r1 = { f0: 0, midi: null, cents: 0, clarity: 0 };
+        else { job.w++; continue; }
       }
+      let out = job.r1;
+      if (job.old && job.r1.midi != null) {
+        if (this.pos < from + this.specWindow) continue; // need the longer window
+        out = this._arbitrate(job.r1, job.old, this._spectralPitch(job.onset));
+      }
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out });
+      this.jobs.splice(j--, 1);
     }
+  }
+
+  // With the previous note still ringing, autocorrelation (r1) can report the
+  // old note or a common sub-harmonic of both; the spectral estimate (sp)
+  // can report an overtone on a re-strike. Decide between them.
+  _arbitrate(r1, old, sp) {
+    if (!sp) return r1;
+    const pc = (m) => ((m % 12) + 12) % 12;
+    const harmonic = (hi, lo) => { const r = hi / lo; return r > 1.5 && Math.abs(r - Math.round(r)) < 0.03 * Math.round(r); };
+    if (pc(sp.midi) === pc(r1.midi)) return r1; // agree; keep the precise estimate
+    if (pc(r1.midi) === pc(old.midi)) {
+      // r1 heard the old note. A spectral answer that's an overtone of the old
+      // note means a re-strike of the same key; otherwise a new, quieter note.
+      return harmonic(sp.f0, old.f0) ? r1 : sp;
+    }
+    // r1 is a sub-harmonic of what's new (e.g. the common period of a third).
+    if (harmonic(sp.f0, r1.f0) || harmonic(old.f0, r1.f0)) return sp;
+    return r1.clarity >= 0.9 ? r1 : sp;
+  }
+
+  _energy(from, W) {
+    let e = 0;
+    for (let i = 0; i < W; i++) { const v = this.buf[(from + i) & this.mask]; e += v * v; }
+    return e;
+  }
+
+  // Magnitude spectrum of buf[from, from + specWindow), Hann, zero-padded.
+  _spectrum(from, out) {
+    const { specRe: re, specIm: im, specWin: win, buf, mask } = this;
+    re.fill(0); im.fill(0);
+    for (let i = 0; i < win.length; i++) re[i] = buf[(from + i) & mask] * win[i];
+    this.specFFT(re, im);
+    for (let k = 0; k < out.length; k++) out[k] = Math.hypot(re[k], im[k]);
+    return out;
+  }
+
+  _spectralPitch(onset) {
+    const W = this.specWindow;
+    const post = this._spectrum(onset + this.pitchSkip, this.specPost);
+    const pre = this._spectrum(onset - 32 - W, this.specPre);
+    let eNew = 0, ePost = 0;
+    for (let k = 0; k < post.length; k++) {
+      const d = post[k] - pre[k];
+      pre[k] = d > 0 ? d : 0; // reuse as the "new energy" spectrum
+      eNew += pre[k] * pre[k];
+      ePost += post[k] * post[k];
+    }
+    // A re-strike of the same key barely changes the spectrum's shape; then
+    // the whole post-attack spectrum is the best evidence.
+    const spec = eNew > 0.1 * ePost ? pre : post;
+    for (let k = 0; k < spec.length; k++) spec[k] = Math.sqrt(spec[k]);
+    const binHz = this.sr / this.specN;
+    let best = -1, bestS = 0;
+    for (let m = 33; m <= 100; m++) {
+      const f = 440 * 2 ** ((m - 69) / 12);
+      if (f < this.minF0 || f > this.maxF0) continue;
+      let sal = 0;
+      for (let hh = 1; hh <= 12; hh++) {
+        const fh = hh * f * Math.sqrt(1 + 0.0004 * hh * hh);
+        if (fh > 5000) break;
+        const lo = Math.floor((fh * 0.97) / binHz), hi = Math.min(spec.length - 1, Math.ceil((fh * 1.03) / binHz));
+        let mx = 0;
+        for (let k = lo; k <= hi; k++) if (spec[k] > mx) mx = spec[k];
+        sal += (mx * (f + 27)) / (hh * f + 320);
+      }
+      if (sal > bestS) { bestS = sal; best = m; }
+    }
+    if (best < 0) return null;
+    return { f0: 440 * 2 ** ((best - 69) / 12), midi: best, cents: 0, clarity: 0.8, method: 'spectral' };
   }
 
   // McLeod pitch method on buf[from, from + W).

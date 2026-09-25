@@ -28,6 +28,17 @@ export const SCENARIOS = {
     label: 'Wide register: C2 .. C7',
     make: () => rhythmToEvents(parseRhythm('ta ta ta ta ta ta'), { bpm: 70, pitches: [36, 48, 60, 72, 84, 96] }),
   },
+  overlap: {
+    label: 'Overlapping notes (previous key still held), thirds/fifths/steps',
+    make: () => {
+      const ps = [67, 64, 60, 67, 64, 65, 62, 67, 60, 64, 67, 72, 67, 64, 60, 62];
+      return ps.map((p, i) => ({ time: 0.5 + i * 0.4, midi: p, dur: 0.65, vel: 0.5 + 0.3 * (i % 3) / 2 }));
+    },
+  },
+  pedal: {
+    label: 'Sustain pedal: every note rings ~2 s',
+    make: () => rhythmToEvents(parseRhythm('ta ta ta ta ta ta ta-a ta ta ta-a ta ta ta-a'), { bpm: 100, pitches: mary, legato: 3 }),
+  },
   kid: {
     label: 'Kid-like: uneven timing, velocity, one hesitation',
     make: (seed = 7) => {
