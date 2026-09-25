@@ -1,0 +1,13 @@
+{
+  "name": "Piano Pad",
+  "short_name": "Piano Pad",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#3d2b1d",
+  "theme_color": "#3d2b1d",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
