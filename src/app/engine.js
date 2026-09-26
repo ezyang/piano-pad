@@ -72,7 +72,7 @@ class Engine {
         onsets.set(e.sample, e);
         if (onsets.size > 50) onsets.delete(onsets.keys().next().value);
       }
-      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > 0.6;
+      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > 0.6 && !e.reject;
       // Everything the detector says, for the practice log.
       for (const fn of this.rawListeners) fn({ ...e, time: e.sample / ctx.sampleRate, detectedTime: e.detectedAt / ctx.sampleRate, accepted });
       if (accepted) {

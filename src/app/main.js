@@ -5,9 +5,10 @@ import { play } from './screens/play.js';
 import { band } from './screens/band.js';
 import { me } from './screens/me.js';
 import { EXPERIMENTS } from './experiments.js';
+import { calibrate } from './screens/calibrate.js';
 import { texture } from './pixels.js';
 
-const ROUTES = { '': home, song: editor, play, band, me, ...Object.fromEntries(EXPERIMENTS.map((e) => [e.id, e.screen])) };
+const ROUTES = { '': home, song: editor, play, band, me, calibrate, ...Object.fromEntries(EXPERIMENTS.map((e) => [e.id, e.screen])) };
 const root = document.getElementById('app');
 let dispose = null;
 

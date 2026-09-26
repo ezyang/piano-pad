@@ -388,3 +388,12 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 @keyframes finger-bob { to { transform: translateY(-4px); } }
 .staff .letter.finger { font-size: 20px; fill: #b0452a; }
 .staff .letter.fallback { opacity: 0.45; font-size: 13px; }
+
+/* ---------- Calibration (grown-ups) ---------- */
+.cal-panel { max-width: 720px; margin: 0 auto; text-align: left; display: flex; flex-direction: column; gap: 14px; font-family: -apple-system, system-ui, sans-serif; }
+.cal-step { color: #555; font-size: 14px; }
+.cal-say { font-size: 26px; font-weight: 700; line-height: 1.3; }
+.cal-expect { color: #444; font-size: 16px; }
+.cal-label { color: #555; font-size: 14px; }
+.cal-heard { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+.cal-note { background: #fff; border: 2px solid #000; padding: 4px 8px; font-family: var(--pixel); font-size: 13px; }

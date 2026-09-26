@@ -35,6 +35,15 @@ export const DEFAULTS = {
   // depend on how loud the mic hears the piano.
   fluxNormalize: true,
   fluxRefFloor: 0.03, // limits how much quiet input gets amplified
+  fluxRefDecayDb: 6, // how fast (dB/s) the loud-level reference relaxes after a loud note
+  fluxRefTarget: 0.3, // the reference level maps to this amplitude
+  // Confirmation before a note is announced (we wait for the pitch anyway):
+  // the sound must get this many dB louder within confirmMs after the attack
+  // (key releases and noise don't), and the same note re-triggering within
+  // doubleMs is dropped (nobody restrikes a key that fast). 0 disables.
+  confirmRiseDb: 0,
+  confirmMs: 25,
+  doubleMs: 0,
   refractoryMs: 60,
   gateDb: 10, // frame must be this far above the tracked noise floor
   lowCutHz: 150, // ignore rumble/hum below this for onset purposes
@@ -83,7 +92,10 @@ export class PianoDetector {
     this.frames = 0;
 
     this.fluxRef = 1;
-    this.peakDecay = 10 ** (-6 / 20 * (this.hop / sampleRate));
+    this.dbHist = new Float32Array(1024); // recent frame energies, for confirmation
+    this.endHist = new Float64Array(1024);
+    this.lastNote = null; // { sample, midi } of the last confirmed note
+    this.peakDecay = 10 ** ((-this.fluxRefDecayDb / 20) * (this.hop / sampleRate));
     this.fMean = 0;
     this.fVar = 0;
     this.rMean = 0;
@@ -149,7 +161,7 @@ export class PianoDetector {
       // reference level for the next frame's flux.
       const amp = Math.sqrt(energy) * this.magScale;
       this.peakAmp = Math.max(amp, (this.peakAmp ?? amp) * this.peakDecay);
-      this.fluxRef = Math.min(1, Math.max(this.fluxRefFloor, this.peakAmp / 0.3)); // only ever boost quiet input
+      this.fluxRef = Math.min(1, Math.max(this.fluxRefFloor, this.peakAmp / this.fluxRefTarget)); // only ever boost quiet input
     }
     this.dbHist[this.frames % this.dbHist.length] = db;
     const rise = db - this.dbHist[(this.frames + 1) % this.dbHist.length];
@@ -170,6 +182,8 @@ export class PianoDetector {
       this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux });
       this.jobs.push({ onset, w: 0 });
     }
+    this.dbHist[this.frames % this.dbHist.length] = db;
+    this.endHist[this.frames % this.endHist.length] = end;
     if (this.debug) this.onEvent({ type: 'frame', sample: end, flux, thr, rise, rThr, db, floorDb: this.floorDb });
 
     // Update stats, clamping so an attack doesn't blow up the thresholds.
@@ -242,7 +256,10 @@ export class PianoDetector {
         const { sal, ...picked } = this._arbitrate(job.r1, job.old, sp);
         out = { ...picked, why: { r1: job.r1.midi, old: job.old?.midi, sp: sp?.midi } };
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out });
+      if (this.confirmRiseDb > 0 && this.pos < job.onset + (this.confirmMs / 1000) * this.sr) continue; // not yet
+      const reject = this._confirm(job.onset, out.midi);
+      if (!reject && out.midi != null) this.lastNote = { sample: job.onset, midi: out.midi };
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -270,6 +287,24 @@ export class PianoDetector {
     // own fundamental); a phantom scores far lower.
     if (harmonic(sp.f0, r1.f0)) return (sp.sal[r1.midi] ?? 0) >= 0.6 * sp.sal[sp.midi] ? r1 : sp;
     return r1.clarity >= 0.9 ? r1 : sp;
+  }
+
+  // Returns a rejection reason, or null if the note stands.
+  _confirm(onset, midi) {
+    if (this.doubleMs > 0 && midi != null && this.lastNote && this.lastNote.midi === midi &&
+        onset - this.lastNote.sample < (this.doubleMs / 1000) * this.sr) return 'double';
+    if (this.confirmRiseDb > 0) {
+      const sr = this.sr, n = this.dbHist.length;
+      let before = Infinity, after = -Infinity;
+      for (let i = 0; i < Math.min(n, this.frames); i++) {
+        const f = this.frames - 1 - i, end = this.endHist[f % n], db = this.dbHist[f % n];
+        if (end < onset - 0.04 * sr) break;
+        if (end <= onset - 0.002 * sr) before = Math.min(before, db);
+        else if (end >= onset && end <= onset + (this.confirmMs / 1000) * sr) after = Math.max(after, db);
+      }
+      if (isFinite(before) && isFinite(after) && after - before < this.confirmRiseDb) return 'no-rise';
+    }
+    return null;
   }
 
   _energy(from, W) {

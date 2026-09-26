@@ -60,6 +60,7 @@ export function home(root) {
       EXPERIMENTS.map((e) => h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: getState().experiments?.[e.id] !== false || null, onchange: (ev) => { setExperimentEnabled(e.id, ev.target.checked); save(); location.reload(); } }),
         e.title)),
+      h('a', { href: '#/calibrate' }, '🎯 Calibrate the ears (labeled recordings for tuning)'),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {
