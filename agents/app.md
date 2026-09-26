@@ -43,9 +43,24 @@ parent's direction into things she wants to open.
 (Keep this section up to date. It's what the next instance of you reads.)
 
 As of 2026-09-26:
+- **Today's adventure** (pedagogy request, parent-approved, 2026-09-26) leads
+  the home screen: warm-up (Build! mountain via `#/world/adventure`, or Copy
+  me ×3 via `#/echo/adventure`) → homework (whole piece, any note advances,
+  fingers + ✋, no wrong marks or scores) → party (session band plays it,
+  then free Build!). Each step brings a band member (warm-up: Beep Bot,
+  homework: Blobby); the band lives in memory only (`src/app/adventure.js`).
+  Logs: one `adventure` session per adventure (step start/finish/quit
+  events, rewritten via `telemetry.record`), plus `homework` / `build` /
+  `echo` sessions tagged `adventure: <id>`. Homework is a code constant
+  (`src/app/homework.js`). Chunking the homework is deliberately held back.
+- Hidden for now (files kept, routes still work): her songs, "New song", the
+  editor, play and band screens, the ⚙︎ "Add homework song", and the 💾 save
+  buttons in Build!/Copy me.
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
-- Other screens: home, play, editor, band, me, calibrate (audio's).
+- Other screens: me, calibrate (audio's).
+- Testing without the Chrome extension: headless Chrome + a small CDP script
+  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)`.
 - Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
   `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
   The parent may deliberately send her back to an old version (removing

@@ -397,3 +397,36 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .cal-label { color: #555; font-size: 14px; }
 .cal-heard { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
 .cal-note { background: #fff; border: 2px solid #000; padding: 4px 8px; font-family: var(--pixel); font-size: 13px; }
+
+/* ---------- Today's adventure ---------- */
+.card.adv-card { grid-column: 1 / -1; min-height: 170px; align-items: center; justify-content: center; text-align: center;
+  background: linear-gradient(#1b2350, #3b3474); color: #fff; box-shadow: inset 3px 3px 0 rgba(255,255,255,0.3), inset -3px -3px 0 rgba(0,0,0,0.4); animation: glow-gold 1.1s ease-in-out infinite alternate; }
+.card.adv-card .card-title { font-size: clamp(18px, 3.4vw, 28px); color: var(--gold); text-shadow: 3px 3px 0 #000; }
+.adv-mini { display: flex; gap: 22px; font-size: 40px; }
+.card.adv-card .mini-band { margin-top: 0; }
+.card.adv-card .mini-sprite { height: 44px; }
+
+.adventure { position: relative; }
+.adv-path { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; }
+.adv-link { width: clamp(20px, 5vw, 60px); height: 14px; background: #8a6a3a; border: 3px solid #000; border-left: 0; border-right: 0; }
+.adv-stop { position: relative; width: clamp(150px, 26vw, 220px); height: clamp(150px, 26vw, 220px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border: 4px solid #000; background: var(--ui); box-shadow: inset 4px 4px 0 var(--ui-light), inset -4px -4px 0 var(--ui-dark), 0 8px 0 rgba(0,0,0,0.35); cursor: pointer; padding: 0; }
+.adv-stop.next { background: var(--gold); box-shadow: inset 4px 4px 0 #fff3b0, inset -4px -4px 0 #b08a00, 0 8px 0 rgba(0,0,0,0.35); animation: adv-bob 1s ease-in-out infinite alternate; }
+.adv-stop.done { background: #9fd67a; }
+.adv-stop.locked { background: #7a7a7a; }
+.adv-icon { font-size: clamp(54px, 10vw, 84px); line-height: 1; }
+.adv-label { font-family: var(--pixel); font-size: clamp(12px, 2vw, 16px); }
+.adv-check { position: absolute; top: -14px; right: -14px; font-size: 36px; }
+@keyframes adv-bob { to { transform: translateY(-8px); } }
+.adv-band { display: flex; gap: 26px; justify-content: center; align-items: flex-end; padding-bottom: 60px; }
+.adv-party .member-sprite { height: clamp(110px, 20vh, 220px); }
+.adv-band.big .member-sprite { height: clamp(90px, 16vh, 150px); }
+.adv-band .member-sprite.locked { filter: brightness(0); opacity: 0.45; }
+.adv-choice { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+.adv-choice .card { width: 240px; min-height: 220px; }
+.adv-choice .bp-mini { align-items: flex-end; }
+.adv-welcome { flex-direction: column; gap: 24px; background: rgba(0, 0, 0, 0.55); color: #fff; text-shadow: 3px 3px 0 #000; }
+.adv-welcome .joined { font-size: clamp(16px, 3vw, 26px); }
+.adv-welcome-sprite { width: clamp(120px, 22vw, 200px); transform-origin: bottom center; }
+.staff .n.played .head { fill: #777; }
+.staff .n.played .head.hollow { fill: #ddd; stroke: #777; }

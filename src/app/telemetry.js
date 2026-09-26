@@ -41,18 +41,13 @@ function store(sessions) {
 
 export const loggingEnabled = () => getState().keepLogs !== false;
 
-// kind: 'practice' | 'write'. info: song and mode details.
-export function startSession(kind, info) {
-  if (current) endSession({ aborted: true });
-  if (!loggingEnabled()) return;
-  const ctx = engine.ctx;
-  current = {
+// The fields every session starts with.
+export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)) {
+  return {
     v: 1,
-    id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    id,
     kind,
     started: new Date().toISOString(),
-    t0: performance.now(),
-    ctxT0: ctx?.currentTime ?? 0,
     app: {
       version: VERSION,
       path: location.pathname, // /v/<sha>/ when she's on an old version
@@ -61,6 +56,29 @@ export function startSession(kind, info) {
       screen: [innerWidth, innerHeight, devicePixelRatio],
       standalone: matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
     },
+  };
+}
+
+// Store (or replace, by id) a session that isn't recorded through
+// startSession, e.g. the adventure's step log, and send it again.
+export function record(session) {
+  if (!loggingEnabled()) return;
+  session.rev = (session.rev ?? 0) + 1; // so an upload in flight doesn't mark this copy as sent
+  const sessions = load().filter((s) => s.id !== session.id);
+  sessions.push({ ...session, uploaded: false });
+  store(sessions);
+  upload();
+}
+
+// kind: 'practice' | 'write' | ... info: song and mode details.
+export function startSession(kind, info) {
+  if (current) endSession({ aborted: true });
+  if (!loggingEnabled()) return;
+  const ctx = engine.ctx;
+  current = {
+    ...sessionHeader(kind),
+    t0: performance.now(),
+    ctxT0: ctx?.currentTime ?? 0,
     audio: ctx ? { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency } : null,
     settings: { labels: getState().labels ?? (getState().showLetters === false ? 'none' : 'letters'), strictOctave: getState().strictOctave !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple' },
     ...info,
@@ -141,17 +159,19 @@ export function clearLogs() { store([]); }
 
 // Send sessions and recordings that haven't been uploaded yet. Safe to call
 // any time; away from home the server is unreachable and they wait.
-let uploading = false;
+let uploading = false, again = false;
 export async function upload() {
-  if (!UPLOAD_URL || !navigator.onLine || uploading) return;
+  if (!UPLOAD_URL || !navigator.onLine) return;
+  if (uploading) { again = true; return; }
   uploading = true;
+  again = false;
   try {
     const pending = load().filter((s) => !s.uploaded);
     if (pending.length) {
       const res = await fetch(`${UPLOAD_URL}/sessions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
       if (!res.ok) return;
       const latest = load();
-      for (const s of latest) if (pending.some((p) => p.id === s.id)) s.uploaded = true;
+      for (const s of latest) if (pending.some((p) => p.id === s.id && p.rev === s.rev)) s.uploaded = true;
       store(latest);
     }
     for (const [id, { blob, ext }] of await idb('entries')) {
@@ -161,6 +181,7 @@ export async function upload() {
     }
   } catch { /* not home, or offline; try again later */ } finally {
     uploading = false;
+    if (again) upload();
   }
 }
 

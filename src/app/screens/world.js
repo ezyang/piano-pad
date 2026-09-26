@@ -3,12 +3,14 @@
 // shape of a melody becomes the shape of a building. The notes also appear on
 // a staff below.
 //
-// Free build: anything goes; 💾 saves it as a song (rhythm from her timing).
+// Free build: anything goes.
 // Blueprints: ghost outlines (stairs, a mountain, her songs, 🎲 surprises)
 // filled by playing their notes in order, like Learn mode with the melody's
 // contour drawn as a building.
+// #/world/adventure is the adventure's warm-up: just the mountain; finishing
+// it brings in a band member and goes back to the map.
 import { h, flash, sparkle } from '../dom.js';
-import { getState, save, newSong } from '../store.js';
+import { getState, save } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture, characterUrl } from '../pixels.js';
@@ -19,6 +21,7 @@ import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { labelMode, fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
+import * as adv from '../adventure.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 // Height in blocks: C..B = 1..7 in any octave (octave slips in detection
@@ -53,8 +56,10 @@ function surprise() {
   return out;
 }
 
-export function world(root) {
+export function world(root, id) {
   const st = getState();
+  const advId = id === 'adventure' ? adv.startStep('warmup', { choice: 'build' }) : null;
+  let alive = true;
   let sky = BIOMES.findIndex((b) => b.name === st.worldSky);
   if (sky < 0) sky = 2; // she likes the night sky
   // mode: { kind: 'free' } | { kind: 'blueprint', id, notes, cur }
@@ -179,6 +184,12 @@ export function world(root) {
 
   function finishBlueprint() {
     log.endSession({ completed: true, blueprint: mode.id });
+    if (advId) {
+      adv.finishStep('warmup');
+      // Hear it, then back to the map to meet the new band member.
+      const ms = 700 + (mode.notes.length * 60 / 110 + 1.5) * 1000;
+      setTimeout(() => { if (alive) location.hash = '#/adventure'; }, ms);
+    }
     const r = worldEl.getBoundingClientRect();
     for (let i = 0; i < 5; i++) {
       setTimeout(() => sparkle(worldEl, r.width * (0.15 + 0.7 * Math.random()), r.height * (0.1 + 0.4 * Math.random()),
@@ -234,29 +245,15 @@ export function world(root) {
     stopHearing();
     mode = next;
     if (next.kind === 'free') cols = [];
-    log.startSession('build', { mode: next.kind, blueprint: next.id, song: next.notes ? { notes: next.notes.map((p) => ({ d: 1, p })) } : undefined });
+    log.startSession('build', { mode: next.kind, blueprint: next.id, song: next.notes ? { notes: next.notes.map((p) => ({ d: 1, p })) } : undefined, ...(advId ? { adventure: advId } : {}) });
     for (const b of bpBtns) b.classList.toggle('on', b.dataset.id === (next.id ?? 'free'));
-    saveBtn.style.visibility = next.kind === 'free' ? '' : 'hidden';
     draw();
     drawStaff();
-  }
-
-  function saveAsSong() {
-    if (cols.length < 2) return;
-    const q = quantize(cols.map((c) => ({ time: c.time, midi: c.midi })));
-    const song = newSong('me');
-    song.title = song.title.replace('My Song', 'My Build');
-    song.notes = q.notes;
-    song.bpm = Math.min(120, Math.max(50, q.bpm));
-    save();
-    log.endSession({ saved: song.id, columns: cols.length });
-    location.hash = `#/song/${song.id}`;
   }
 
   // --- controls ---
   const skyBtn = h('button', { class: 'btn', title: 'Sky', onclick: () => setSky(sky + 1) });
   const hearBtn = h('button', { class: 'btn', title: 'Hear it', onclick: () => (playing ? stopHearing() : hear()) }, '▶');
-  const saveBtn = h('button', { class: 'btn', title: 'Save as a song', onclick: saveAsSong }, '💾');
   const clearBtn = h('button', {
     class: 'btn', title: 'Start over',
     onclick: () => {
@@ -284,15 +281,16 @@ export function world(root) {
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
   root.append(h('div', { class: 'screen world' },
     h('header', { class: 'bar' },
-      h('a', { class: 'btn', href: '#/' }, '🏠'),
+      h('a', { class: 'btn', href: advId ? '#/adventure' : '#/' }, advId ? '🗺️' : '🏠'),
       skyBtn,
       h('div', { class: 'spacer' }),
-      hearBtn, saveBtn, clearBtn),
-    h('div', { class: 'bp-bar' }, bpBtns),
+      hearBtn, clearBtn),
+    advId ? null : h('div', { class: 'bp-bar' }, bpBtns),
     h('div', { class: 'stage' }, worldEl, staffBox, overlay),
     testKeyboard()));
   setSky(sky);
-  startMode({ kind: 'free' });
+  const mountain = BLUEPRINTS.find((b) => b.id === 'mountain');
+  startMode(advId ? { kind: 'blueprint', id: mountain.id, notes: mountain.notes, cur: 0 } : { kind: 'free' });
   listen();
 
   async function listen() {
@@ -307,6 +305,8 @@ export function world(root) {
   }
 
   return () => {
+    alive = false;
+    if (advId) adv.quitStep('warmup');
     stopHearing();
     listenerOff?.();
     log.endSession({ aborted: true, columns: built().length });
