@@ -41,6 +41,21 @@ function store(sessions) {
 
 export const loggingEnabled = () => getState().keepLogs !== false;
 
+// What the mic actually gave us. We ask for no echo cancellation, noise
+// suppression or auto gain; this shows whether the browser (iOS Safari)
+// honored that. Device metadata only.
+function micInfo() {
+  const track = engine.stream?.getAudioTracks?.()[0];
+  if (!track || track.readyState !== 'live') return {};
+  try {
+    const { deviceId, groupId, ...settings } = track.getSettings?.() ?? {}; // drop the opaque device ids
+    return {
+      track: { settings, constraints: track.getConstraints?.(), label: track.label },
+      supported: navigator.mediaDevices?.getSupportedConstraints?.(),
+    };
+  } catch { return {}; }
+}
+
 // The fields every session starts with.
 export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)) {
   return {
@@ -79,7 +94,7 @@ export function startSession(kind, info) {
     ...sessionHeader(kind),
     t0: performance.now(),
     ctxT0: ctx?.currentTime ?? 0,
-    audio: ctx ? { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency } : null,
+    audio: ctx ? { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency, ...micInfo() } : null,
     settings: { labels: getState().labels ?? (getState().showLetters === false ? 'none' : 'letters'), strictOctave: getState().strictOctave !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple' },
     ...info,
     events: [],
@@ -119,6 +134,8 @@ export function endSession(result = {}) {
   while (unsubs.length) unsubs.pop()();
   const s = current;
   current = null;
+  // Screens that start logging before the mic is up get it at the end.
+  if (s.audio && !s.audio.track) Object.assign(s.audio, micInfo());
   // An abandoned run where nothing was heard isn't worth keeping.
   const keep = !(result.aborted && !s.events.some((e) => e[1] === 'onset' || e[1] === 'sim'));
   stopAudio(s, keep);
