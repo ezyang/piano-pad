@@ -1,16 +1,17 @@
 // Re-run the detector on a recorded practice session and compare with what
 // the app detected live.
-//   node tools/replay.mjs <session.mp4|webm> [--overlap] [--opt key=value ...]
+//   node tools/replay.mjs <session.mp4|webm> [--overlap] [--opt key=value ...] [--no-profile | --profile-onsets]
 // Looks for <session>.json next to the audio (as the log server stores them).
 // Needs ffmpeg to decode.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { PianoDetector } from '../src/detector.js';
+import { profileOptions } from './profile.mjs';
 
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith('--') && !a.includes('='));
 if (!file) { console.error('usage: node tools/replay.mjs <audio> [--overlap] [--opt key=value]'); process.exit(1); }
-const opts = { overlapAware: args.includes('--overlap') };
+const opts = { ...profileOptions(args), overlapAware: args.includes('--overlap') };
 args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? v : +v; } });
 
 const SR = 48000;

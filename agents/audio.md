@@ -97,3 +97,29 @@ As of 2026-09-26:
   The app drops voice notes everywhere (08a744e, judge `why: 'voice'`), and
   pitch events in the logs carry `voice`. Next: check it on real LH homework
   recordings, looking for real notes wrongly flagged.
+- Reference transcriptions (2026-09-26): Kong et al.'s offline model over
+  all recordings (`tools/nn/kong.py`, README in tools/nn). Recordings, refs and
+  the Python venv live in ~/Dev/piano-audio-data (not in git).
+  `tools/ref-audit.mjs` scores the detector against them. Baseline then: 63%
+  of reference attacks (firm 86%, medium 68%, soft 26%), 290 false notes
+  in 25 min, right letter 96%.
+- Piano profile, `src/piano-profile.json`, loaded by engine.js and by the
+  tools (`tools/profile.mjs`; `--no-profile` for the plain detector). The
+  synth bench runs without it.
+  - `octaveDown: [72]`: C4's fundamental is ~15 dB below its 2nd harmonic
+    here, so C4 read as C5 (191 of ~290 wrong notes). Exact note 81.5% ->
+    92.6%. It needs real energy at the lower fundamental. Without that, a
+    perfectly periodic synth C5 flipped.
+  - `templates`: per-key NMF templates for experimental template onsets
+    (`onsets: 'templates'`; grown-up detector setting 'profile'). 4-fold CV:
+    at tplRise .2 firm 94% / medium+ 85% / 392 false, vs DSP default
+    86% / 75% / 290 and DSP K4 R4 92% / 83% / 562. Pitch exact ~87%. No
+    better than DSP at the default operating point. A judgment call on more
+    notes vs more false ones, so it's opt-in until the parent tries it.
+  - Energy-only onset features (HF band, longer rise spans) don't beat the
+    current full-band rise on this mic. Pitch drift doesn't separate false
+    notes from real ones above C4.
+- Onsets & Velocities: running its cloned repo code was blocked by the
+  permission classifier; needs the parent's OK.
+- Idea from the parent (cherry on top): make the detector independent of the
+  UI, so a better detector can be backported to old app versions (/v/<sha>/).

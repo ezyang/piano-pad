@@ -52,6 +52,15 @@ export const DEFAULTS = {
   minF0: 60,
   maxF0: 2200,
   clarity: 0.85,
+  // McLeod's "k": take the shortest period whose NSDF peak is within this
+  // fraction of the best one. Lower values favor octave-up errors.
+  mpmK: 0.9,
+  // Detected notes that should drop an octave when the lower period fits at
+  // least as well and there's real energy at the lower fundamental (within
+  // octaveDownDb). For keys whose fundamental is too weak on a particular
+  // piano and mic; set by the piano profile (src/piano-profile.json).
+  octaveDown: [],
+  octaveDownDb: 30,
   // If the note before is still ringing (energy before the attack within this
   // many dB of after), plain autocorrelation can lock onto the mixture; with
   // overlapAware, a spectral "what's new" estimate over a longer window may
@@ -68,6 +77,18 @@ export const DEFAULTS = {
   // than 40. Costs those notes ~20 ms of extra latency. 0 disables.
   voiceBelow: 60,
   voiceCents: 40,
+  // Onset detection: 'dsp' (spectral flux + energy rise), 'templates' (a
+  // piano profile: NMF with per-key spectral templates of this piano, see
+  // TemplateOnsets), or 'both'. Templates need `templates` (the profile).
+  onsets: 'dsp',
+  templates: null,
+  // Tuned 2026-09-26 against Kong references, on recordings the templates
+  // weren't learned from (tools/nn/nmf_proto.py, tools/ref-audit.mjs).
+  tplIters: 5, // NMF iterations per frame (warm-started)
+  tplRise: 0.22, // key activation jump, relative to the recent peak total
+  tplShare: 0.15, // the key's share of all key activation at the attack
+  tplFloorDb: -70,
+  tplRefractoryMs: 100, // one strike can re-fire ~75 ms later; nobody plays 10 notes/s
   debug: false,
 };
 
@@ -86,7 +107,7 @@ export class PianoDetector {
     this.pos = 0; // absolute index of the next sample to be written
     this.sinceHop = 0;
 
-    const N = this.fftSize;
+    const N = this.fftSize, hop = this.hop;
     this.win = new Float32Array(N);
     let wsum = 0;
     for (let i = 0; i < N; i++) wsum += this.win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N);
@@ -130,6 +151,11 @@ export class PianoDetector {
     this.driftN = new Float32Array(Math.ceil((1.25 * sampleRate) / this.minF0) + 4);
     this.specWin = new Float32Array(this.specWindow);
     for (let i = 0; i < this.specWindow; i++) this.specWin[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.specWindow);
+    this.lastOnsetSample = -Infinity;
+    if (this.templates && this.onsets !== 'dsp') {
+      this.tpl = new TemplateOnsets(this.templates, sampleRate, this);
+      this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
+    }
     this.onEvent = () => {};
   }
 
@@ -188,11 +214,22 @@ export class PianoDetector {
     // Let the adaptive statistics and level reference settle before
     // reporting attacks (a quarter second).
     const warm = this.frames > Math.max(this.hist.length + 4, (0.25 * this.sr) / this.hop);
-    if (warm && (flux > thr || rise > rThr) && db > this.floorDb + this.gateDb && end - this.lastOnset > this.refractory) {
+    if (warm && this.onsets !== 'templates' && (flux > thr || rise > rThr) && db > this.floorDb + this.gateDb && end - this.lastOnset > this.refractory) {
       const onset = this._refineOnset(end);
       this.lastOnset = end;
+      this.lastOnsetSample = onset;
       this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux });
       this.jobs.push({ onset, w: 0 });
+    }
+    if (this.tpl && this.frames % this.tplEvery === 0) {
+      const found = this.tpl.frame(this.buf, this.mask, end);
+      if (found && warm && found.onset - this.lastOnsetSample > (this.tplRefractoryMs / 1000) * this.sr) {
+        const onset = found.onset;
+        this.lastOnset = end;
+        this.lastOnsetSample = onset;
+        this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux: 0, via: 'templates', key: found.key });
+        this.jobs.push({ onset, w: 0, key: found.key });
+      }
     }
     this.dbHist[this.frames % this.dbHist.length] = db;
     this.endHist[this.frames % this.endHist.length] = end;
@@ -276,7 +313,7 @@ export class PianoDetector {
       }
       const reject = this._confirm(job.onset, out.midi);
       if (!reject && out.midi != null) this.lastNote = { sample: job.onset, midi: out.midi };
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -453,14 +490,136 @@ export class PianoDetector {
     if (!peaks.length) return null;
     let top = 0;
     for (const p of peaks) top = Math.max(top, n[p]);
-    const pick = peaks.find((p) => n[p] >= 0.9 * top);
-    const a = n[pick - 1], b = n[pick], c = n[pick + 1];
+    const pick = peaks.find((p) => n[p] >= this.mpmK * top);
+    let res = this._peak(pick);
+    // Piano profile: keys whose fundamental is so weak that they read an
+    // octave high. If the period one octave down fits at least as well, take it.
+    // A perfectly periodic note also repeats at twice its period, so require
+    // real energy at the lower fundamental too.
+    if (this.octaveDown.includes(res.midi)) {
+      const lo = Math.floor(2 * pick * 0.97), hi = Math.min(maxLag - 1, Math.ceil(2 * pick * 1.03));
+      let p2 = lo;
+      for (let t = lo; t <= hi; t++) if (n[t] > n[p2]) p2 = t;
+      if (n[p2] >= n[pick] && this._level(x, W, res.f0 / 2) > this._level(x, W, res.f0) - this.octaveDownDb) res = this._peak(p2);
+    }
+    return res;
+  }
+
+  // Level (dB) of frequency f in x[0, W), Hann-windowed (Goertzel).
+  _level(x, W, f) {
+    const c = 2 * Math.cos((2 * Math.PI * f) / this.sr);
+    let s1 = 0, s2 = 0;
+    for (let i = 0; i < W; i++) {
+      const s0 = x[i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / W)) + c * s1 - s2;
+      s2 = s1; s1 = s0;
+    }
+    return 10 * Math.log10(s1 * s1 + s2 * s2 - c * s1 * s2 + 1e-20);
+  }
+
+  // Pitch from the NSDF peak at lag p (parabolic interpolation).
+  _peak(p) {
+    const n = this.nsdf;
+    const a = n[p - 1], b = n[p], c = n[p + 1];
     const den = a - 2 * b + c;
     const shift = den !== 0 ? (0.5 * (a - c)) / den : 0;
-    const f0 = sr / (pick + shift);
+    const f0 = this.sr / (p + shift);
     const midiF = 69 + 12 * Math.log2(f0 / 440);
     const midi = Math.round(midiF);
     return { f0, midi, cents: Math.round((midiF - midi) * 100), clarity: b - 0.25 * (a - c) * shift };
+  }
+}
+
+// Onsets from a piano profile: a spectral template for each key of this
+// piano (learned offline by tools/nn/nmf_proto.py from her recordings,
+// labeled by a neural transcriber). Each frame is explained as a
+// non-negative mix of key templates plus a few background ones (speech,
+// noise); an attack is a sudden jump in one key's activation. That still
+// works while earlier notes ring, where plain energy rise and flux don't.
+// The profile is in log frequency, so it works at any sample rate.
+class TemplateOnsets {
+  constructor(profile, sr, o) {
+    const { lo, hi, bps, keys, W } = profile;
+    this.N = 2048;
+    this.hop = Math.round((profile.hop * sr) / 48000 / o.hop) * o.hop;
+    this.keys = keys;
+    this.K = keys.length; // key templates; the rest are background
+    this.J = W.length;
+    this.B = (hi - lo) * bps;
+    this.W = W.map((c) => Float64Array.from(c));
+    this.iters = o.tplIters; this.thrRise = o.tplRise; this.share = o.tplShare; this.floorDb = o.tplFloorDb;
+    const N = this.N;
+    this.win = new Float64Array(N);
+    for (let i = 0; i < N; i++) this.win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+    this.re = new Float32Array(N); this.im = new Float32Array(N);
+    this.fft = makeFFT(N);
+    // Linear -> log-frequency bins: triangles in log frequency, or linear
+    // interpolation where a log bin is narrower than a linear one.
+    const nb = N / 2 + 1, binHz = sr / N;
+    this.lf = [];
+    for (let i = 0; i < this.B; i++) {
+      const c = 440 * 2 ** ((lo + i / bps - 69) / 12), half = 1 / (12 * bps);
+      const idx = [], w = [];
+      for (let k = 1; k < nb; k++) {
+        const d = 1 - Math.abs(Math.log2((k * binHz) / c)) / half;
+        if (d > 0) { idx.push(k); w.push(d); }
+      }
+      if (!idx.length) { const j = Math.ceil(c / binHz), t = (c - (j - 1) * binHz) / binHz; idx.push(j - 1, j); w.push(1 - t, t); }
+      const sum = w.reduce((a, b) => a + b, 0);
+      this.lf.push({ idx: Int32Array.from(idx), w: Float64Array.from(w.map((x) => x / sum)) });
+    }
+    this.v = new Float64Array(this.B); this.wh = new Float64Array(this.B); this.r = new Float64Array(this.B);
+    this.h = new Float64Array(this.J).fill(1e-6);
+    this.L = 3; // rise over this many frames
+    this.hist = Array.from({ length: this.L + 1 }, () => new Float64Array(this.K));
+    this.rise = Array.from({ length: 3 }, () => new Float64Array(this.K)); // t-2, t-1, t
+    this.meta = Array.from({ length: 3 }, () => ({ start: 0, loud: -200, sum: 0 }));
+    this.ref = 1e-9;
+    this.t = 0;
+  }
+
+  // Analyze the frame ending at `end`; returns {onset, key} for an attack
+  // found one frame back (it has to be a local peak), or null.
+  frame(buf, mask, end) {
+    const { N, re, im, win, v, wh, r, h, W, K, J, B } = this;
+    for (let i = 0; i < N; i++) { re[i] = buf[(end - N + i) & mask] * win[i]; im[i] = 0; }
+    this.fft(re, im);
+    let total = 0;
+    for (let i = 0; i < B; i++) {
+      const { idx, w } = this.lf[i];
+      let m = 0;
+      for (let j = 0; j < idx.length; j++) { const k = idx[j]; m += w[j] * Math.hypot(re[k], im[k]); }
+      v[i] = m; total += m;
+    }
+    // KL-NMF with fixed templates (columns sum to 1), warm-started.
+    const floor = (total / J) * 1e-3;
+    for (let j = 0; j < J; j++) if (h[j] < floor) h[j] = floor;
+    for (let it = 0; it < this.iters; it++) {
+      wh.fill(1e-12);
+      for (let j = 0; j < J; j++) { const c = W[j], hj = h[j]; for (let i = 0; i < B; i++) wh[i] += c[i] * hj; }
+      for (let i = 0; i < B; i++) r[i] = v[i] / wh[i];
+      for (let j = 0; j < J; j++) { const c = W[j]; let s = 0; for (let i = 0; i < B; i++) s += c[i] * r[i]; h[j] *= s; }
+    }
+    let tot = 0, keySum = 0;
+    for (let j = 0; j < J; j++) tot += h[j];
+    for (let k = 0; k < K; k++) keySum += h[k];
+    this.ref = Math.max(tot, this.ref * 0.995);
+    // Rise of each key's activation over L frames, relative to the recent peak.
+    const t = this.t++, cur = this.hist[t % this.hist.length], old = this.hist[(t + 1) % this.hist.length];
+    cur.set(h.subarray(0, K));
+    const [r2, r1, r0] = [this.rise[(t + 1) % 3], this.rise[(t + 2) % 3], this.rise[t % 3]]; // t-2, t-1, t
+    for (let k = 0; k < K; k++) r0[k] = t >= this.L ? (cur[k] - old[k]) / this.ref : 0;
+    const m0 = this.meta[t % 3];
+    m0.start = end - N; m0.loud = 20 * Math.log10(total + 1e-12); m0.sum = keySum; m0.act = m0.act ?? new Float64Array(K); m0.act.set(cur);
+    if (t < 2) return null;
+    // Decide about frame t-1.
+    const m1 = this.meta[(t + 2) % 3];
+    let k = 0;
+    for (let q = 1; q < K; q++) if (r1[q] > r1[k]) k = q;
+    const val = r1[k];
+    if (val < this.thrRise || m1.loud < this.floorDb) return null;
+    if (val < r2[k] || val < r0[k]) return null;
+    if (m1.act[k] < this.share * m1.sum) return null;
+    return { onset: m1.start + N / 2, key: this.keys[k] };
   }
 }
 

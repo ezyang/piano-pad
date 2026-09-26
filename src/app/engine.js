@@ -23,8 +23,24 @@ import { createDetectorNode } from '../detector-node.js';
 import { renderNote } from '../synth.js';
 import { getState } from './store.js';
 
-// Detector options chosen in the grown-ups menu.
-export const detectorOptions = () => ({ overlapAware: getState().detector === 'overlap' });
+// The piano profile: how this particular piano sounds through her iPad (see
+// src/piano-profile.json and tools/nn/README.md). The detector works without it.
+let profile = null;
+const profileReady = fetch(new URL('../piano-profile.json', import.meta.url))
+  .then((r) => (r.ok ? r.json() : null))
+  .then((p) => { profile = p; }, () => {});
+
+// Detector options chosen in the grown-ups menu, plus the piano profile.
+// detector: 'simple' (default), 'overlap' (experimental), or 'profile'
+// (experimental: onsets from the profile's per-key templates).
+export const detectorOptions = () => {
+  const d = getState().detector;
+  return {
+    overlapAware: d === 'overlap',
+    octaveDown: profile?.octaveDown ?? [],
+    ...(d === 'profile' && profile?.templates ? { onsets: 'templates', templates: profile.templates } : {}),
+  };
+};
 
 class Engine {
   constructor() {
@@ -74,6 +90,7 @@ class Engine {
   // until the new one is ready).
   async _create() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
+    await profileReady;
     const node = await createDetectorNode(ctx, { debug: true, ...detectorOptions() });
     const onsets = new Map();
     node.port.onmessage = ({ data: e }) => {

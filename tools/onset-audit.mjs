@@ -1,10 +1,11 @@
 // Compare the real-time detector with the offline oracle on recordings.
-//   node tools/onset-audit.mjs rec1.mp4 rec2.mp4 ... [--opt key=value ...] [--list]
+//   node tools/onset-audit.mjs rec1.mp4 rec2.mp4 ... [--opt key=value ...] [--no-profile | --profile-onsets] [--list]
 // Oracle-only attacks are likely misses; detector-only ones are likely false
 // or double triggers. Neither side is ground truth; look at patterns.
 import { PianoDetector } from '../src/detector.js';
 import { oracleNotes, decode } from './oracle.mjs';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { profileOptions } from './profile.mjs';
 
 // Oracle results are slow to compute; cache them next to the recordings.
 function cachedOracle(file, x) {
@@ -17,7 +18,7 @@ function cachedOracle(file, x) {
 
 const args = process.argv.slice(2);
 const files = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--opt');
-const opts = {};
+const opts = profileOptions(args);
 args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? v : +v; } });
 const SR = 48000, TOL = 0.07;
 // Oracle attacks below this are mostly speech (adult and child voices sit
