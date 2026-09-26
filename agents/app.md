@@ -60,6 +60,9 @@ As of 2026-09-26:
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
 - Other screens: me, calibrate (audio's).
+- ⚙︎ detector select → `st.detector`: simple (default; audio's network,
+  learned from her piano), classic, overlap, profile. Only the root app
+  passes it; old /v/ versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
   (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)`.
 - Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
