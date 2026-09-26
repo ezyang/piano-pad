@@ -67,6 +67,9 @@ export function home(root) {
       h('a', { class: 'me-btn', href: '#/me', title: 'Make your character' },
         h('img', { src: me, class: 'me-sprite' }), h('span', {}, 'Me')),
       parent),
-    h('div', { class: 'cards' }, cards, add),
+    h('div', { class: 'cards' },
+      h('a', { class: 'card world-card', href: '#/world', style: `background-image:url(${texture('grass')})` },
+        h('div', { class: 'plus' }, '⛏️'), h('div', { class: 'card-title' }, 'Build!')),
+      cards, add),
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` })));
 }

@@ -4,9 +4,10 @@ import { editor } from './screens/editor.js';
 import { play } from './screens/play.js';
 import { band } from './screens/band.js';
 import { me } from './screens/me.js';
+import { world } from './screens/world.js';
 import { texture } from './pixels.js';
 
-const ROUTES = { '': home, song: editor, play, band, me };
+const ROUTES = { '': home, song: editor, play, band, me, world };
 const root = document.getElementById('app');
 let dispose = null;
 

@@ -7,7 +7,7 @@ import { material, texture } from './pixels.js';
 const CHAR_ASPECT = 14 / 10;
 const GROUND = 40;
 
-const BIOMES = [
+export const BIOMES = [
   { name: 'day', sky: 'linear-gradient(#7ec8f5, #b9e3fb)', ground: 'grass' },
   { name: 'sunset', sky: 'linear-gradient(#ff8a65, #ffcf8a)', ground: 'grass' },
   { name: 'night', sky: 'linear-gradient(#0d1633, #27366e)', ground: 'grass', stars: true },
