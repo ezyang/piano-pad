@@ -91,10 +91,12 @@ export const DEFAULTS = {
   // note (the first accepted wins). 0: profile only.
   lowDspBelow: 57,
   // ...but a dsp low note also needs the network to see some low-key
-  // activity (max probability over keys below lowDspBelow) within 30 ms of
-  // it. Key and damper thumps just before an attack otherwise read as low
+  // activity (max probability over keys below lowDspBelow) within
+  // lowNetSpanMs of it (15 ms: as good as 30 in CV, and low notes then arrive
+  // no later than the voice check allows, ~45 ms). Key and damper thumps just before an attack otherwise read as low
   // notes (seen in calibration takes).
   lowNetMin: 0.2,
+  lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
   // weren't learned from (tools/nn/nmf_proto.py, tools/ref-audit.mjs).
   tplIters: 5, // NMF iterations per frame (warm-started)
@@ -327,7 +329,7 @@ export class PianoDetector {
         voice = this._drift(from, out.f0) > this.voiceCents;
       }
       const lowDsp = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi < this.lowDspBelow;
-      const span = 0.03 * this.sr;
+      const span = (this.lowNetSpanMs / 1000) * this.sr;
       if (lowDsp && this.tpl.lowActivity && this.pos < job.onset + 1024 + span + this.tpl.hop) continue; // wait for the network's view
       let reject = this._confirm(job.onset, out.midi);
       if (!reject && out.midi != null && this.dspRole === 'low') {
