@@ -4,8 +4,8 @@
 // This file is the contract between the detector (owned by piano-audio) and
 // the app (piano-app); see CLAUDE.md. The app may rely on:
 //   onNote(fn) -> off   fn({time, midi, clarity, voice}) for each accepted
-//                       note. It fires when the pitch is known (~25 ms after
-//                       the attack; ~45 ms below C4); `time` is the attack, in
+//                       note. It fires when the pitch is known (~27 ms after
+//                       the attack; ~45 ms for A3-B3, ~57 ms below A3); `time` is the attack, in
 //                       seconds on now()'s clock. `voice` is true when the
 //                       pitch wandered like speech rather than holding like a
 //                       piano string. It's only checked below C4 (midi 60),

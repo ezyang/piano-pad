@@ -143,3 +143,14 @@ As of 2026-09-26:
   with the options old engines pass ({debug}, {debug, overlapAware}), the
   'config' message, and the onset/pitch/frames events. Every engine back to
   2df4d27 uses exactly that.
+- **Calibration takes (2026-09-26, 14 takes, app 649461e, network default)**
+  are the best ground truth there is: `node tools/cal-report.mjs
+  <logs>/pmuj0*.json` (asked vs live vs replay vs Kong). Keep them OUT of
+  network training so they stay a clean test set. Live: 64/70 right on the
+  ten normal-speed takes, 3 wrong. After the low-note gate (lowNetMin),
+  replay: 68/70, 0 wrong. Remaining: legato E4 under a held C4 (net sees
+  nothing), pedal F4 (net fires on C4/C5, sympathetic strings?), a fast
+  scale at ~10 notes/s (adult speed; misses + pitch errors), one adult-
+  speech E3. Legato/pedal need training examples. Mic: iOS Safari reports
+  only echoCancellation (false) as settable; no AGC/noise-suppression
+  constraints exist there.

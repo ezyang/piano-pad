@@ -90,6 +90,11 @@ export const DEFAULTS = {
   // has seen few low notes so far. One strike read by both paths becomes one
   // note (the first accepted wins). 0: profile only.
   lowDspBelow: 57,
+  // ...but a dsp low note also needs the network to see some low-key
+  // activity (max probability over keys below lowDspBelow) within 30 ms of
+  // it. Key and damper thumps just before an attack otherwise read as low
+  // notes (seen in calibration takes).
+  lowNetMin: 0.2,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
   // weren't learned from (tools/nn/nmf_proto.py, tools/ref-audit.mjs).
   tplIters: 5, // NMF iterations per frame (warm-started)
@@ -165,7 +170,7 @@ export class PianoDetector {
     if (this.tpl) this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
     this.dspRole = !this.tpl || this.onsets === 'dsp' || this.onsets === 'both' ? 'all' : this.lowDspBelow > 0 ? 'low' : 'off';
     this.lastTplSample = -Infinity;
-    this.lastAccepted = -Infinity;
+    this.lastAcceptedNet = -Infinity;
     this.onEvent = () => {};
   }
 
@@ -321,15 +326,20 @@ export class PianoDetector {
         if (this.pos < from + this.voiceSpan) continue; // need the longer look
         voice = this._drift(from, out.f0) > this.voiceCents;
       }
+      const lowDsp = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi < this.lowDspBelow;
+      const span = 0.03 * this.sr;
+      if (lowDsp && this.tpl.lowActivity && this.pos < job.onset + 1024 + span + this.tpl.hop) continue; // wait for the network's view
       let reject = this._confirm(job.onset, out.midi);
       if (!reject && out.midi != null && this.dspRole === 'low') {
+        const win = (this.tplRefractoryMs / 1000) * this.sr;
         if (job.via === 'dsp' && out.midi >= this.lowDspBelow) reject = 'high'; // the profile's range
         else if (job.via !== 'dsp' && out.midi < this.lowDspBelow) reject = 'low'; // dsp's range
-        else if (Math.abs(job.onset - this.lastAccepted) < (this.tplRefractoryMs / 1000) * this.sr) reject = 'dup';
+        else if (lowDsp && Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; // the network already has it
+        else if (lowDsp && this.tpl.lowActivity && this.tpl.lowActivity(job.onset, span) < this.lowNetMin) reject = 'no-net';
       }
       if (!reject && out.midi != null) {
         this.lastNote = { sample: job.onset, midi: out.midi };
-        if (out.clarity > 0.6) this.lastAccepted = job.onset; // as the engine accepts notes
+        if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
       this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
@@ -679,6 +689,16 @@ class NetOnsets {
     this.meta = Array.from({ length: 3 }, () => ({ start: 0, loud: -200 }));
     this.ref = 1e-9;
     this.t = 0;
+    this.lowK = net.keys.filter((k) => k < o.lowDspBelow).length; // keys are ascending
+    this.lowHist = Array.from({ length: 16 }, () => ({ center: -Infinity, max: 0 }));
+  }
+
+  // Highest probability of any key below lowDspBelow in frames centered
+  // within `span` samples of `at`.
+  lowActivity(at, span) {
+    let m = 0;
+    for (const f of this.lowHist) if (Math.abs(f.center - at) <= span && f.max > m) m = f.max;
+    return m;
   }
 
   frame(buf, mask, end) {
@@ -707,6 +727,9 @@ class NetOnsets {
     }
     const m0 = this.meta[t % 3];
     m0.start = end - N; m0.loud = 20 * Math.log10(total + 1e-12);
+    const lh = this.lowHist[t % this.lowHist.length];
+    lh.center = end - N / 2; lh.max = 0;
+    for (let k = 0; k < this.lowK; k++) if (p0[k] > lh.max) lh.max = p0[k];
     if (t < 2) return null;
     const p2 = this.p[(t + 1) % 3], p1 = this.p[(t + 2) % 3], m1 = this.meta[(t + 2) % 3];
     let k = 0;
