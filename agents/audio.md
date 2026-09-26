@@ -69,6 +69,11 @@ As of 2026-09-26:
 - The overlap-aware detector is off by default (suspected real-piano
   regression). Tune it with replays before turning it back on.
 - The detector is monophonic. Chords aren't needed yet.
+- Every commit stays live at `/v/<sha>/` (see CLAUDE.md), and logs carry
+  `app.version`/`app.path`. When live and replay disagree, check which version
+  made the recording (`replay.mjs` prints it) before blaming the current
+  detector. If the detector ever persists anything (calibration, tuning), all
+  versions share localStorage: only add keys, never reshape old ones.
 - Research on neural real-time piano transcription and web vs native is in
   `agents/audio-research.md` (2026-09-26). Direction: stay on the web; next
   steps are a stronger offline oracle, logging the mic's track settings, and

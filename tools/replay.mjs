@@ -40,6 +40,8 @@ if (existsSync(jsonPath)) {
   const want = (session.song?.notes ?? []).filter((n) => n.p != null).map((n) => nm(n.p));
   console.log(`session ${session.id} · ${session.song?.title} · ${session.mode} · detector ${session.settings?.detector ?? 'simple'} · result ${JSON.stringify(session.result)}`);
   console.log(`song: ${want.join(' ')}`);
+  // Old app versions stay live at /v/<sha>/ and run their own detector code.
+  if (session.app?.version) console.log(`app ${session.app.version}${session.app.path ? ` at ${session.app.path}` : ''} (live notes came from that version's detector)`);
 }
 console.log(`audio ${(audio.length / SR).toFixed(1)}s · replay detector ${JSON.stringify(opts)}`);
 console.log(`live ${live.length} notes: ${live.map((n) => nm(n.midi)).join(' ')}`);
