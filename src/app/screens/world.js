@@ -148,9 +148,10 @@ export function world(root, id) {
   // --- playing ---
   function onNote(n) {
     if (playing || n.time < quietUntil) return;
-    // Speech sits low; she builds from about C3 up.
-    const ignore = mode.kind === 'free' ? n.midi < 48 : outOfRange(n.midi, Math.min(...mode.notes), Math.max(...mode.notes));
-    if (ignore) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
+    // Speech sits low (and wobbles: the engine flags it as `voice`); she
+    // builds from about C3 up.
+    const ignore = n.voice || (mode.kind === 'free' ? n.midi < 48 : outOfRange(n.midi, Math.min(...mode.notes), Math.max(...mode.notes)));
+    if (ignore) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     if (mode.kind === 'free') {
       cols.push({ midi: n.midi, time: n.time });
       if (cols.length > MAX_FREE) cols.shift();

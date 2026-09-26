@@ -93,7 +93,7 @@ export function startSession(kind, info) {
     else if (e.type === 'pitch') {
       event('pitch', {
         at: t(e.time), seen: t(e.detectedTime), midi: e.midi, f0: e.f0 ? +e.f0.toFixed(1) : 0,
-        clarity: +(e.clarity ?? 0).toFixed(2), ok: e.accepted, ...(e.method ? { method: e.method } : {}), ...(e.why ? { why: e.why } : {}),
+        clarity: +(e.clarity ?? 0).toFixed(2), ok: e.accepted, ...(e.method ? { method: e.method } : {}), ...(e.why ? { why: e.why } : {}), ...(e.voice !== undefined ? { voice: e.voice } : {}),
       });
     }
   }));

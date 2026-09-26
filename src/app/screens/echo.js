@@ -169,8 +169,8 @@ export function echo(root, id) {
   function onNote(n) {
     if (!round || round.state !== 'turn' || n.time < quietUntil) return;
     const ps = round.notes.map((x) => x.p);
-    if (mode === 'answer' ? n.midi < 48 : outOfRange(n.midi, Math.min(...ps), Math.max(...ps))) {
-      log.event('judge', { got: n.midi, grade: 'ignored' }); // speech, most likely
+    if (n.voice || (mode === 'answer' ? n.midi < 48 : outOfRange(n.midi, Math.min(...ps), Math.max(...ps)))) {
+      log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); // speech, most likely
       return;
     }
     if (mode === 'answer') {

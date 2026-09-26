@@ -185,7 +185,7 @@ export function play(root, id) {
 
   function onNote(n) {
     if (!session || n.time < session.tStart) return; // attacks from before the run (e.g. the mic switching on)
-    if (outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
+    if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     const t = staff.targets;
     if (session.mode === 'learn') {
       const k = session.cur;

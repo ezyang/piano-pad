@@ -184,7 +184,7 @@ function homework(root) {
   // (~B2-F#3, see piano-audio): those are silently skipped.
   function onNote(n) {
     if (!session || n.time < session.tStart) return;
-    if (outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
+    if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     const k = session.cur, t = staff.targets;
     if (k >= t.length) return;
     const ok = sameNote(n.midi, want(k), false);
