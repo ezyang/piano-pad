@@ -154,3 +154,10 @@ As of 2026-09-26:
   speech E3. Legato/pedal need training examples. Mic: iOS Safari reports
   only echoCancellation (false) as settable; no AGC/noise-suppression
   constraints exist there.
+- Two-stage notes ("a note happened", then the pitch) measured 2026-09-26,
+  not built. The first onset signal comes ~3 ms after the key, but 38% of
+  those never become notes (~50/min in practice, ~90/min while people talk).
+  Re-reading the pitch 60-100 ms later fixes about as many notes as it
+  breaks (44 vs 47). Notes already arrive at ~27 ms (~45 below C4). Revisit
+  only if the app wants a subtle "heard something" cue that tolerates false
+  signals.
