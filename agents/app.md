@@ -50,5 +50,8 @@ As of 2026-09-26:
   `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
   The parent may deliberately send her back to an old version (removing
   features to get her out of a rut), so check `app.version`/`app.path` in
-  logs before assuming what she saw. Because versions share localStorage,
-  store.js changes must stay readable by older versions.
+  logs before assuming what she saw.
+- Storage is disposable (parent's direction, 2026-09-26): no migrations,
+  bump the key and start fresh when the shape changes, and prefer features
+  that don't need persistence. Existing persistent bits (song library,
+  character, settings) are grandfathered, not a pattern to extend.

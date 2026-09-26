@@ -11,8 +11,8 @@
 // (read by telemetry and the ⚙︎ menu); old copies are also retitled so a
 // home-screen install of one is distinguishable from today's.
 //
-// All versions share one origin, so they share localStorage (her songs and
-// character carry over). Keep store.js readable by older versions.
+// All versions share one origin and so one localStorage. Storage is
+// disposable (see CLAUDE.md): nothing is promised to carry across versions.
 //
 //   node tools/build-site.mjs [outDir=_site]
 import { execFileSync } from 'node:child_process';
@@ -91,8 +91,8 @@ writeFileSync(join(out, 'v', 'index.html'), `<!doctype html>
 </style></head><body>
 <h1>Piano Pad versions</h1>
 <a class="now" href="../">← Today’s app</a>
-<p>Every version of the app stays here. Songs and her character are shared by
-all of them. The home-screen app has no back button, so open old versions in
+<p>Every version of the app stays here. Songs and settings may or may not
+carry over between versions. The home-screen app has no back button, so open old versions in
 Safari. To keep one for a while, open it and use Share → Add to Home Screen.
 A version’s address is <code>piano.ezyang.com/v/&lt;code&gt;/</code>, or
 <code>/v/&lt;date&gt;/</code> for the last version of a day.</p>

@@ -72,6 +72,10 @@ Never force-push `main`. If you break production, revert first, debug second.
   → `tools/build-site.mjs`) serves today's app at `/` and every past commit at
   `/v/<sha>/` (also `/v/<YYYY-MM-DD>/`, list at `/v/`), so the parent can go
   back to an older app by URL. Logs record it (`app.version`, `app.path`).
-  All versions share one localStorage, so **old code must keep working on
-  new data**: add keys/fields, don't rename, repurpose, or change the shape of
-  existing ones.
+- **On-device storage is scrap paper.** Like her drawings, most things she
+  makes go in the bin, and that's fine. Any deploy may start from a clean
+  slate: if what you store changes, use a new localStorage key and start
+  empty. No migrations, and no compatibility with other versions' data (they
+  share one origin; each should ignore what it doesn't understand). Don't
+  build features that depend on things piling up or lasting a long time. The
+  durable record is the practice logs on autobox, not the iPad.
