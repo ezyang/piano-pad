@@ -4,10 +4,10 @@ import { editor } from './screens/editor.js';
 import { play } from './screens/play.js';
 import { band } from './screens/band.js';
 import { me } from './screens/me.js';
-import { world } from './screens/world.js';
+import { EXPERIMENTS } from './experiments.js';
 import { texture } from './pixels.js';
 
-const ROUTES = { '': home, song: editor, play, band, me, world };
+const ROUTES = { '': home, song: editor, play, band, me, ...Object.fromEntries(EXPERIMENTS.map((e) => [e.id, e.screen])) };
 const root = document.getElementById('app');
 let dispose = null;
 

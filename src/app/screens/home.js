@@ -3,6 +3,7 @@ import { getState, newSong, resetAll, save } from '../store.js';
 import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { shareLogs, sessionCount } from '../telemetry.js';
 import { engine } from '../engine.js';
+import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
 
 export function home(root) {
   const st = getState();
@@ -50,6 +51,10 @@ export function home(root) {
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: st.detector === 'overlap' || null, onchange: (e) => { st.detector = e.target.checked ? 'overlap' : 'simple'; save(); engine.configure(); } }),
         'Experimental: overlapping-note detector'),
+      h('div', { class: 'hint' }, 'Experiments on the home screen:'),
+      EXPERIMENTS.map((e) => h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: getState().experiments?.[e.id] !== false || null, onchange: (ev) => { setExperimentEnabled(e.id, ev.target.checked); save(); location.reload(); } }),
+        e.title)),
       h('a', { href: 'jig.html' }, 'Detector jig'),
       h('button', {
         onclick: (e) => {
@@ -68,8 +73,12 @@ export function home(root) {
         h('img', { src: me, class: 'me-sprite' }), h('span', {}, 'Me')),
       parent),
     h('div', { class: 'cards' },
-      h('a', { class: 'card world-card', href: '#/world', style: `background-image:url(${texture('grass')})` },
-        h('div', { class: 'plus' }, '⛏️'), h('div', { class: 'card-title' }, 'Build!')),
+      enabledExperiments().map((e) => {
+        const c = e.card();
+        return h('a', { class: 'card world-card', href: `#/${e.id}`, style: c.style },
+          c.img ? h('img', { class: 'exp-sprite', src: c.img }) : h('div', { class: 'plus' }, c.icon),
+          h('div', { class: 'card-title' }, e.title));
+      }),
       cards, add),
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` })));
 }

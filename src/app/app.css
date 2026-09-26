@@ -346,3 +346,31 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .card.world-card { background-size: 48px 48px; image-rendering: pixelated; align-items: center; justify-content: center; box-shadow: inset 3px 3px 0 rgba(255,255,255,0.35), inset -3px -3px 0 rgba(0,0,0,0.35); }
 .card.world-card .card-title { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 18px; }
 .card.world-card .plus { font-size: 44px; }
+
+.card.world-card .exp-sprite { height: 56px; }
+
+/* ---------- Call and response ---------- */
+.echo .stage { flex-direction: column; gap: 10px; }
+.echo-scene { flex: 1; min-height: 240px; }
+.e-actor { position: absolute; bottom: 36px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.e-actor.left { left: 8%; }
+.e-actor.right { right: 8%; }
+.e-sprite { height: clamp(70px, 14vh, 130px); width: auto; image-rendering: pixelated; transform-origin: bottom center; }
+.e-bubble { position: relative; display: flex; gap: 4px; min-height: 64px; min-width: 64px; max-width: 42vw; flex-wrap: wrap; justify-content: center;
+  background: #fff; border: 3px solid #000; padding: 8px; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3); margin-bottom: 8px; }
+.e-bubble::after { content: ''; position: absolute; bottom: -12px; left: 50%; margin-left: -8px; border: 8px solid transparent; border-top-color: #000; border-bottom: 0; }
+.e-bubble:empty::before { content: '🎹'; font-size: 30px; opacity: 0.5; }
+.e-bubble.left:empty::before { content: '🎵'; }
+.e-block { width: 44px; height: 44px; background-size: cover; image-rendering: pixelated; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center; font-family: var(--pixel); font-size: 14px; color: #fff; text-shadow: 2px 2px 0 #000; }
+.e-block.hidden { visibility: hidden; }
+.e-block.slot { box-shadow: none; border: 3px dashed #bbb; }
+.your-turn .e-bubble.right { border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold), 0 5px 0 rgba(0, 0, 0, 0.3); animation: glow-gold 0.8s ease-in-out infinite alternate; }
+@keyframes glow-gold { to { box-shadow: 0 0 0 7px rgba(255, 216, 74, 0.5), 0 5px 0 rgba(0, 0, 0, 0.3); } }
+.e-ear { display: none; font-size: 34px; }
+.your-turn .e-ear { display: block; animation: pop 0.6s ease-out infinite alternate; }
+.e-gems { position: absolute; top: 10px; left: 12px; right: 90px; display: flex; flex-wrap: wrap; gap: 2px; font-size: 22px; z-index: 2; }
+.e-gems .gem { animation: pop 0.4s ease-out; }
+.e-partners { display: flex; gap: 6px; }
+.bp.partner { height: 52px; min-width: 56px; align-items: center; }
+.bp.partner img { height: 36px; image-rendering: pixelated; }

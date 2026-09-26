@@ -85,6 +85,29 @@ export function renderBand(song, members, sr) {
   return { audio: out, lead };
 }
 
+// A phrase in one voice at its written pitch (for call and response):
+// notes [{d, p}], timbre 'chip' | 'bell' | 'piano'. Returns {audio, lead,
+// starts, soundEnd}: each note's start time and when the sound has died
+// away (s from the beginning of `audio`; the buffer itself runs longer).
+export function renderVoice(notes, bpm, timbre, sr) {
+  const beat = 60 / bpm, lead = 0.15;
+  const laid = layout(notes);
+  const out = new Float32Array(Math.ceil((lead + totalBeats(notes) * beat + 1) * sr));
+  const rng = mulberry32(9);
+  const starts = [];
+  for (const n of laid) {
+    const t = lead + n.start * beat;
+    starts.push(t);
+    if (n.p == null) continue;
+    const s = Math.round(t * sr), len = n.d * beat * 0.9;
+    if (timbre === 'piano') renderNote(out, s, { midi: n.p, vel: 0.95, dur: len }, sr, rng);
+    else if (timbre === 'bell') addTone(out, s, sr, len + 0.3, midiToHz(n.p), 0.25, 0.4, 'bell');
+    else addTone(out, s, sr, len, midiToHz(n.p), 0.18, 2, 'square');
+  }
+  for (let i = 0; i < out.length; i++) out[i] = Math.tanh(out[i] * 1.5);
+  return { audio: out, lead, starts, soundEnd: lead + totalBeats(notes) * beat + 0.35 };
+}
+
 // A short happy jingle for celebrations.
 export function renderJingle(sr) {
   const out = new Float32Array(Math.round(1.2 * sr));
