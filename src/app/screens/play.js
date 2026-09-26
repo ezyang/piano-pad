@@ -94,7 +94,7 @@ export function play(root, id) {
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, song.title),
-      h('a', { class: 'btn small', href: `#/song/${song.id}`, title: 'See the blocks / edit' }, '✏️'),
+      h('a', { class: 'btn', href: `#/song/${song.id}`, title: 'Blocks' }, '🧱'),
       h('div', { class: 'spacer' }),
       h('div', { class: 'segs' }, modeBtns),
       speedBox, ear),
@@ -136,6 +136,7 @@ export function play(root, id) {
     const t = staff.targets;
     session = {
       mode, cur: 0, wrong: 0, grades: new Map(), times: [], lastWrong: null,
+      tStart: engine.now(),
       off: engine.onNote(onNote),
     };
     log.startSession('practice', {
@@ -173,7 +174,7 @@ export function play(root, id) {
   }
 
   function onNote(n) {
-    if (!session) return;
+    if (!session || n.time < session.tStart) return; // attacks from before the run (e.g. the mic switching on)
     const t = staff.targets;
     if (session.mode === 'learn') {
       const k = session.cur;
@@ -181,6 +182,7 @@ export function play(root, id) {
       log.event('judge', { k, want: staff.laid[t[k]].p, got: n.midi, grade: pitchClass(n.midi) === pc(k) ? 'hit' : 'wrong' });
       if (pitchClass(n.midi) === pc(k)) {
         staff.mark(t[k], 'hit');
+        staff.burst(t[k]);
         build.place(k, n.midi);
         session.cur++;
         if (session.cur >= t.length) finishSoon(700);
@@ -211,6 +213,7 @@ export function play(root, id) {
       if (pitchClass(n.midi) === pc(k)) {
         session.grades.set(k, 'hit');
         staff.mark(t[k], 'hit');
+        staff.burst(t[k]);
         build.place(k, n.midi);
         session.lastWrong = null;
       } else {
@@ -245,6 +248,7 @@ export function play(root, id) {
     log.event('judge', { k: best, want: staff.laid[t[best]].p, got: n.midi, grade, err: Math.round((n.time - session.expected.get(best)) * 1000) });
     session.grades.set(best, grade);
     staff.mark(t[best], 'hit ' + grade);
+    staff.burst(t[best], grade === 'perfect' ? 'perfect' : grade === 'good' ? 'hit' : 'close');
     build.place(best, n.midi);
   }
 
@@ -266,6 +270,7 @@ export function play(root, id) {
         session.grades.set(k, 'miss');
         log.event('judge', { k, want: staff.laid[staff.targets[k]].p, grade: 'miss' });
         staff.mark(staff.targets[k], 'miss');
+        staff.burst(staff.targets[k], 'miss');
       }
     }
     if (now > session.end) finish();

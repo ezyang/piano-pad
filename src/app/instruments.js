@@ -51,6 +51,9 @@ function drums(out, sr, beats, beat, t0, rng) {
   }
 }
 
+// Mix levels: brings each instrument alone to about -22 dB RMS.
+const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92 };
+
 // members: array of instrument names. Returns {audio, lead} where lead is
 // the time (s) before the first beat.
 export function renderBand(song, members, sr) {
@@ -61,19 +64,24 @@ export function renderBand(song, members, sr) {
   const rng = mulberry32(5);
   const laid = layout(song.notes).filter((n) => n.p != null);
   for (const inst of members) {
-    if (inst === 'drums') { drums(out, sr, beats, beat, lead, rng); continue; }
-    for (const n of laid) {
+    // Each instrument renders into its own buffer and is mixed at a fixed
+    // level, so any one of them alone is about equally loud.
+    const buf = new Float32Array(out.length);
+    if (inst === 'drums') drums(buf, sr, beats, beat, lead, rng);
+    else for (const n of laid) {
       const t = lead + n.start * beat, len = n.d * beat;
       const s = Math.round(t * sr);
-      if (inst === 'piano') renderNote(out, s, { midi: n.p, vel: 0.7, dur: len * 0.95 }, sr, rng);
-      else if (inst === 'bass') renderNote(out, s, { midi: n.p - 24, vel: 0.8, dur: len * 0.9 }, sr, rng);
-      else if (inst === 'musicbox') addTone(out, s, sr, len + 0.4, midiToHz(n.p + 12), 0.12, 0.35, 'bell');
-      else if (inst === 'chip') addTone(out, s, sr, len * 0.9, midiToHz(n.p + 12), 0.08, 2, 'square');
+      if (inst === 'piano') renderNote(buf, s, { midi: n.p, vel: 0.7, dur: len * 0.95 }, sr, rng);
+      else if (inst === 'bass') renderNote(buf, s, { midi: n.p - 24, vel: 0.8, dur: len * 0.9 }, sr, rng);
+      else if (inst === 'musicbox') addTone(buf, s, sr, len + 0.4, midiToHz(n.p + 12), 0.12, 0.35, 'bell');
+      else if (inst === 'chip') addTone(buf, s, sr, len * 0.9, midiToHz(n.p + 12), 0.08, 2, 'square');
     }
+    const g = GAIN[inst] ?? 1;
+    for (let i = 0; i < out.length; i++) out[i] += g * buf[i];
   }
-  let peak = 0;
-  for (let i = 0; i < out.length; i++) peak = Math.max(peak, Math.abs(out[i]));
-  if (peak > 0) for (let i = 0; i < out.length; i++) out[i] *= 0.85 / peak;
+  // Fixed levels (not normalized per mix, which made a solo instrument as
+  // loud as the whole band), then a soft limiter for the full band.
+  for (let i = 0; i < out.length; i++) out[i] = Math.tanh(out[i]);
   return { audio: out, lead };
 }
 

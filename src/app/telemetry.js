@@ -65,7 +65,8 @@ export function startSession(kind, info) {
   unsubs.push(engine.onRaw((e) => {
     // Audio-clock times, relative to the session's start on that clock.
     const t = (x) => Math.round((x - current.ctxT0) * 1000);
-    if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1) });
+    if (e.type === 'mic-restart') event('mic-restart');
+    else if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1) });
     else if (e.type === 'pitch') {
       event('pitch', {
         at: t(e.time), seen: t(e.detectedTime), midi: e.midi, f0: e.f0 ? +e.f0.toFixed(1) : 0,
@@ -73,7 +74,7 @@ export function startSession(kind, info) {
       });
     }
   }));
-  if (getState().recordAudio && engine.stream) startAudio(current);
+  if (getState().recordAudio !== false && engine.stream) startAudio(current);
   const sim = (midi) => event('sim', { midi });
   engine.simListeners.add(sim);
   unsubs.push(() => engine.simListeners.delete(sim));

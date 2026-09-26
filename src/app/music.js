@@ -26,8 +26,8 @@ export function layout(notes) {
 export const totalBeats = (notes) => notes.reduce((s, n) => s + n.d, 0);
 
 // Natural-note rows (low to high) covering the song and at least the clef's
-// home range: treble C4..G4, bass C3..G3, grand C3..G4.
-const HOME = { treble: [60, 67], bass: [48, 55], grand: [48, 67] };
+// home range: treble C4..C5, bass C3..C4, grand C3..C5.
+const HOME = { treble: [60, 72], bass: [48, 60], grand: [48, 72] };
 export function rowsFor(notes, clef = 'treble') {
   const ps = notes.filter((n) => n.p != null).map((n) => n.p - (isSharp(n.p) ? 1 : 0));
   const [homeLo, homeHi] = HOME[clef] ?? HOME.treble;

@@ -177,6 +177,18 @@ export function createStaff(song, { s = 20, width = 1000, letters = true, visibl
       fxs[systemOf[i]].append(g);
       setTimeout(() => g.remove(), 1200);
     },
+    // Instant feedback on note i: a ring bursting from the notehead, with a
+    // check (hit) or cross (miss) above it.
+    burst(i, kind = 'hit') {
+      const n = laid[i];
+      if (n.p == null) return;
+      const hx = headXs[i], y = yOf(n.p);
+      const g = svg('g', { class: 'burst ' + kind });
+      g.append(svg('circle', { cx: hx, cy: y, r: s * 1.1 }),
+        svg('text', { x: hx, y: y - s * 1.8, 'font-size': s * 1.5 }, kind === 'miss' ? '✕' : '✓'));
+      fxs[systemOf[i]].append(g);
+      setTimeout(() => g.remove(), 900);
+    },
     // After a run: mark a timing problem. Gap marks (stall/rushed/dragged)
     // sit between note `prev` and note i; early/late sit above note i.
     review(i, kind, prev) {

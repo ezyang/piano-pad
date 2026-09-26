@@ -44,23 +44,38 @@ export function editor(root, id, extra) {
     engine.play(a);
   };
 
+  // Tapping empty space adds the selected tool's notes. Tapping a block
+  // changes it in place (she didn't discover the length tools): on its own
+  // row it grows (ti → ta → ta-a → whole → ta); on another row it moves there.
+  const GROW = { 0.5: 1, 1: 2, 2: 4, 3: 4, 4: 1 };
   const onTap = ({ midi, index }) => {
     if (readOnly || writing) return;
-    const t = TOOLS.find((x) => x.id === tool);
     if (tool === 'erase') {
       if (index >= 0) edit(() => song.notes.splice(index, 1));
       return;
     }
-    const notes = t.notes(midi);
-    if (index < 0) edit(() => song.notes.push(...notes), true);
-    else edit(() => song.notes.splice(index, 1, ...notes));
-    preview(notes[0].p);
+    if (index < 0) {
+      const notes = TOOLS.find((x) => x.id === tool).notes(midi);
+      edit(() => song.notes.push(...notes), true);
+      preview(notes[0].p);
+      return;
+    }
+    const n = song.notes[index];
+    const same = n.p != null && (n.p === midi || n.p - 1 === midi); // a sharp shares its natural's row
+    edit(() => { song.notes[index] = same ? { ...n, d: GROW[n.d] ?? 1 } : { ...n, p: midi }; });
+    preview(same ? n.p : midi);
   };
 
   const trackBox = h('div', { class: 'track-box' });
   function redraw(toEnd = false, toBeat = null) {
     const left = track?.el.querySelector('.track').scrollLeft ?? 0;
-    track = createTrack(song, { onTap, extraBeats: readOnly ? 0 : 4, rowH: fitRowH(song, innerHeight - 200, 80) });
+    // Zoom so the whole song fits without scrolling (she never scrolled),
+    // down to a size that's still easy to tap.
+    const rowH = fitRowH(song, innerHeight - 200, 80);
+    const extraBeats = readOnly ? 0 : 2;
+    const beats = Math.max(8, Math.ceil((song.notes.reduce((a, n) => a + n.d, 0) + extraBeats) / 4) * 4);
+    const ppb = Math.max(44, Math.min(Math.round(rowH * 1.7), Math.floor((trackBox.clientWidth - 64 - 60) / beats)));
+    track = createTrack(song, { onTap, extraBeats, rowH, ppb });
     trackBox.replaceChildren(track.el);
     const sc = track.el.querySelector('.track');
     sc.scrollLeft = left;
@@ -91,9 +106,10 @@ export function editor(root, id, extra) {
   async function startWriting() {
     try { await engine.listen(true); } catch { flash(writeBtn, 'shake'); return; }
     history.push(JSON.stringify(song.notes));
-    writing = { played: [], base: song.notes.length };
+    writing = { played: [], base: song.notes.length, tStart: engine.now() };
     log.startSession('write', { song: { id: song.id, title: song.title, by: song.by } });
     writing.off = engine.onNote((n) => {
+      if (n.time < writing.tStart) return;
       writing.played.push(n);
       song.notes.push({ d: 1, p: n.midi }); // placeholder rhythm until done
       redraw();

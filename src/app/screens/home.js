@@ -44,7 +44,7 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.keepLogs !== false || null, onchange: (e) => { st.keepLogs = e.target.checked; save(); } }),
         'Keep practice logs (notes heard, no audio)'),
       h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: st.recordAudio || null, onchange: (e) => { st.recordAudio = e.target.checked; save(); } }),
+        h('input', { type: 'checkbox', checked: st.recordAudio !== false || null, onchange: (e) => { st.recordAudio = e.target.checked; save(); } }),
         'Record audio with logs (goes only to the home server)'),
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
       h('label', { class: 'check' },

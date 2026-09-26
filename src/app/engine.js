@@ -21,6 +21,8 @@ class Engine {
     this.rawListeners = new Set();
     this.simListeners = new Set(); // pretend key presses (test keyboard / computer keys)
     this.levelStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    this.wdStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    setInterval(() => this._watchdog(), 1000);
     this.level = -100; // latest input level, dB
     this.sources = new Set();
     this.starting = null;
@@ -61,8 +63,9 @@ class Engine {
     node.port.onmessage = ({ data: e }) => {
       if (e.type === 'frames') {
         this.level = e.frames[e.frames.length - 1].db;
-        const L = this.levelStats;
-        for (const f of e.frames) { L.min = Math.min(L.min, f.db); L.max = Math.max(L.max, f.db); L.sum += f.db; L.n++; }
+        for (const L of [this.levelStats, this.wdStats]) {
+          for (const f of e.frames) { L.min = Math.min(L.min, f.db); L.max = Math.max(L.max, f.db); L.sum += f.db; L.n++; }
+        }
         return;
       }
       if (e.type === 'onset') {
@@ -82,12 +85,50 @@ class Engine {
     this._attachMic();
   }
 
-  // (Re)connect the mic stream to the current context's detector.
+  // Connect the mic stream to the current context's detector. Once granted,
+  // the mic stays connected: reconnecting after silence made the detector
+  // hear the jump as an attack (a phantom note at the start of every run).
+  // `listening` only says whether a screen wants notes right now.
   _attachMic() {
     if (!this.stream) return;
-    if (!this.mic || this.mic.context !== this.ctx) this.mic = this.ctx.createMediaStreamSource(this.stream);
-    this.mic.disconnect();
-    if (this.listening) this.mic.connect(this.node);
+    if (this.mic?.context === this.ctx && this.micStream === this.stream) return;
+    this.mic?.disconnect();
+    this.mic = this.ctx.createMediaStreamSource(this.stream);
+    this.micStream = this.stream;
+    this.mic.connect(this.node);
+  }
+
+  async _openMic() {
+    this.acquiring = true;
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+    } finally {
+      this.acquiring = false;
+    }
+  }
+
+  // iOS occasionally freezes the mic input, replaying the same audio over and
+  // over (seen in a practice log: identical "notes" every 100 ms and identical
+  // level statistics each second). If the level statistics repeat exactly
+  // with sound present, reopen the mic.
+  _watchdog() {
+    const L = this.wdStats;
+    this.wdStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    if (!this.stream || !L.n || L.max < -100) { this.wdSame = 0; return; }
+    const key = `${L.min.toFixed(2)}|${L.max.toFixed(2)}|${(L.sum / L.n).toFixed(2)}`;
+    this.wdSame = key === this.wdLast ? (this.wdSame ?? 0) + 1 : 0;
+    this.wdLast = key;
+    if (this.wdSame >= 2 && !this.acquiring) this.restartMic();
+  }
+
+  async restartMic() {
+    this.wdSame = 0;
+    for (const fn of this.rawListeners) fn({ type: 'mic-restart' });
+    for (const t of this.stream?.getTracks() ?? []) t.stop();
+    this.stream = null;
+    try { await this._openMic(); this._attachMic(); } catch { /* permission lost; the next listen() asks again */ }
   }
 
   now() { return this.ctx ? this.ctx.currentTime : 0; }
@@ -112,21 +153,14 @@ class Engine {
   takeLevelStats() {
     const L = this.levelStats;
     this.levelStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    this.wdStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    setInterval(() => this._watchdog(), 1000);
     return L.n ? { min: +L.min.toFixed(1), max: +L.max.toFixed(1), mean: +(L.sum / L.n).toFixed(1) } : null;
   }
 
   async listen(on) {
     await this.start();
-    if (on && !this.stream) {
-      this.acquiring = true;
-      try {
-        this.stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        });
-      } finally {
-        this.acquiring = false;
-      }
-    }
+    if (on && !this.stream) await this._openMic();
     this.listening = on;
     this._attachMic();
     // iOS can interrupt the context when the mic starts.
