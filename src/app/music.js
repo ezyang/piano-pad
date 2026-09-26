@@ -13,6 +13,15 @@ export const isSharp = (m) => [1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12);
 export const pitchClass = (m) => ((m % 12) + 12) % 12;
 export const noteName = (m) => letter(m) + (isSharp(m) ? '♯' : '');
 
+// Does a played note count as the wanted one? Exactly, when the octave must
+// match (grown-ups setting, on by default), else by letter.
+export const sameNote = (played, want, strictOctave) =>
+  strictOctave ? played === want : pitchClass(played) === pitchClass(want);
+
+// Far outside what a task asks for — almost always speech (adult voices sit
+// around 85-250 Hz) or a stray bump — so ignore it rather than call it wrong.
+export const outOfRange = (m, lo, hi) => m < lo - 12 || m > hi + 12;
+
 // Beat positions for each note.
 export function layout(notes) {
   let t = 0;

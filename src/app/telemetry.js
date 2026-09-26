@@ -57,7 +57,7 @@ export function startSession(kind, info) {
       standalone: matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
     },
     audio: ctx ? { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency } : null,
-    settings: { showLetters: getState().showLetters !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple' },
+    settings: { labels: getState().labels ?? (getState().showLetters === false ? 'none' : 'letters'), strictOctave: getState().strictOctave !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple' },
     ...info,
     events: [],
   };

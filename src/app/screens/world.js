@@ -12,11 +12,13 @@ import { getState, save, newSong } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture, characterUrl } from '../pixels.js';
-import { pitchClass, quantize, layout } from '../music.js';
+import { pitchClass, quantize, layout, sameNote, outOfRange } from '../music.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
+import { labelMode, fingerFor, handFor } from '../labels.js';
+import { createHand } from '../hand.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 // Height in blocks: C..B = 1..7 in any octave (octave slips in detection
@@ -70,7 +72,12 @@ export function world(root) {
   const climber = h('div', { class: 'climber' }, charImg);
   const decoEl = h('div', { class: 'w-deco' });
   const groundEl = h('div', { class: 'build-ground' });
-  const worldEl = h('div', { class: 'build world-scene' }, decoEl, ghostsEl, colsEl, climber, groundEl);
+  const hand = createHand();
+  const worldEl = h('div', { class: 'build world-scene' }, decoEl, ghostsEl, colsEl, climber, groundEl, h('div', { class: 'hand-box' }, hand.el));
+  const showHand = () => {
+    const m = mode.kind === 'blueprint' ? mode.notes[mode.cur] : null;
+    hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
+  };
   const staffBox = h('div', { class: 'staff-box' });
 
   function setSky(i) {
@@ -103,6 +110,7 @@ export function world(root) {
     colsEl.replaceChildren(...built().map((m, i) => column(m, i, 'solid')));
     ghostsEl.replaceChildren(...planned().map((m, i) => (i < mode.cur ? null : column(m, i, 'ghost' + (i === mode.cur ? ' next' : '')))).filter(Boolean));
     placeChar(false);
+    showHand();
   }
   function placeChar(hop = true) {
     const b = built();
@@ -122,7 +130,7 @@ export function world(root) {
     if (staffBox.clientWidth < 100) return; // not laid out yet
     const notes = mode.kind === 'free' ? cols.map((c) => ({ d: 1, p: c.midi })) : mode.notes.map((p) => ({ d: 1, p }));
     const song = { notes: notes.length ? notes : [{ d: 1, p: null }] };
-    const letters = st.showLetters !== false;
+    const letters = labelMode();
     const s = Math.max(12, Math.min(20, Math.round(innerHeight / 46)));
     staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: 1 });
     staffBox.replaceChildren(staff.el);
@@ -135,6 +143,9 @@ export function world(root) {
   // --- playing ---
   function onNote(n) {
     if (playing || n.time < quietUntil) return;
+    // Speech sits low; she builds from about C3 up.
+    const ignore = mode.kind === 'free' ? n.midi < 48 : outOfRange(n.midi, Math.min(...mode.notes), Math.max(...mode.notes));
+    if (ignore) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
     if (mode.kind === 'free') {
       cols.push({ midi: n.midi, time: n.time });
       if (cols.length > MAX_FREE) cols.shift();
@@ -149,7 +160,7 @@ export function world(root) {
     }
     const want = mode.notes[mode.cur];
     if (want == null) return;
-    const ok = pitchClass(n.midi) === pitchClass(want);
+    const ok = sameNote(n.midi, want, st.strictOctave !== false);
     log.event('judge', { k: mode.cur, want, got: n.midi, grade: ok ? 'hit' : 'wrong' });
     if (!ok) {
       staff?.ghost(mode.cur, n.midi);

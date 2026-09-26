@@ -5,6 +5,7 @@ import { BAND, bandSprite, characterUrl, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
 import { totalBeats } from '../music.js';
+import { labelMode } from '../labels.js';
 
 export function band(root, id) {
   const song = getSong(id);
@@ -50,7 +51,7 @@ export function band(root, id) {
     h('div', { class: 'row center' }, playBtn),
     staffBox));
   {
-    const clef = resolveClef(song), letters = st.showLetters !== false;
+    const clef = resolveClef(song), letters = labelMode();
     const s = Math.max(12, Math.min(18, Math.round(innerHeight / 48)));
     const H = systemHeight(s, clef, letters);
     staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: innerHeight > 900 && 2 * H < innerHeight * 0.45 ? 2 : 1 });

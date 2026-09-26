@@ -9,13 +9,15 @@ import { h } from '../dom.js';
 import { getSong, getState, save } from '../store.js';
 import { createStaff, systemHeight, resolveClef } from '../staff.js';
 import { createBuild } from '../build.js';
-import { pitchClass, totalBeats } from '../music.js';
+import { totalBeats, sameNote, outOfRange } from '../music.js';
 import { characterUrl, BAND, bandSprite } from '../pixels.js';
 import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
 import { renderJingle, renderTick } from '../instruments.js';
 import { rhythmReview, scoreLearn, scoreGo, scoreBeat, beatGrade } from '../scoring.js';
 import * as log from '../telemetry.js';
+import { labelMode, fingerFor, handFor } from '../labels.js';
+import { createHand } from '../hand.js';
 
 const MODES = [['learn', '🐢', 'Learn'], ['go', '🏃', 'Keep going'], ['beat', '🥁', 'Beat']];
 const FIX_WINDOW = 1.5; // s: a correct replay of a just-missed note counts as fixing it
@@ -35,7 +37,7 @@ export function play(root, id) {
   function rebuild() {
     // Size the staff so two lines fit when possible (reading ahead), leaving
     // the rest of the height to the building scene.
-    const clef = resolveClef(song), letters = st.showLetters !== false;
+    const clef = resolveClef(song), letters = labelMode();
     const s = Math.max(12, Math.min(22, Math.round(innerHeight / (clef === 'grand' ? 52 : 40))));
     const H = systemHeight(s, clef, letters);
     const avail = stageEl.clientHeight - 150 - 10; // keep ≥150px of scene
@@ -88,7 +90,11 @@ export function play(root, id) {
   const ear = h('div', { class: 'ear', title: 'Microphone' }, '👂', h('div', { class: 'meter' }, meterFill));
   const overlay = h('div', { class: 'overlay' });
   const count = h('div', { class: 'countin' });
-  const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay);
+  // ✋ which finger plays the next note (when labels are finger numbers).
+  const hand = createHand();
+  hand.show(null);
+  const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay, h('div', { class: 'hand-box' }, hand.el));
+  const showHand = (m) => hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
 
   root.append(h('div', { class: 'screen play' },
     h('header', { class: 'bar' },
@@ -137,6 +143,8 @@ export function play(root, id) {
     session = {
       mode, cur: 0, wrong: 0, grades: new Map(), times: [], lastWrong: null,
       tStart: engine.now(),
+      strict: st.strictOctave !== false,
+      lo: Math.min(...t.map((i) => staff.laid[i].p)), hi: Math.max(...t.map((i) => staff.laid[i].p)),
       off: engine.onNote(onNote),
     };
     log.startSession('practice', {
@@ -164,10 +172,12 @@ export function play(root, id) {
     }
   }
 
-  const pc = (k) => pitchClass(staff.laid[staff.targets[k]].p);
+  const want = (k) => staff.laid[staff.targets[k]].p;
+  const same = (m, k) => sameNote(m, want(k), session.strict);
 
   function markCurrent() {
     const i = staff.targets[session.cur];
+    showHand(i == null ? null : staff.laid[i].p);
     if (i == null) return;
     staff.mark(i, 'current');
     staff.show(i);
@@ -175,12 +185,13 @@ export function play(root, id) {
 
   function onNote(n) {
     if (!session || n.time < session.tStart) return; // attacks from before the run (e.g. the mic switching on)
+    if (outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
     const t = staff.targets;
     if (session.mode === 'learn') {
       const k = session.cur;
       if (k >= t.length) return;
-      log.event('judge', { k, want: staff.laid[t[k]].p, got: n.midi, grade: pitchClass(n.midi) === pc(k) ? 'hit' : 'wrong' });
-      if (pitchClass(n.midi) === pc(k)) {
+      log.event('judge', { k, want: want(k), got: n.midi, grade: same(n.midi, k) ? 'hit' : 'wrong' });
+      if (same(n.midi, k)) {
         staff.mark(t[k], 'hit');
         staff.burst(t[k]);
         build.place(k, n.midi);
@@ -199,7 +210,7 @@ export function play(root, id) {
       const lw = session.lastWrong;
       // A quick, correct replay of the note she just missed fixes it in place.
       if (lw && lw.k === k - 1 && n.time - lw.time < FIX_WINDOW &&
-          pitchClass(n.midi) === pc(k - 1) && (k >= t.length || pitchClass(n.midi) !== pc(k))) {
+          same(n.midi, k - 1) && (k >= t.length || !same(n.midi, k))) {
         session.grades.set(k - 1, 'fixed');
         log.event('judge', { k: k - 1, want: staff.laid[t[k - 1]].p, got: n.midi, grade: 'fixed' });
         staff.mark(t[k - 1], 'fixed');
@@ -209,8 +220,8 @@ export function play(root, id) {
       }
       if (k >= t.length) return;
       session.times[k] = n.time;
-      log.event('judge', { k, want: staff.laid[t[k]].p, got: n.midi, grade: pitchClass(n.midi) === pc(k) ? 'hit' : 'wrong' });
-      if (pitchClass(n.midi) === pc(k)) {
+      log.event('judge', { k, want: want(k), got: n.midi, grade: same(n.midi, k) ? 'hit' : 'wrong' });
+      if (same(n.midi, k)) {
         session.grades.set(k, 'hit');
         staff.mark(t[k], 'hit');
         staff.burst(t[k]);
@@ -237,7 +248,7 @@ export function play(root, id) {
       if (err < session.window && err < bestErr) { best = k; bestErr = err; }
     }
     if (best < 0) { log.event('judge', { got: n.midi, grade: 'stray' }); return; }
-    if (pitchClass(n.midi) !== pc(best)) {
+    if (!same(n.midi, best)) {
       log.event('judge', { k: best, want: staff.laid[t[best]].p, got: n.midi, grade: 'wrong', err: Math.round((n.time - session.expected.get(best)) * 1000) });
       session.grades.set(best, 'wrong');
       staff.mark(t[best], 'wrong');
@@ -286,6 +297,7 @@ export function play(root, id) {
     const s = session;
     session = null;
     s.off();
+    showHand(null);
     await engine.listen(false);
     count.style.display = 'none';
     const t = staff.targets, n = t.length;

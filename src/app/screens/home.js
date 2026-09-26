@@ -4,6 +4,7 @@ import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js'
 import { shareLogs, sessionCount } from '../telemetry.js';
 import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
+import { labelMode } from '../labels.js';
 
 export function home(root) {
   const st = getState();
@@ -39,8 +40,12 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.testKeyboard || null, onchange: (e) => { st.testKeyboard = e.target.checked; save(); } }),
         'Test keyboard (silent, on Play and Compose screens)'),
       h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: st.showLetters !== false || null, onchange: (e) => { st.showLetters = e.target.checked; save(); } }),
-        'Letter names under notes'),
+        h('input', { type: 'checkbox', checked: st.strictOctave !== false || null, onchange: (e) => { st.strictOctave = e.target.checked; save(); } }),
+        'Right octave counts (not just the right letter)'),
+      h('label', { class: 'check' }, 'Under notes: ',
+        h('select', { onchange: (e) => { st.labels = e.target.value; save(); } },
+          [['letters', 'letters'], ['fingers', 'finger numbers (C position) + ✋'], ['none', 'nothing']].map(([v, t]) =>
+            h('option', { value: v, selected: labelMode() === v || null }, t)))),
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: st.keepLogs !== false || null, onchange: (e) => { st.keepLogs = e.target.checked; save(); } }),
         'Keep practice logs (notes heard, no audio)'),

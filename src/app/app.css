@@ -374,3 +374,17 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .e-partners { display: flex; gap: 6px; }
 .bp.partner { height: 52px; min-width: 56px; align-items: center; }
 .bp.partner img { height: 36px; image-rendering: pixelated; }
+
+/* ---------- ✋ finger hand ---------- */
+.hand-box { position: absolute; top: 8px; right: 10px; z-index: 5; pointer-events: none; }
+.hand { display: block; width: clamp(120px, 14vw, 180px); height: auto; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); }
+.hand .palm, .hand .digit { fill: #f2c79b; stroke: #8a5a34; stroke-width: 2; }
+.hand .tip { fill: #fff; stroke: #8a5a34; stroke-width: 1.5; }
+.hand .num { font-family: var(--pixel); font-size: 9px; text-anchor: middle; fill: #3b2415; }
+.hand .finger.lit .digit { fill: var(--gold); }
+.hand .finger.lit .tip { fill: #e8433a; }
+.hand .finger.lit .num { fill: #fff; }
+.hand .finger.lit { animation: finger-bob 0.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: bottom center; }
+@keyframes finger-bob { to { transform: translateY(-4px); } }
+.staff .letter.finger { font-size: 20px; fill: #b0452a; }
+.staff .letter.fallback { opacity: 0.45; font-size: 13px; }

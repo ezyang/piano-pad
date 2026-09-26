@@ -1,6 +1,8 @@
 // Call and response with a band member (experiment).
 //   🦜 Copy me — the partner plays a phrase; she plays it back. Phrases start
-//      at one note and grow as she succeeds (and ease off if she struggles).
+//      at one note and grow slowly as she succeeds. There's no time limit and
+//      it never moves on by itself: misses replay the phrase (slower after
+//      six), and ⏭ skips.
 //   💬 Answer me — the partner asks, she answers with anything; her turn ends
 //      when she pauses. 💾 saves the conversation as a song.
 // The app ignores the mic while the partner is playing. Notes show as blocks
@@ -10,11 +12,13 @@ import { getState, save, newSong } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture, characterUrl, BAND, bandSprite } from '../pixels.js';
-import { pitchClass, letter, isSharp, quantize } from '../music.js';
+import { quantize, sameNote, outOfRange } from '../music.js';
 import { engine } from '../engine.js';
 import { renderVoice } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
+import { labelMode, labelFor, fingerFor, handFor } from '../labels.js';
+import { createHand } from '../hand.js';
 
 const PARTNERS = [
   { id: 'slime', voice: 'chip' },
@@ -22,17 +26,20 @@ const PARTNERS = [
   { id: 'frog', voice: 'piano' },
 ];
 const POOL = [60, 62, 64, 65, 67];
-// Copy-me levels: phrase length and the notes it may use.
+// Copy-me levels: phrase length and the notes it may use. (The first real
+// session climbed 1 → 4 notes in 90 s and felt rushed; steps are smaller now.)
 const LEVELS = [
   { len: 1, pool: [67] }, // just G, her first homework note
   { len: 1, pool: POOL },
+  { len: 2, pool: [60, 62, 64] },
   { len: 2, pool: POOL },
   { len: 3, pool: POOL },
   { len: 4, pool: POOL },
   { len: 5, pool: POOL },
   { len: 6, pool: [...POOL, 69, 71, 72] },
 ];
-const BPM = 90;
+const LEVEL_UP = 3; // wins in a row to move up
+const BPM = 72;
 const ANSWER_PAUSE = 1.6; // s of silence that ends her answer
 const MAX_ANSWER = 8;
 
@@ -52,7 +59,8 @@ export function echo(root) {
   const st = getState();
   let mode = st.echoMode ?? 'copy';
   let partnerIdx = Math.max(0, PARTNERS.findIndex((p) => p.id === st.echoPartner));
-  let level = Math.min(LEVELS.length - 1, st.echoLevel ?? 0);
+  // Start a notch below where she left off, to warm up.
+  let level = Math.max(0, Math.min(LEVELS.length - 1, (st.echoLevel ?? 0) - 1));
   let streak = 0, gems = 0;
   let round = null; // { notes, k, wrong, replays, state: 'call'|'turn'|'done', heard: [] }
   let quietUntil = 0, silenceTimer = 0, listenerOff = null, callRaf = 0, alive = true;
@@ -76,10 +84,13 @@ export function echo(root) {
     h('div', { class: 'build-ground', style: `background-image:url(${texture(biome.ground)})` }));
   const staffBox = h('div', { class: 'staff-box' });
   let staff = null;
+  const hand = createHand();
+  scene.append(h('div', { class: 'hand-box' }, hand.el));
+  const showHand = (m) => hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
 
   const block = (p, cls = '') => h('div', {
     class: 'e-block ' + cls, style: p == null ? '' : `background-image:url(${material(p).url})`,
-  }, p == null || st.showLetters === false ? '' : letter(p) + (isSharp(p) ? '♯' : ''));
+  }, p == null ? '' : labelFor(p).text);
 
   function setPartner(i) {
     partnerIdx = i;
@@ -92,7 +103,7 @@ export function echo(root) {
   function drawStaff(notes) {
     if (staffBox.clientWidth < 100) return;
     const s = Math.max(12, Math.min(20, Math.round(innerHeight / 46)));
-    staff = createStaff({ notes: notes.length ? notes : [{ d: 1, p: null }] }, { s, letters: st.showLetters !== false, width: staffBox.clientWidth - 6, visible: 1 });
+    staff = createStaff({ notes: notes.length ? notes : [{ d: 1, p: null }] }, { s, letters: labelMode(), width: staffBox.clientWidth - 6, visible: 1 });
     staffBox.replaceChildren(staff.el);
   }
 
@@ -111,12 +122,13 @@ export function echo(root) {
   }
 
   // The partner plays the phrase; its bubble fills in as it goes.
-  async function call() {
+  async function call(bpm = BPM) {
     if (!round) return;
     round.state = 'call';
+    showHand(null);
     scene.classList.remove('your-turn');
     await engine.start();
-    const { audio, starts, soundEnd } = renderVoice(round.notes, BPM, PARTNERS[partnerIdx].voice, engine.ctx.sampleRate);
+    const { audio, starts, soundEnd } = renderVoice(round.notes, bpm, PARTNERS[partnerIdx].voice, engine.ctx.sampleRate);
     const { startTime } = engine.play(audio);
     // Her turn starts once the phrase has died away; until then the mic is
     // ignored so the partner's notes don't count as hers.
@@ -146,11 +158,17 @@ export function echo(root) {
     if (!round) return;
     round.state = 'turn';
     scene.classList.add('your-turn');
+    if (mode === 'copy') showHand(round.notes[0].p);
     if (mode === 'copy' && staff) staff.mark(0, 'current');
   }
 
   function onNote(n) {
     if (!round || round.state !== 'turn' || n.time < quietUntil) return;
+    const ps = round.notes.map((x) => x.p);
+    if (mode === 'answer' ? n.midi < 48 : outOfRange(n.midi, Math.min(...ps), Math.max(...ps))) {
+      log.event('judge', { got: n.midi, grade: 'ignored' }); // speech, most likely
+      return;
+    }
     if (mode === 'answer') {
       round.heard.push({ time: n.time, midi: n.midi });
       log.event('answer', { midi: n.midi });
@@ -164,21 +182,15 @@ export function echo(root) {
       return;
     }
     const want = round.notes[round.k].p;
-    const ok = pitchClass(n.midi) === pitchClass(want);
+    const ok = sameNote(n.midi, want, st.strictOctave !== false);
     log.event('judge', { k: round.k, want, got: n.midi, grade: ok ? 'hit' : 'wrong' });
     const slot = myBubble.children[round.k];
     if (!ok) {
       round.wrong++;
       staff?.ghost(round.k, n.midi);
       flash(slot, 'shake', 400);
-      if (round.wrong >= 6) return giveUp();
-      if (round.wrong === 3 && round.replays < 1) { // play it again as a hint
-        round.replays++;
-        round.k = 0;
-        myBubble.replaceChildren(...round.notes.map(() => block(null, 'slot')));
-        drawStaff(round.notes);
-        call().then(() => round?.state === 'call' && turn());
-      }
+      // Hints, never a time-out: replay after 3 misses, slower after 6.
+      if (round.wrong === 3 || round.wrong === 6) replay(round.wrong === 6 ? BPM * 0.7 : BPM);
       return;
     }
     slot.replaceWith(block(want));
@@ -187,8 +199,7 @@ export function echo(root) {
     staff?.mark(round.k, 'hit');
     staff?.burst(round.k);
     round.k++;
-    if (round.k < round.notes.length) staff?.mark(round.k, 'current');
-    else success();
+    if (round.k < round.notes.length) { staff?.mark(round.k, 'current'); showHand(round.notes[round.k].p); } else { showHand(null); success(); }
   }
 
   function success() {
@@ -201,22 +212,33 @@ export function echo(root) {
     sparkle(scene, r.width * 0.5, r.height * 0.4, ['#ffd84a', '#55e0d6', '#ff8fb3', '#ffffff'], 18);
     flash(partnerImg, 'hop', 350);
     flash(meImg, 'hop', 350);
-    if (streak >= 2 && level < LEVELS.length - 1) { level++; streak = 0; }
+    if (streak >= LEVEL_UP && level < LEVELS.length - 1) { level++; streak = 0; }
     st.echoLevel = level;
     save();
     log.event('round', { ok: true, level });
-    later(nextRound, 1400);
+    later(nextRound, 2600);
   }
 
-  function giveUp() {
+  function replay(bpm = BPM) {
+    if (!round || round.state !== 'turn') return;
+    round.replays++;
+    round.k = 0;
+    myBubble.replaceChildren(...round.notes.map(() => block(null, 'slot')));
+    drawStaff(round.notes);
+    call(bpm).then(() => round?.state === 'call' && turn());
+  }
+
+  // ⏭: a different phrase, a notch easier.
+  function skip() {
+    if (!round || round.state === 'done') return;
     round.state = 'done';
     scene.classList.remove('your-turn');
     streak = 0;
     if (level > 0) level--;
     st.echoLevel = level;
     save();
-    log.event('round', { ok: false, level });
-    later(nextRound, 900);
+    log.event('round', { ok: false, skipped: true, level });
+    later(nextRound, 600);
   }
 
   function endAnswer() {
@@ -252,7 +274,7 @@ export function echo(root) {
     save();
     for (const b of modeBtns) b.classList.toggle('on', b.dataset.mode === m);
     saveBtn.style.visibility = m === 'answer' && conversation.length ? '' : 'hidden';
-    replayBtn.style.visibility = m === 'copy' ? '' : 'hidden';
+    replayBtn.style.visibility = skipBtn.style.visibility = m === 'copy' ? '' : 'hidden';
     restart();
   }
 
@@ -273,7 +295,8 @@ export function echo(root) {
     h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) }, icon));
   const partnerBtns = PARTNERS.map((p, i) => h('button', { class: 'bp partner', 'data-id': p.id, onclick: () => { setPartner(i); restart(); } },
     h('img', { src: bandSprite(BAND.find((m) => m.id === p.id)) })));
-  const replayBtn = h('button', { class: 'btn', title: 'Hear it again', onclick: () => { if (round?.state === 'turn') { round.k = 0; myBubble.replaceChildren(...round.notes.map(() => block(null, 'slot'))); drawStaff(round.notes); call().then(() => round?.state === 'call' && turn()); } } }, '🔁');
+  const replayBtn = h('button', { class: 'btn', title: 'Hear it again', onclick: () => replay() }, '🔁');
+  const skipBtn = h('button', { class: 'btn', title: 'A different one', onclick: skip }, '⏭\uFE0F');
   const saveBtn = h('button', { class: 'btn', title: 'Save our song', onclick: saveConversation, style: 'visibility:hidden' }, '💾');
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
 
@@ -283,7 +306,7 @@ export function echo(root) {
       h('div', { class: 'segs' }, modeBtns),
       h('div', { class: 'e-partners' }, partnerBtns),
       h('div', { class: 'spacer' }),
-      replayBtn, saveBtn),
+      replayBtn, skipBtn, saveBtn),
     h('div', { class: 'stage' }, scene, staffBox, overlay),
     testKeyboard()));
   setPartner(partnerIdx);

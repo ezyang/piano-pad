@@ -7,7 +7,8 @@
 // Only `visible` systems show at once. show(i) pages so the line with note i
 // is on screen with (when there's room) the next line below it: a discrete
 // line-by-line step, never motion tied to time.
-import { layout, isSharp, letter } from './music.js';
+import { layout, isSharp } from './music.js';
+import { labelFor } from './labels.js';
 import { h, svg } from './dom.js';
 
 const STEP_OF = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // C C# D D# E F F# G G# A A# B
@@ -22,7 +23,10 @@ export function resolveClef(song) {
   return 'grand';
 }
 
-// Vertical metrics for one system.
+// Vertical metrics for one system. `letters` is the label mode under notes:
+// 'letters' | 'fingers' | 'none' (or a boolean for letters/none).
+const labelMode = (letters) => (letters === true ? 'letters' : letters === false ? 'none' : letters);
+
 function metrics(s, clef, letters) {
   const top = s * 3.2; // room for ledger lines above
   const staves = [];
@@ -34,11 +38,16 @@ function metrics(s, clef, letters) {
   }
   const last = staves[staves.length - 1].bottom;
   const letterY = last + s * 3.4;
-  return { staves, letterY, height: letters ? letterY + s * 1.1 : last + s * 3 };
+  return { staves, letterY, height: labelMode(letters) !== 'none' ? letterY + s * 1.1 : last + s * 3 };
 }
 export const systemHeight = (s, clef, letters) => metrics(s, clef, letters).height;
 
-export function createStaff(song, { s = 20, width = 1000, letters = true, visible = 2 } = {}) {
+export function createStaff(song, { s = 20, width = 1000, letters = 'letters', visible = 2 } = {}) {
+  const mode = labelMode(letters);
+  const label = (g, m, x, y) => {
+    const { text, fallback } = labelFor(m, mode);
+    if (text) g.append(svg('text', { x, y, class: 'letter' + (mode === 'fingers' && !fallback ? ' finger' : '') + (fallback ? ' fallback' : '') }, text));
+  };
   const clef = resolveClef(song);
   const laid = layout(song.notes);
   const { staves, letterY, height: H } = metrics(s, clef, letters);
@@ -140,7 +149,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = true, visibl
     if (n.d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
     if (n.d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
     if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
-    if (letters) g.append(svg('text', { x: hx, y: letterY, class: 'letter' }, letter(n.p) + (isSharp(n.p) ? '♯' : '')));
+    label(g, n.p, hx, letterY);
   });
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];
@@ -173,7 +182,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = true, visibl
       const g = svg('g', { class: 'ghost' });
       ledgers(g, midi, hx);
       g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: 'head' }));
-      if (letters) g.append(svg('text', { x: hx, y: letterY - s * 1.3, class: 'letter' }, letter(midi) + (isSharp(midi) ? '♯' : '')));
+      label(g, midi, hx, letterY - s * 1.3);
       fxs[systemOf[i]].append(g);
       setTimeout(() => g.remove(), 1200);
     },
