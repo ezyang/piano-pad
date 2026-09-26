@@ -74,6 +74,10 @@ Never force-push `main`. If you break production, revert first, debug second.
   → `tools/build-site.mjs`) serves today's app at `/` and every past commit at
   `/v/<sha>/` (also `/v/<YYYY-MM-DD>/`, list at `/v/`), so the parent can go
   back to an older app by URL. Logs record it (`app.version`, `app.path`).
+  Old versions run *today's* detector: the build swaps in HEAD's audio
+  package (`src/detector*.js`, `src/piano-profile.json`), so it must stay
+  backward compatible with every past `engine.js`. Their `app.version` reads
+  `<sha> <date> audio=<HEAD sha>`.
 - **On-device storage is scrap paper.** Like her drawings, most things she
   makes go in the bin, and that's fine. Any deploy may start from a clean
   slate: if what you store changes, use a new localStorage key and start

@@ -11,6 +11,12 @@
 // (read by telemetry and the ⚙︎ menu); old copies are also retitled so a
 // home-screen install of one is distinguishable from today's.
 //
+// Old copies run today's note detector (the parent's call): the audio
+// package (AUDIO below, owned by piano-audio, kept backward compatible with
+// every past engine.js) is replaced with HEAD's. Their version tag then
+// reads "<sha> <date> audio=<HEAD sha>", and since every version logs that
+// tag whole as app.version, a log says which detector ran.
+//
 // All versions share one origin and so one localStorage. Storage is
 // disposable (see CLAUDE.md): nothing is promised to carry across versions.
 //
@@ -31,15 +37,21 @@ const commits = git('log', '--first-parent', '--reverse', '--format=%h%x09%H%x09
   .filter((c) => git('ls-tree', '--name-only', c.full, 'index.html').trim());
 const head = commits.at(-1);
 
+const AUDIO = ['src/detector.js', 'src/detector-worklet.js', 'src/detector-node.js', 'src/piano-profile.json'];
+const headAudio = AUDIO.map((f) => [f, execFileSync('git', ['show', `${head.full}:${f}`], { maxBuffer: 1 << 28 })]);
+
 const escape = (s) => s.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
 const shortDate = (c) => new Date(c.day + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 function extract(c, dir) {
   mkdirSync(dir, { recursive: true });
   execFileSync('tar', ['-x', '-C', dir], { input: execFileSync('git', ['archive', c.full], { maxBuffer: 1 << 28 }) });
+  // Only versions whose engine loads the detector package can take today's.
+  const backport = c !== head && existsSync(join(dir, 'src/detector-node.js'));
+  if (backport) for (const [f, data] of headAudio) writeFileSync(join(dir, f), data);
   const file = join(dir, 'index.html');
   let html = readFileSync(file, 'utf8');
-  html = html.replace(/<head>/i, `<head>\n<meta name="piano-version" content="${c.sha} ${c.date}">`);
+  html = html.replace(/<head>/i, `<head>\n<meta name="piano-version" content="${c.sha} ${c.date}${backport ? ` audio=${head.sha}` : ''}">`);
   if (c !== head) {
     const label = `Piano Pad ${shortDate(c)}`;
     html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escape(label)} (${c.sha})</title>`)
@@ -91,8 +103,9 @@ writeFileSync(join(out, 'v', 'index.html'), `<!doctype html>
 </style></head><body>
 <h1>Piano Pad versions</h1>
 <a class="now" href="../">← Today’s app</a>
-<p>Every version of the app stays here. Songs and settings may or may not
-carry over between versions. The home-screen app has no back button, so open old versions in
+<p>Every version of the app stays here, and every one hears notes with
+today’s detector (${head.sha}). Songs and settings may or may not carry over
+between versions. The home-screen app has no back button, so open old versions in
 Safari. To keep one for a while, open it and use Share → Add to Home Screen.
 A version’s address is <code>piano.ezyang.com/v/&lt;code&gt;/</code>, or
 <code>/v/&lt;date&gt;/</code> for the last version of a day.</p>
