@@ -69,3 +69,7 @@ As of 2026-09-26:
 - The overlap-aware detector is off by default (suspected real-piano
   regression). Tune it with replays before turning it back on.
 - The detector is monophonic. Chords aren't needed yet.
+- Research on neural real-time piano transcription and web vs native is in
+  `agents/audio-research.md` (2026-09-26). Direction: stay on the web; next
+  steps are a stronger offline oracle, logging the mic's track settings, and
+  timing a Mobile-AMT-sized model in ORT-web on her iPad.
