@@ -46,8 +46,15 @@ As of 2026-09-26:
   on the synth fail. Fixed with `fluxNormalize` + `riseOneSided` (the dampers'
   sharp drops had inflated the adaptive rise threshold, so fast notes were
   missed).
-- The piano is somewhat out of tune (F4 ≈ +35 cents, G4 ≈ -9 cents), near the
-  ±50-cent rounding edge for some notes.
+- Piano tuning (measured 2026-09-26 over all 87 recordings, ~1100 notes,
+  NSDF on 4096 samples 100 ms into the sustain): about +5..+13 cents sharp
+  everywhere (C4 +9, D4 +6, E4 +3, F4 +13 but spread 0..+18, G4 +6, A4 +12,
+  B4 +13, C5 +10). Nowhere near the ±50-cent rounding edge. The older
+  "F4 +35, G4 -9" note was wrong. A per-key tuning table changes 1 of 1123
+  notes, so we don't use one. Where the detector picks a different key than
+  the sustained pitch (~2%), its onset-window estimate is off by 70+ cents,
+  usually with the previous note still ringing. That's a pitch-window/overlap
+  problem, not tuning.
 - Adult voices show up as ~120-180 Hz "notes". The parent finds this charming;
   the app ignores speech in tasks.
 - A rare iOS mic freeze replays identical audio (there's a watchdog).
