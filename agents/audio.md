@@ -94,5 +94,6 @@ As of 2026-09-26:
   moves > 40 cents (`voiceBelow`, `voiceCents`). onNote carries it. Over the
   recordings: 158/290 low detections flagged; real C3-G3 piano 0/16; synth
   G2-B3 0/52. Steady vowels get through, so it catches about half of speech.
-  Asked piano-app to log `voice` on pitch events; check it on real LH
-  homework once those recordings exist.
+  The app drops voice notes everywhere (08a744e, judge `why: 'voice'`), and
+  pitch events in the logs carry `voice`. Next: check it on real LH homework
+  recordings, looking for real notes wrongly flagged.
