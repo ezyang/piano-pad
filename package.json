@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node test/scoring.mjs",
     "bench": "node test/bench.mjs",
     "deploy": "git push",
     "serve": "python3 -m http.server 8000"

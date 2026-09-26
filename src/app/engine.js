@@ -1,8 +1,20 @@
 // Audio engine for the app: one AudioContext, the detector worklet, the mic,
 // playback, and simulated notes (computer keyboard) for testing without a piano.
 //
-// Listeners get notes as {time (s, AudioContext clock), midi, clarity}. They
-// fire when the pitch is known (~25 ms after the attack); `time` is the attack.
+// This file is the contract between the detector (owned by piano-audio) and
+// the app (piano-app); see CLAUDE.md. The app may rely on:
+//   onNote(fn) -> off   fn({time, midi, clarity}) for each accepted note. It
+//                       fires when the pitch is known (~25 ms after the
+//                       attack); `time` is the attack, in seconds on now()'s clock.
+//   onRaw(fn) -> off    every detector event, for logging/debugging:
+//                       {type, time, detectedTime, accepted, ...detector fields}.
+//                       The shape may change; don't build features on it.
+//   start(), listen(on) open the audio context / mic (start() only from a tap)
+//   now()               current audio clock (s)
+//   play(audio, opts), stopAll(), simulate(midi)
+//   configure()         re-apply detectorOptions() after settings change
+//   level, takeLevelStats()   input level (dB)
+// Changes to these need a heads-up to piano-app before they ship.
 import { createDetectorNode } from '../detector-node.js';
 import { renderNote } from '../synth.js';
 import { getState } from './store.js';
