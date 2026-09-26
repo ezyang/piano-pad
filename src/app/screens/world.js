@@ -166,7 +166,9 @@ export function world(root, id) {
     }
     const want = mode.notes[mode.cur];
     if (want == null) return;
-    const ok = sameNote(n.midi, want, st.strictOctave !== false);
+    // Her old songs were written when the detector heard her C4 as C5, so
+    // blueprints made from them match by letter.
+    const ok = sameNote(n.midi, want, st.strictOctave !== false && !mode.id?.startsWith('song:'));
     log.event('judge', { k: mode.cur, want, got: n.midi, grade: ok ? 'hit' : 'wrong' });
     if (!ok) {
       staff?.ghost(mode.cur, n.midi);

@@ -42,9 +42,10 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.recordAudio !== false || null, onchange: (e) => { st.recordAudio = e.target.checked; save(); } }),
         'Record audio with logs (goes only to the home server)'),
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
-      h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: st.detector === 'overlap' || null, onchange: (e) => { st.detector = e.target.checked ? 'overlap' : 'simple'; save(); engine.configure(); } }),
-        'Experimental: overlapping-note detector'),
+      h('label', { class: 'check' }, 'Detector: ',
+        h('select', { onchange: (e) => { st.detector = e.target.value; save(); engine.configure(); } },
+          [['simple', 'standard'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>
+            h('option', { value: v, selected: (st.detector ?? 'simple') === v || null }, t)))),
       h('div', { class: 'hint' }, 'Experiments on the home screen:'),
       EXPERIMENTS.map((e) => h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: getState().experiments?.[e.id] !== false || null, onchange: (ev) => { setExperimentEnabled(e.id, ev.target.checked); save(); location.reload(); } }),
