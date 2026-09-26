@@ -1,7 +1,7 @@
 import { h } from '../dom.js';
 import { getState, newSong, resetAll, save } from '../store.js';
 import { material, characterUrl, BAND, bandSprite, texture } from '../pixels.js';
-import { shareLogs, sessionCount } from '../telemetry.js';
+import { shareLogs, sessionCount, VERSION } from '../telemetry.js';
 import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
 import { labelMode } from '../labels.js';
@@ -70,6 +70,9 @@ export function home(root) {
         },
       }, 'Reset all data'),
       h('div', { class: 'hint' }, 'Tip: on a computer, keys A–K play pretend piano notes.'),
+      h('div', { class: 'hint' }, `Version ${VERSION.split(' ')[0]} (${VERSION.split(' ')[1]?.slice(0, 10) ?? 'local'}) · `,
+        location.pathname.startsWith('/v/') ? [h('a', { href: '/' }, 'today’s app'), ' · '] : null,
+        h('a', { href: '/v/' }, 'all versions')),
     ));
 
   root.append(h('div', { class: 'screen home' },

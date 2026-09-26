@@ -46,3 +46,9 @@ As of 2026-09-26:
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
 - Other screens: home, play, editor, band, me, calibrate (audio's).
+- Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
+  `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
+  The parent may deliberately send her back to an old version (removing
+  features to get her out of a rut), so check `app.version`/`app.path` in
+  logs before assuming what she saw. Because versions share localStorage,
+  store.js changes must stay readable by older versions.

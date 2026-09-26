@@ -18,6 +18,9 @@ const MAX_BYTES = 1_500_000; // localStorage is ~5 MB on Safari; leave room for 
 // Home LAN only. localStorage 'pianopad.uploadUrl' overrides it (development).
 export const UPLOAD_URL = (() => { try { return localStorage.getItem('pianopad.uploadUrl'); } catch { return null; } })() ?? 'https://logs.cranbury.ezyang.com';
 const MAX_AUDIO_BYTES = 150e6; // recordings waiting to upload
+// "<sha> <commit date>", stamped into index.html by tools/build-site.mjs;
+// absent when served straight from a checkout.
+export const VERSION = document.querySelector('meta[name="piano-version"]')?.content ?? 'dev';
 
 let current = null;
 let levelTimer = 0;
@@ -51,6 +54,8 @@ export function startSession(kind, info) {
     t0: performance.now(),
     ctxT0: ctx?.currentTime ?? 0,
     app: {
+      version: VERSION,
+      path: location.pathname, // /v/<sha>/ when she's on an old version
       built: document.lastModified,
       ua: navigator.userAgent,
       screen: [innerWidth, innerHeight, devicePixelRatio],

@@ -47,7 +47,8 @@ interface and doesn't reach into the detector directly.
 
 ## Shipping (push to `main` = deploy)
 
-A push goes live on her iPad within ~10 minutes, so:
+A push goes live on her iPad within ~10 minutes (a GitHub Actions workflow
+runs `npm test`, builds, and deploys), so:
 
 1. Work on your branch/checkout; commit in small pieces.
 2. `git fetch && git rebase origin/main`.
@@ -67,3 +68,10 @@ Never force-push `main`. If you break production, revert first, debug second.
 - Session kinds in the logs tell you what she did (e.g. `build`, `echo`,
   `calibration`); `sim` events are test-keyboard presses, not real notes.
 - A service worker (`sw.js`, network-first) keeps home-screen installs current.
+- Every version stays live: the deploy workflow (`.github/workflows/pages.yml`
+  → `tools/build-site.mjs`) serves today's app at `/` and every past commit at
+  `/v/<sha>/` (also `/v/<YYYY-MM-DD>/`, list at `/v/`), so the parent can go
+  back to an older app by URL. Logs record it (`app.version`, `app.path`).
+  All versions share one localStorage, so **old code must keep working on
+  new data**: add keys/fields, don't rename, repurpose, or change the shape of
+  existing ones.
