@@ -24,8 +24,10 @@ a current priority), write it into your charter's "Current state" section.
 
 ### Talking to each other
 
-- Send messages with `SendMessage` to `piano-audio`, `piano-app`, or
-  `piano-pedagogy` (check names with `ListAgents`). Make each message
+- Send messages with `SendMessage`. Session names don't match the role
+  names and change on restart, so look them up in `~/Dev/piano-sessions.md`
+  (a local file, not in git). At the start of a session, put your own name
+  there: `ListAgents` prints "This session is <name>". Make each message
   self-contained: the receiver may have lost context.
 - Message the owner instead of editing their files. Small, obviously-right
   fixes in someone else's file are OK if you tell them afterwards.
