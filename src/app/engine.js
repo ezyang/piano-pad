@@ -3,9 +3,13 @@
 //
 // This file is the contract between the detector (owned by piano-audio) and
 // the app (piano-app); see CLAUDE.md. The app may rely on:
-//   onNote(fn) -> off   fn({time, midi, clarity}) for each accepted note. It
-//                       fires when the pitch is known (~25 ms after the
-//                       attack); `time` is the attack, in seconds on now()'s clock.
+//   onNote(fn) -> off   fn({time, midi, clarity, voice}) for each accepted
+//                       note. It fires when the pitch is known (~25 ms after
+//                       the attack; ~45 ms below C4); `time` is the attack, in
+//                       seconds on now()'s clock. `voice` is true when the
+//                       pitch wandered like speech rather than holding like a
+//                       piano string. It's only checked below C4 (midi 60),
+//                       where adult voices land, and is always false from C4 up.
 //   onRaw(fn) -> off    every detector event, for logging/debugging:
 //                       {type, time, detectedTime, accepted, ...detector fields}.
 //                       The shape may change; don't build features on it.
@@ -88,7 +92,7 @@ class Engine {
       // Everything the detector says, for the practice log.
       for (const fn of this.rawListeners) fn({ ...e, time: e.sample / ctx.sampleRate, detectedTime: e.detectedAt / ctx.sampleRate, accepted });
       if (accepted) {
-        const note = { time: e.sample / ctx.sampleRate, midi: e.midi, clarity: e.clarity };
+        const note = { time: e.sample / ctx.sampleRate, midi: e.midi, clarity: e.clarity, voice: !!e.voice };
         for (const fn of this.listeners) fn(note);
       }
     };

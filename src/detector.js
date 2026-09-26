@@ -60,6 +60,14 @@ export const DEFAULTS = {
   overlapAware: false,
   overlapDb: -17,
   specWindow: 2048, // at 48 kHz
+  // Adult speech shows up as low "notes" (~120-180 Hz). A voice's pitch
+  // wanders; a piano's holds. For notes below voiceBelow (midi), track the
+  // pitch over the first ~45 ms after the attack and mark the note `voice`
+  // if it moves more than voiceCents. On real recordings: real piano notes
+  // at C3-G3 moved <= 25 cents; about half of the low detections moved more
+  // than 40. Costs those notes ~20 ms of extra latency. 0 disables.
+  voiceBelow: 60,
+  voiceCents: 40,
   debug: false,
 };
 
@@ -116,6 +124,10 @@ export class PianoDetector {
     this.specIm = new Float32Array(this.specN);
     this.specPre = new Float32Array(this.specN / 2);
     this.specPost = new Float32Array(this.specN / 2);
+    this.voiceWin = Math.round(1024 * s);
+    this.voiceStep = Math.round(256 * s);
+    this.voiceSpan = this.voiceWin + 4 * this.voiceStep;
+    this.driftN = new Float32Array(Math.ceil((1.25 * sampleRate) / this.minF0) + 4);
     this.specWin = new Float32Array(this.specWindow);
     for (let i = 0; i < this.specWindow; i++) this.specWin[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.specWindow);
     this.onEvent = () => {};
@@ -257,9 +269,14 @@ export class PianoDetector {
         out = { ...picked, why: { r1: job.r1.midi, old: job.old?.midi, sp: sp?.midi } };
       }
       if (this.confirmRiseDb > 0 && this.pos < job.onset + (this.confirmMs / 1000) * this.sr) continue; // not yet
+      let voice;
+      if (out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
+        if (this.pos < from + this.voiceSpan) continue; // need the longer look
+        voice = this._drift(from, out.f0) > this.voiceCents;
+      }
       const reject = this._confirm(job.onset, out.midi);
       if (!reject && out.midi != null) this.lastNote = { sample: job.onset, midi: out.midi };
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -367,6 +384,33 @@ export class PianoDetector {
     }
     best = fund;
     return { f0: 440 * 2 ** ((best - 69) / 12), midi: best, cents: 0, clarity: 0.8, method: 'spectral', sal: salience };
+  }
+
+  // How far (cents) the pitch moves over buf[from, from + voiceSpan): NSDF
+  // peaks near f0 in five overlapping windows, largest distance from the first.
+  _drift(from, f0) {
+    const { buf, mask, sr, voiceWin: W, voiceStep } = this;
+    const lag = sr / f0, lo = Math.max(2, Math.floor(lag * 0.8)), hi = Math.ceil(lag * 1.25);
+    const n = this.driftN;
+    let first = 0, most = 0;
+    for (let k = 0; k < 5; k++) {
+      const s = from + k * voiceStep;
+      for (let tau = lo - 1; tau <= hi + 1; tau++) {
+        let acf = 0, m = 0;
+        for (let i = 0; i < W - tau; i++) {
+          const a = buf[(s + i) & mask], b = buf[(s + i + tau) & mask];
+          acf += a * b; m += a * a + b * b;
+        }
+        n[tau] = m > 0 ? (2 * acf) / m : 0;
+      }
+      let best = lo;
+      for (let tau = lo; tau <= hi; tau++) if (n[tau] > n[best]) best = tau;
+      const a = n[best - 1], b = n[best], c = n[best + 1], den = a - 2 * b + c;
+      const cents = 1200 * Math.log2(sr / (best + (den ? (0.5 * (a - c)) / den : 0)) / 440);
+      if (k === 0) first = cents;
+      else most = Math.max(most, Math.abs(cents - first));
+    }
+    return most;
   }
 
   // McLeod pitch method on buf[from, from + W).

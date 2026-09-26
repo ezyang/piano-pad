@@ -88,5 +88,11 @@ As of 2026-09-26:
   no detector events). **LH C3-G3 is untested with her playing**: check
   detection there once recordings arrive. Speech (~B2-F#3) now falls inside
   the task range. Told piano-app on 2026-09-26 (suggested: in LH, advance only
-  on hits). A "sounds like a voice" onNote flag (pitch glide/instability) is
-  a candidate contract addition; warn piano-app before adding it.
+  on hits; shipped in 0f70294).
+- `voice` flag (2026-09-26): below C4 the detector tracks pitch over the
+  first ~45 ms (5 NSDF windows of 1024, 256 apart) and sets `voice` if it
+  moves > 40 cents (`voiceBelow`, `voiceCents`). onNote carries it. Over the
+  recordings: 158/290 low detections flagged; real C3-G3 piano 0/16; synth
+  G2-B3 0/52. Steady vowels get through, so it catches about half of speech.
+  Asked piano-app to log `voice` on pitch events; check it on real LH
+  homework once those recordings exist.
