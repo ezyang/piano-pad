@@ -77,11 +77,19 @@ export const DEFAULTS = {
   // than 40. Costs those notes ~20 ms of extra latency. 0 disables.
   voiceBelow: 60,
   voiceCents: 40,
-  // Onset detection: 'dsp' (spectral flux + energy rise), 'templates' (a
-  // piano profile: NMF with per-key spectral templates of this piano, see
-  // TemplateOnsets), or 'both'. Templates need `templates` (the profile).
+  // Onset detection: 'dsp' (spectral flux + energy rise), 'templates' (NMF
+  // with per-key spectral templates of this piano, see TemplateOnsets),
+  // 'net' (a small network trained on her recordings, see NetOnsets), or
+  // 'both' (dsp + templates). Profile-based modes need `templates` / `net`.
   onsets: 'dsp',
   templates: null,
+  net: null, // onsets: 'net' — see NetOnsets
+  netThr: 0.8,
+  // With profile-based onsets, still run the dsp onsets and split the range:
+  // notes below this (midi) come from dsp, the rest from the profile, which
+  // has seen few low notes so far. One strike read by both paths becomes one
+  // note (the first accepted wins). 0: profile only.
+  lowDspBelow: 57,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
   // weren't learned from (tools/nn/nmf_proto.py, tools/ref-audit.mjs).
   tplIters: 5, // NMF iterations per frame (warm-started)
@@ -152,10 +160,12 @@ export class PianoDetector {
     this.specWin = new Float32Array(this.specWindow);
     for (let i = 0; i < this.specWindow; i++) this.specWin[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.specWindow);
     this.lastOnsetSample = -Infinity;
-    if (this.templates && this.onsets !== 'dsp') {
-      this.tpl = new TemplateOnsets(this.templates, sampleRate, this);
-      this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
-    }
+    if (this.onsets === 'net' && this.net) this.tpl = new NetOnsets(this.net, sampleRate, this);
+    else if (this.templates && (this.onsets === 'templates' || this.onsets === 'both')) this.tpl = new TemplateOnsets(this.templates, sampleRate, this);
+    if (this.tpl) this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
+    this.dspRole = !this.tpl || this.onsets === 'dsp' || this.onsets === 'both' ? 'all' : this.lowDspBelow > 0 ? 'low' : 'off';
+    this.lastTplSample = -Infinity;
+    this.lastAccepted = -Infinity;
     this.onEvent = () => {};
   }
 
@@ -214,21 +224,21 @@ export class PianoDetector {
     // Let the adaptive statistics and level reference settle before
     // reporting attacks (a quarter second).
     const warm = this.frames > Math.max(this.hist.length + 4, (0.25 * this.sr) / this.hop);
-    if (warm && this.onsets !== 'templates' && (flux > thr || rise > rThr) && db > this.floorDb + this.gateDb && end - this.lastOnset > this.refractory) {
+    if (warm && this.dspRole !== 'off' && (flux > thr || rise > rThr) && db > this.floorDb + this.gateDb && end - this.lastOnset > this.refractory) {
       const onset = this._refineOnset(end);
       this.lastOnset = end;
       this.lastOnsetSample = onset;
       this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux });
-      this.jobs.push({ onset, w: 0 });
+      this.jobs.push({ onset, w: 0, via: 'dsp' });
     }
     if (this.tpl && this.frames % this.tplEvery === 0) {
       const found = this.tpl.frame(this.buf, this.mask, end);
-      if (found && warm && found.onset - this.lastOnsetSample > (this.tplRefractoryMs / 1000) * this.sr) {
+      const since = found ? found.onset - (this.dspRole === 'all' ? Math.max(this.lastOnsetSample, this.lastTplSample) : this.lastTplSample) : 0;
+      if (found && warm && since > (this.tplRefractoryMs / 1000) * this.sr) {
         const onset = found.onset;
-        this.lastOnset = end;
-        this.lastOnsetSample = onset;
-        this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux: 0, via: 'templates', key: found.key });
-        this.jobs.push({ onset, w: 0, key: found.key });
+        this.lastTplSample = onset;
+        this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux: 0, via: this.onsets, key: found.key });
+        this.jobs.push({ onset, w: 0, key: found.key, via: this.onsets });
       }
     }
     this.dbHist[this.frames % this.dbHist.length] = db;
@@ -311,8 +321,16 @@ export class PianoDetector {
         if (this.pos < from + this.voiceSpan) continue; // need the longer look
         voice = this._drift(from, out.f0) > this.voiceCents;
       }
-      const reject = this._confirm(job.onset, out.midi);
-      if (!reject && out.midi != null) this.lastNote = { sample: job.onset, midi: out.midi };
+      let reject = this._confirm(job.onset, out.midi);
+      if (!reject && out.midi != null && this.dspRole === 'low') {
+        if (job.via === 'dsp' && out.midi >= this.lowDspBelow) reject = 'high'; // the profile's range
+        else if (job.via !== 'dsp' && out.midi < this.lowDspBelow) reject = 'low'; // dsp's range
+        else if (Math.abs(job.onset - this.lastAccepted) < (this.tplRefractoryMs / 1000) * this.sr) reject = 'dup';
+      }
+      if (!reject && out.midi != null) {
+        this.lastNote = { sample: job.onset, midi: out.midi };
+        if (out.clarity > 0.6) this.lastAccepted = job.onset; // as the engine accepts notes
+      }
       this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
@@ -529,31 +547,22 @@ export class PianoDetector {
   }
 }
 
-// Onsets from a piano profile: a spectral template for each key of this
-// piano (learned offline by tools/nn/nmf_proto.py from her recordings,
-// labeled by a neural transcriber). Each frame is explained as a
-// non-negative mix of key templates plus a few background ones (speech,
-// noise); an attack is a sudden jump in one key's activation. That still
-// works while earlier notes ring, where plain energy rise and flux don't.
-// The profile is in log frequency, so it works at any sample rate.
-class TemplateOnsets {
-  constructor(profile, sr, o) {
-    const { lo, hi, bps, keys, W } = profile;
+// Front end shared by the profile-based onset detectors: a 2048-point
+// spectrum every `hop` samples, pooled into log-frequency bins (bps per
+// semitone from MIDI lo to hi), so a profile learned at 48 kHz works at any
+// sample rate. Must match tools/nn/nmf_proto.py.
+class LogSpectrum {
+  constructor({ lo, hi, bps, hop }, sr, detHop) {
     this.N = 2048;
-    this.hop = Math.round((profile.hop * sr) / 48000 / o.hop) * o.hop;
-    this.keys = keys;
-    this.K = keys.length; // key templates; the rest are background
-    this.J = W.length;
+    this.hop = Math.max(1, Math.round((hop * sr) / 48000 / detHop)) * detHop;
     this.B = (hi - lo) * bps;
-    this.W = W.map((c) => Float64Array.from(c));
-    this.iters = o.tplIters; this.thrRise = o.tplRise; this.share = o.tplShare; this.floorDb = o.tplFloorDb;
     const N = this.N;
     this.win = new Float64Array(N);
     for (let i = 0; i < N; i++) this.win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
     this.re = new Float32Array(N); this.im = new Float32Array(N);
     this.fft = makeFFT(N);
-    // Linear -> log-frequency bins: triangles in log frequency, or linear
-    // interpolation where a log bin is narrower than a linear one.
+    // Triangles in log frequency, or linear interpolation where a log bin is
+    // narrower than a linear one.
     const nb = N / 2 + 1, binHz = sr / N;
     this.lf = [];
     for (let i = 0; i < this.B; i++) {
@@ -567,20 +576,12 @@ class TemplateOnsets {
       const sum = w.reduce((a, b) => a + b, 0);
       this.lf.push({ idx: Int32Array.from(idx), w: Float64Array.from(w.map((x) => x / sum)) });
     }
-    this.v = new Float64Array(this.B); this.wh = new Float64Array(this.B); this.r = new Float64Array(this.B);
-    this.h = new Float64Array(this.J).fill(1e-6);
-    this.L = 3; // rise over this many frames
-    this.hist = Array.from({ length: this.L + 1 }, () => new Float64Array(this.K));
-    this.rise = Array.from({ length: 3 }, () => new Float64Array(this.K)); // t-2, t-1, t
-    this.meta = Array.from({ length: 3 }, () => ({ start: 0, loud: -200, sum: 0 }));
-    this.ref = 1e-9;
-    this.t = 0;
+    this.v = new Float64Array(this.B);
   }
 
-  // Analyze the frame ending at `end`; returns {onset, key} for an attack
-  // found one frame back (it has to be a local peak), or null.
+  // Spectrum of buf[end - N, end) into this.v; returns the total.
   frame(buf, mask, end) {
-    const { N, re, im, win, v, wh, r, h, W, K, J, B } = this;
+    const { N, re, im, win, v, B } = this;
     for (let i = 0; i < N; i++) { re[i] = buf[(end - N + i) & mask] * win[i]; im[i] = 0; }
     this.fft(re, im);
     let total = 0;
@@ -590,6 +591,42 @@ class TemplateOnsets {
       for (let j = 0; j < idx.length; j++) { const k = idx[j]; m += w[j] * Math.hypot(re[k], im[k]); }
       v[i] = m; total += m;
     }
+    return total;
+  }
+}
+
+// Onsets from a piano profile: a spectral template for each key of this
+// piano (learned offline by tools/nn/nmf_proto.py from her recordings,
+// labeled by a neural transcriber). Each frame is explained as a
+// non-negative mix of key templates plus a few background ones (speech,
+// noise); an attack is a sudden jump in one key's activation. That still
+// works while earlier notes ring, where plain energy rise and flux don't.
+class TemplateOnsets {
+  constructor(profile, sr, o) {
+    this.spec = new LogSpectrum(profile, sr, o.hop);
+    this.hop = this.spec.hop;
+    const { keys, W } = profile;
+    this.keys = keys;
+    this.K = keys.length; // key templates; the rest are background
+    this.J = W.length;
+    this.B = this.spec.B;
+    this.W = W.map((c) => Float64Array.from(c));
+    this.iters = o.tplIters; this.thrRise = o.tplRise; this.share = o.tplShare; this.floorDb = o.tplFloorDb;
+    this.wh = new Float64Array(this.B); this.r = new Float64Array(this.B);
+    this.h = new Float64Array(this.J).fill(1e-6);
+    this.L = 3; // rise over this many frames
+    this.hist = Array.from({ length: this.L + 1 }, () => new Float64Array(this.K));
+    this.rise = Array.from({ length: 3 }, () => new Float64Array(this.K)); // t-2, t-1, t
+    this.meta = Array.from({ length: 3 }, () => ({ start: 0, loud: -200, sum: 0, act: new Float64Array(this.K) }));
+    this.ref = 1e-9;
+    this.t = 0;
+  }
+
+  // Analyze the frame ending at `end`; returns {onset, key} for an attack
+  // found one frame back (it has to be a local peak), or null.
+  frame(buf, mask, end) {
+    const { wh, r, h, W, K, J, B } = this;
+    const total = this.spec.frame(buf, mask, end), v = this.spec.v, N = this.spec.N;
     // KL-NMF with fixed templates (columns sum to 1), warm-started.
     const floor = (total / J) * 1e-3;
     for (let j = 0; j < J; j++) if (h[j] < floor) h[j] = floor;
@@ -609,7 +646,7 @@ class TemplateOnsets {
     const [r2, r1, r0] = [this.rise[(t + 1) % 3], this.rise[(t + 2) % 3], this.rise[t % 3]]; // t-2, t-1, t
     for (let k = 0; k < K; k++) r0[k] = t >= this.L ? (cur[k] - old[k]) / this.ref : 0;
     const m0 = this.meta[t % 3];
-    m0.start = end - N; m0.loud = 20 * Math.log10(total + 1e-12); m0.sum = keySum; m0.act = m0.act ?? new Float64Array(K); m0.act.set(cur);
+    m0.start = end - N; m0.loud = 20 * Math.log10(total + 1e-12); m0.sum = keySum; m0.act.set(cur);
     if (t < 2) return null;
     // Decide about frame t-1.
     const m1 = this.meta[(t + 2) % 3];
@@ -621,6 +658,70 @@ class TemplateOnsets {
     if (m1.act[k] < this.share * m1.sum) return null;
     return { onset: m1.start + N / 2, key: this.keys[k] };
   }
+}
+
+// Onsets from a small network trained on her recordings (tools/nn/onset_mlp.py,
+// labels from a neural transcriber): the last `ctx` log-spectrum frames ->
+// one hidden layer -> per key, the chance it was just struck. Weights are
+// int8 with one scale per unit (decodeNet turns the base64 into arrays).
+class NetOnsets {
+  constructor(net, sr, o) {
+    this.spec = new LogSpectrum(net, sr, o.hop);
+    this.hop = this.spec.hop;
+    const B = this.spec.B;
+    Object.assign(this, { B, ctx: net.ctx, H: net.hidden, keys: net.keys, K: net.keys.length, thr: o.netThr, floorDb: o.tplFloorDb });
+    const d = decodeNet(net);
+    this.W1 = d.W1; this.s1 = Float64Array.from(net.s1); this.b1 = Float64Array.from(net.b1);
+    this.W2 = d.W2; this.s2 = Float64Array.from(net.s2); this.b2 = Float64Array.from(net.b2);
+    this.x = new Float64Array(this.ctx * B); // oldest frame first
+    this.hid = new Float64Array(this.H);
+    this.p = Array.from({ length: 3 }, () => new Float64Array(this.K)); // t-2, t-1, t
+    this.meta = Array.from({ length: 3 }, () => ({ start: 0, loud: -200 }));
+    this.ref = 1e-9;
+    this.t = 0;
+  }
+
+  frame(buf, mask, end) {
+    const { B, ctx, H, K, x, hid, W1, s1, b1, W2, s2, b2 } = this;
+    const total = this.spec.frame(buf, mask, end), v = this.spec.v, N = this.spec.N;
+    this.ref = Math.max(total, this.ref * 0.995);
+    const t = this.t++;
+    // Shift the context window and append log(1 + 1000 v / ref).
+    if (t === 0) for (let c = 0; c < ctx - 1; c++) for (let i = 0; i < B; i++) x[c * B + i] = Math.log1p((1000 * v[i]) / (this.ref + 1e-9));
+    x.copyWithin(0, B);
+    for (let i = 0; i < B; i++) x[(ctx - 1) * B + i] = Math.log1p((1000 * v[i]) / (this.ref + 1e-9));
+    const IN = ctx * B;
+    for (let j = 0; j < H; j++) {
+      let s = 0;
+      const row = j * IN;
+      for (let i = 0; i < IN; i++) s += W1[row + i] * x[i];
+      s = s * s1[j] + b1[j];
+      hid[j] = s > 0 ? s : 0;
+    }
+    const p0 = this.p[t % 3];
+    for (let k = 0; k < K; k++) {
+      let s = 0;
+      const row = k * H;
+      for (let j = 0; j < H; j++) s += W2[row + j] * hid[j];
+      p0[k] = 1 / (1 + Math.exp(-(s * s2[k] + b2[k])));
+    }
+    const m0 = this.meta[t % 3];
+    m0.start = end - N; m0.loud = 20 * Math.log10(total + 1e-12);
+    if (t < 2) return null;
+    const p2 = this.p[(t + 1) % 3], p1 = this.p[(t + 2) % 3], m1 = this.meta[(t + 2) % 3];
+    let k = 0;
+    for (let q = 1; q < K; q++) if (p1[q] > p1[k]) k = q;
+    if (p1[k] < this.thr || m1.loud < this.floorDb) return null;
+    if (p1[k] < p2[k] || p1[k] < p0[k]) return null;
+    return { onset: m1.start + N / 2, key: this.keys[k] };
+  }
+}
+
+// Base64 int8 weights -> Int8Arrays (already-decoded nets pass through).
+// Done on the main thread by detector-node.js: worklets may lack atob.
+export function decodeNet(net) {
+  const dec = (w) => (typeof w === 'string' ? Int8Array.from(atob(w), (c) => (c.charCodeAt(0) << 24) >> 24) : w);
+  return { ...net, W1: dec(net.W1), W2: dec(net.W2) };
 }
 
 function biquadHighpass(fc, sr) {

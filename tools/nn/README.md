@@ -38,6 +38,16 @@ into attacks and scores against the loudest note of each.
 ## The piano profile
 
 `src/piano-profile.json` holds:
+- `net`: the default onset detector, a tiny network (`onset_mlp.py`) trained
+  on her recordings with Kong labels. Retrain as recordings accumulate:
+  ```sh
+  .venv/bin/python ~/Dev/piano-pad-audio/tools/nn/kong.py logs/*/*.mp4   # new recordings only
+  cd ~/Dev/piano-pad-audio/tools/nn
+  ~/Dev/piano-audio-data/.venv/bin/python onset_mlp.py ~/Dev/piano-audio-data/logs          # 4-fold CV scores
+  EXPORT=~/Dev/piano-audio-data/net-all.json ~/Dev/piano-audio-data/.venv/bin/python onset_mlp.py ~/Dev/piano-audio-data/logs split=all
+  # then put net-all.json in the "net" field of src/piano-profile.json
+  ```
+  Compare the CV scores with the previous model's before shipping.
 - `octaveDown`: keys this piano/mic reads an octave high (from
   `ref-audit.mjs --confusion`; C4 read as C5 on 2026-09-26).
 - `templates`: one log-frequency spectrum per key (A2-C7) plus four

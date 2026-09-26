@@ -1,5 +1,5 @@
 // Compare the real-time detector with the offline oracle on recordings.
-//   node tools/onset-audit.mjs rec1.mp4 rec2.mp4 ... [--opt key=value ...] [--no-profile | --profile-onsets] [--list]
+//   node tools/onset-audit.mjs rec1.mp4 rec2.mp4 ... [--opt key=value ...] [--no-profile | --classic | --profile-onsets] [--list]
 // Oracle-only attacks are likely misses; detector-only ones are likely false
 // or double triggers. Neither side is ground truth; look at patterns.
 import { PianoDetector } from '../src/detector.js';

@@ -119,6 +119,19 @@ As of 2026-09-26:
   - Energy-only onset features (HF band, longer rise spans) don't beat the
     current full-band rise on this mic. Pitch drift doesn't separate false
     notes from real ones above C4.
+- **Onset network = default (2026-09-26).** tools/nn/onset_mlp.py trains a
+  tiny MLP (4 log-spectrum frames x 216 bins -> 128 ReLU -> 52 keys A2..C7,
+  int8 weights in the profile's `net`) on Kong labels of her recordings.
+  NetOnsets in detector.js; 'net' mode keeps the classic detector for notes
+  below A3 (`lowDspBelow: 57`) and dedupes. 4-fold CV, all notes: firm
+  86.3% -> 94.7%, medium+firm 74.9% -> 84.3%, false 323 -> 132, letter 96.4%.
+  Weak spot: C3-G#3 (few training notes; the net alone did firm 76% vs
+  classic 94%), hence the split. Transposition augmentation hurt. **Retrain
+  as recordings accumulate**, especially once LH homework recordings exist:
+  rsync logs, kong.py on the new ones, EXPORT=... onset_mlp.py split=all,
+  put it in the profile's `net`, check with the fold CV (tools/nn/README.md).
+  Engine setting 'classic' = old detector alone (asked piano-app for a menu
+  entry).
 - Onsets & Velocities: running its cloned repo code was blocked by the
   permission classifier; needs the parent's OK.
 - **Audio package** (e4aa751): src/detector.js, detector-worklet.js,

@@ -23,12 +23,17 @@ import { createDetectorNode } from '../detector-node.js';
 import { renderNote } from '../synth.js';
 import { getState } from './store.js';
 
-// Detector options chosen in the grown-ups menu. detector: 'simple'
-// (default), 'overlap' (experimental), or 'profile' (experimental: onsets
-// from the piano profile's per-key templates; see src/piano-profile.json).
+// Detector options chosen in the grown-ups menu. detector:
+//   'simple' (default)  onsets from the piano profile's network (A3 and up)
+//                       plus the classic detector below A3
+//   'classic'           the classic detector alone (spectral flux + energy rise)
+//   'overlap'           classic, with the experimental overlapping-note pitch
+//   'profile'           experimental: onsets from per-key spectral templates
+// See src/piano-profile.json; without a profile everything is classic.
 export const detectorOptions = () => {
   const d = getState().detector;
-  return { overlapAware: d === 'overlap', onsets: d === 'profile' ? 'templates' : 'dsp' };
+  const onsets = { classic: 'dsp', overlap: 'dsp', profile: 'templates' }[d] ?? 'net';
+  return { overlapAware: d === 'overlap', onsets };
 };
 
 class Engine {

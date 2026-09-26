@@ -1,7 +1,7 @@
 // Score the real-time detector against a neural reference transcription
 // (tools/nn/kong.py writes <rec>.kong.json beside each recording).
 //   node tools/ref-audit.mjs rec1.mp4 ... [--ref=kong] [--opt key=value ...] [--templates=profile.json]
-//                            [--no-profile | --profile-onsets] [--list] [--confusion] [--min=57]
+//                            [--no-profile | --classic | --profile-onsets] [--list] [--confusion] [--min=57]
 // The reference isn't ground truth either: on the iPad mic it adds quiet
 // overtone "ghost" notes, and it transcribes some speech. So reference notes
 // are grouped into attacks (onsets within 40 ms), and an attack counts when

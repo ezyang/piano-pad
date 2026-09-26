@@ -14,7 +14,7 @@ SR, N, HOP = 48000, 2048, 256
 BPS = 3                      # log-frequency bins per semitone
 LO, HI = 40, 112             # log-frequency range (MIDI)
 KEYS = np.arange(45, 97)     # A2..C7
-P = dict(split='train', warm=0, iters=30, bg=4, rise_frames=3, thr=0.25, share=0.3, floor_db=-70, refr=0.06, tol=0.07, minvel=30, minkey=57)
+P = dict(split='train', warm=0, iters=30, bg=4, rise_frames=3, thr=0.25, share=0.3, floor_db=-70, refr=0.06, tol=0.07, minvel=30, minkey=57, maxkey=127)
 for a in sys.argv[2:]:
     k, v = a.split('='); P[k] = type(P[k])(v)
 
@@ -159,6 +159,16 @@ def detect(V, W):
 
 
 def score(data, W):
+    return fmt(score_raw(data, W))
+
+
+def fmt(c):
+    pct = lambda a, b: f'{100 * a / max(b, 1):.1f}%'
+    return (f"firm {pct(c['h70'], c['n70'])}  med+firm {pct(c['h50'], c['n50'])}  all {pct(c['h30'], c['n30'])}  "
+            f"letter {pct(c['letter'], c['hits'])}  exact {pct(c['exact'], c['hits'])}  notes {c['det']}  false {c['extra']}")
+
+
+def score_raw(data, W):
     n = {30: 0, 50: 0, 70: 0}; h = {30: 0, 50: 0, 70: 0}; letter = exact = hits = det = extra = 0
     for f, V, ref in data:
         got = detect(V, W)
@@ -169,7 +179,7 @@ def score(data, W):
         used = set()
         for a in att:
             a['vel'] = max(r['vel'] for r in a['notes']); a['main'] = max(a['notes'], key=lambda r: r['vel'])['midi']
-            if a['vel'] < P['minvel'] or a['main'] < P['minkey']:
+            if a['vel'] < P['minvel'] or not (P['minkey'] <= a['main'] <= P['maxkey']):
                 continue
             cand = [j for j, g in enumerate(got) if j not in used and abs(g[0] - a['t']) < P['tol']]
             for b in (30, 50, 70):
@@ -182,11 +192,11 @@ def score(data, W):
                 if any(r['midi'] % 12 == got[j][1] % 12 for r in a['notes']): letter += 1
                 if got[j][1] == a['main']: exact += 1
         for g in got:
-            if g[1] < P['minkey']: continue
+            if not (P['minkey'] <= g[1] <= P['maxkey']): continue
             det += 1
             if not any(abs(a['t'] - g[0]) < P['tol'] for a in att): extra += 1
-    pct = lambda a, b: f'{100 * a / max(b, 1):.1f}%'
-    return f'v50+ {pct(h[50], n[50])}  v70+ {pct(h[70], n[70])}  v30+ {pct(h[30], n[30])}  letter {pct(letter, hits)}  exact {pct(exact, hits)}  notes {det}  extras {extra}'
+    return {'n30': n[30], 'n50': n[50], 'n70': n[70], 'h30': h[30], 'h50': h[50], 'h70': h[70],
+            'letter': letter, 'exact': exact, 'hits': hits, 'det': det, 'extra': extra}
 
 
 def export(W, path):
