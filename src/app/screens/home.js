@@ -44,7 +44,7 @@ export function home(root) {
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
       h('label', { class: 'check' }, 'Detector: ',
         h('select', { onchange: (e) => { st.detector = e.target.value; save(); engine.configure(); } },
-          [['simple', 'standard'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>
+          [['simple', 'standard (learned from her piano)'], ['classic', 'classic (the older detector)'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>
             h('option', { value: v, selected: (st.detector ?? 'simple') === v || null }, t)))),
       h('div', { class: 'hint' }, 'Experiments on the home screen:'),
       EXPERIMENTS.map((e) => h('label', { class: 'check' },
