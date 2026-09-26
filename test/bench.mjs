@@ -11,7 +11,10 @@ const args = process.argv.slice(2);
 const verbose = args.includes('--verbose');
 const seedsArg = args.find((a) => a.startsWith('--seeds='));
 const SEEDS = seedsArg ? +seedsArg.split('=')[1] : 1;
-const picked = args.filter((a) => !a.startsWith('--'));
+// --opt key=value overrides detector options.
+const EXTRA = {};
+args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); EXTRA[k] = isNaN(+v) ? v : +v; } });
+const picked = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--opt');
 const names = picked.length ? picked : Object.keys(SCENARIOS);
 
 const CONDITIONS = [
@@ -48,7 +51,7 @@ for (const name of names) {
     addReverb(audio, SR, c.reverb);
     scale(audio, c.gain);
     addNoise(audio, SR, c.noise);
-    const dets = runDetector(audio, SR, { overlapAware: args.includes('--overlap') });
+    const dets = runDetector(audio, SR, { overlapAware: args.includes('--overlap'), ...(args.includes('--old-onsets') ? { riseOneSided: false, fluxNormalize: false } : {}), ...EXTRA });
     const r = evaluate(events, dets);
     worst = Math.min(worst, r.recall, r.precision, r.pitchAcc);
     letterSum += r.letterAcc; runs++;

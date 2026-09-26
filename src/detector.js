@@ -27,6 +27,14 @@ export const DEFAULTS = {
   minFlux: 8,
   riseK: 5, // energy-rise path: rise (dB over fluxLag hops) > mean + K * std
   minRiseDb: 4,
+  // Base the rise threshold's statistics on upward jumps only. Otherwise the
+  // sharp drops when dampers land (real pianos) inflate it to 15-20 dB and
+  // the next quick note can't clear it.
+  riseOneSided: true,
+  // Normalize spectral flux by the recent loudest level, so it doesn't
+  // depend on how loud the mic hears the piano.
+  fluxNormalize: true,
+  fluxRefFloor: 0.03, // limits how much quiet input gets amplified
   refractoryMs: 60,
   gateDb: 10, // frame must be this far above the tracked noise floor
   lowCutHz: 150, // ignore rumble/hum below this for onset purposes
@@ -74,6 +82,8 @@ export class PianoDetector {
     this.hist = Array.from({ length: this.fluxLag + 1 }, () => new Float32Array(this.nb));
     this.frames = 0;
 
+    this.fluxRef = 1;
+    this.peakDecay = 10 ** (-6 / 20 * (this.hop / sampleRate));
     this.fMean = 0;
     this.fVar = 0;
     this.rMean = 0;
@@ -128,12 +138,19 @@ export class PianoDetector {
     for (let k = this.k0; k < nb; k++) {
       const m2 = re[k] * re[k] + im[k] * im[k];
       energy += m2;
-      const lm = Math.log(1 + GAMMA * this.magScale * Math.sqrt(m2));
+      const lm = Math.log(1 + (GAMMA * this.magScale * Math.sqrt(m2)) / this.fluxRef);
       cur[k] = lm;
       const d = lm - prev[k];
       if (d > 0) flux += d;
     }
     const db = 10 * Math.log10(energy * this.magScale * this.magScale + 1e-12);
+    if (this.fluxNormalize) {
+      // Track the recent loudest frame (peak hold, decaying 6 dB/s) as the
+      // reference level for the next frame's flux.
+      const amp = Math.sqrt(energy) * this.magScale;
+      this.peakAmp = Math.max(amp, (this.peakAmp ?? amp) * this.peakDecay);
+      this.fluxRef = Math.min(1, Math.max(this.fluxRefFloor, this.peakAmp / 0.3)); // only ever boost quiet input
+    }
     this.dbHist[this.frames % this.dbHist.length] = db;
     const rise = db - this.dbHist[(this.frames + 1) % this.dbHist.length];
     this.frames++;
@@ -144,7 +161,9 @@ export class PianoDetector {
 
     const thr = Math.max(this.minFlux, this.fMean + this.thresholdK * Math.sqrt(this.fVar));
     const rThr = Math.max(this.minRiseDb, this.rMean + this.riseK * Math.sqrt(this.rVar));
-    const warm = this.frames > this.hist.length + 4;
+    // Let the adaptive statistics and level reference settle before
+    // reporting attacks (a quarter second).
+    const warm = this.frames > Math.max(this.hist.length + 4, (0.25 * this.sr) / this.hop);
     if (warm && (flux > thr || rise > rThr) && db > this.floorDb + this.gateDb && end - this.lastOnset > this.refractory) {
       const onset = this._refineOnset(end);
       this.lastOnset = end;
@@ -158,7 +177,7 @@ export class PianoDetector {
     let d = Math.min(flux, thr) - this.fMean;
     this.fMean += a * d;
     this.fVar = (1 - a) * (this.fVar + a * d * d);
-    d = Math.max(-rThr, Math.min(rise, rThr)) - this.rMean;
+    d = (this.riseOneSided ? Math.min(Math.max(rise, 0), rThr) : Math.max(-rThr, Math.min(rise, rThr))) - this.rMean;
     this.rMean += a * d;
     this.rVar = (1 - a) * (this.rVar + a * d * d);
   }
