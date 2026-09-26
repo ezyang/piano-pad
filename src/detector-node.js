@@ -1,9 +1,24 @@
 // Create an AudioWorkletNode running PianoDetector. detector.js (with `export`
 // stripped) and the worklet wrapper are loaded as one classic script, which
 // sidesteps uneven module support in worklets.
+//
+// These files plus piano-profile.json are the audio package. Keep it
+// self-contained and backward compatible: createDetectorNode(ctx, opts), the
+// options old engines pass (overlapAware, debug), the worklet's 'config'
+// message and the events it posts (onset, pitch, frames), so a newer package
+// can be dropped into an older app version.
 const loaded = new WeakSet();
 
+// The piano profile (how this piano sounds through her iPad): the detector
+// uses its octave fixes always, and its templates when opts.onsets asks.
+let profile;
+const loadProfile = () => (profile ??= fetch(new URL('./piano-profile.json', import.meta.url))
+  .then((r) => (r.ok ? r.json() : null))
+  .catch(() => null));
+
 export async function createDetectorNode(ctx, opts = {}) {
+  const p = await loadProfile();
+  if (p) opts = { octaveDown: p.octaveDown, templates: p.templates, ...opts };
   if (!loaded.has(ctx)) {
     const srcs = ['./detector.js', './detector-worklet.js'].map((p) => new URL(p, import.meta.url));
     const [a, b] = await Promise.all(srcs.map((u) => fetch(u).then((r) => r.text())));
