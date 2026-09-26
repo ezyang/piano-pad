@@ -121,5 +121,12 @@ As of 2026-09-26:
     notes from real ones above C4.
 - Onsets & Velocities: running its cloned repo code was blocked by the
   permission classifier; needs the parent's OK.
-- Idea from the parent (cherry on top): make the detector independent of the
-  UI, so a better detector can be backported to old app versions (/v/<sha>/).
+- **Audio package** (e4aa751): src/detector.js, detector-worklet.js,
+  detector-node.js and piano-profile.json are self-contained; detector-node
+  loads the profile. The parent wants better detectors backported to old app
+  versions (/v/<sha>/). Proposed to piano-app on 2026-09-26: build-site
+  overlays HEAD's package into every version and stamps an audio version.
+  So **keep the package backward compatible**: createDetectorNode(ctx, opts)
+  with the options old engines pass ({debug}, {debug, overlapAware}), the
+  'config' message, and the onset/pitch/frames events. Every engine back to
+  2df4d27 uses exactly that.
