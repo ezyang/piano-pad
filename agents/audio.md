@@ -83,3 +83,10 @@ As of 2026-09-26:
   `agents/audio-research.md` (2026-09-26). Direction: stay on the web; next
   steps are a stronger offline oracle, logging the mic's track settings, and
   timing a Mobile-AMT-sized model in ORT-web on her iPad.
+- New session kinds (app 96597e3): `homework` (whole piece, RH C4-G4 then
+  LH C3-G3; `judge` grades hit/other/ignored) and `adventure` (bookkeeping,
+  no detector events). **LH C3-G3 is untested with her playing**: check
+  detection there once recordings arrive. Speech (~B2-F#3) now falls inside
+  the task range. Told piano-app on 2026-09-26 (suggested: in LH, advance only
+  on hits). A "sounds like a voice" onNote flag (pitch glide/instability) is
+  a candidate contract addition; warn piano-app before adding it.
