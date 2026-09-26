@@ -72,8 +72,13 @@ As of 2026-09-26:
 - Every commit stays live at `/v/<sha>/` (see CLAUDE.md), and logs carry
   `app.version`/`app.path`. When live and replay disagree, check which version
   made the recording (`replay.mjs` prints it) before blaming the current
-  detector. If the detector ever persists anything (calibration, tuning), all
-  versions share localStorage: only add keys, never reshape old ones.
+  detector. On-device storage is disposable (CLAUDE.md): if the detector ever
+  stores anything (calibration, tuning) and its shape changes, use a new key
+  and start empty. Nothing should depend on it lasting; the durable record
+  is the logs on autobox.
+- Session names for all three agents are in `~/Dev/piano-sessions.md` (local).
+  Update the piano-audio line when a session restarts (`ListAgents` prints
+  this session's name).
 - Research on neural real-time piano transcription and web vs native is in
   `agents/audio-research.md` (2026-09-26). Direction: stay on the web; next
   steps are a stronger offline oracle, logging the mic's track settings, and
