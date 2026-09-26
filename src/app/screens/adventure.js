@@ -2,8 +2,9 @@
 // she's gathering, plus the homework and party steps. The warm-up runs in
 // the Build! and Copy me screens (#/world/adventure, #/echo/adventure).
 //   #/adventure           the map
-//   #/adventure/homework  the whole piece; any note moves on (no wrong marks,
-//                         no scores), finger numbers and ✋ always
+//   #/adventure/homework  the whole piece; the right letter moves on, anything
+//                         else is a faint grey ghost (no red, no counts, no
+//                         timeout); finger numbers and ✋ always
 //   #/adventure/party     her band plays the piece with her, then free Build!
 import { h, flash, sparkle } from '../dom.js';
 import { getState } from '../store.js';
@@ -117,7 +118,7 @@ function homework(root) {
   const hand = createHand();
   hand.show(null);
   const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, overlay, h('div', { class: 'hand-box' }, hand.el));
-  const screen = h('div', { class: 'screen play' },
+  const screen = h('div', { class: 'screen play adv-homework' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/adventure', title: 'Map' }, '🗺️'),
       h('div', { class: 'song-title' }, song.title)),
@@ -177,8 +178,10 @@ function homework(root) {
     staff.show(i);
   }
 
-  // Any note moves on: getting to the end is the goal. The right letter
-  // (any octave) earns a sparkle; anything else just goes grey.
+  // The right letter (any octave, forgiving detector octave slips) moves on,
+  // like Learn mode: finishing takes playing it, not mashing. Anything else
+  // is a faint grey ghost, except low notes, where adult speech lands
+  // (~B2-F#3, see piano-audio): those are silently skipped.
   function onNote(n) {
     if (!session || n.time < session.tStart) return;
     if (outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored' }); return; }
@@ -186,9 +189,13 @@ function homework(root) {
     if (k >= t.length) return;
     const ok = sameNote(n.midi, want(k), false);
     log.event('judge', { k, want: want(k), got: n.midi, grade: ok ? 'hit' : 'other' });
-    staff.mark(t[k], ok ? 'hit' : 'played');
-    if (ok) staff.burst(t[k]);
-    build.place(k, ok ? want(k) : n.midi);
+    if (!ok) {
+      if (n.midi >= 57) staff.ghost(t[k], n.midi);
+      return;
+    }
+    staff.mark(t[k], 'hit');
+    staff.burst(t[k]);
+    build.place(k, want(k));
     session.cur++;
     if (session.cur >= t.length) setTimeout(finish, 600);
     else markCurrent();

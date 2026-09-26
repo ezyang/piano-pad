@@ -45,8 +45,9 @@ parent's direction into things she wants to open.
 As of 2026-09-26:
 - **Today's adventure** (pedagogy request, parent-approved, 2026-09-26) leads
   the home screen: warm-up (Build! mountain via `#/world/adventure`, or Copy
-  me ×3 via `#/echo/adventure`) → homework (whole piece, any note advances,
-  fingers + ✋, no wrong marks or scores) → party (session band plays it,
+  me ×3 via `#/echo/adventure`) → homework (whole piece, advances on the right
+  letter in any octave, other notes a grey ghost (none below A3: speech),
+  fingers + ✋, no counts, scores, or timeout) → party (session band plays it,
   then free Build!). Each step brings a band member (warm-up: Beep Bot,
   homework: Blobby); the band lives in memory only (`src/app/adventure.js`).
   Logs: one `adventure` session per adventure (step start/finish/quit
