@@ -50,7 +50,9 @@ for (const f of rest) {
     const has = (s) => m.ev.some((e) => e.s === s);
     const letters = new Set(m.ev.map((e) => e.midi % 12));
     const cands = [...new Set(m.ev.map((e) => e.midi))];
-    const item = { session: f.split('/').pop().replace('.mp4', ''), file: f, t, cands, heard: Object.fromEntries(['c', 'n', 'r'].map((s) => [s, m.ev.filter((e) => e.s === s).map((e) => e.midi)])) };
+    // Other sounds in the same clip window, so the page can show them too.
+    const others = moments.filter((o) => o !== m && o.t0 > t - PRE && o.t0 < t + POST).map((o) => +(o.t0 - (t - PRE)).toFixed(3));
+    const item = { session: f.split('/').pop().replace('.mp4', ''), file: f, t, cands, others, heard: Object.fromEntries(['c', 'n', 'r'].map((s) => [s, m.ev.filter((e) => e.s === s).map((e) => e.midi)])) };
     const n = ['c', 'n', 'r'].filter(has).length;
     if (n === 1) groups[has('c') ? 'classic-only' : has('n') ? 'net-only' : 'ref-only'].push(item);
     else if (letters.size > 1) groups.pitch.push(item);
@@ -74,7 +76,7 @@ export function cut(file, t, dest) {
 const manifest = picked.map((p, i) => {
   const id = `c${String(i + 1).padStart(3, '0')}`;
   p.gain = cut(p.file, p.t, join(out, 'clips', `${id}.wav`));
-  return { id, session: p.session, t: +p.t.toFixed(3), mark: PRE, gain: p.gain, cands: shuffle([...p.cands]), group: p.group, heard: p.heard };
+  return { id, session: p.session, t: +p.t.toFixed(3), mark: PRE, others: p.others, gain: p.gain, cands: shuffle([...p.cands]), group: p.group, heard: p.heard };
 });
 writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest, null, 1));
 // Reference examples with known answers (from the labeled calibration takes).

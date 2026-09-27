@@ -18,6 +18,11 @@
   .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--flash); }
   .lamp { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 4px; background: var(--line); transition: background .05s; }
   .lamp.on { background: var(--flash); box-shadow: 0 0 24px var(--flash); }
+  .lamps { display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .small { width: 26px; height: 26px; margin: 0; }
+  .small.on { background: #999; box-shadow: 0 0 10px #999; }
+  .bar .tick { position: absolute; top: 2px; bottom: 2px; width: 3px; background: #999; }
+  .legend { font-size: 13px; }
   button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 12px; padding: 12px 14px; margin: 5px 4px; min-height: 48px; cursor: pointer; }
   button.big { width: 100%; font-size: 19px; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -52,8 +57,9 @@
   </div>
 
   <div class="card hidden" id="task">
-    <div class="lamp" id="lamp"></div>
-    <div class="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
+    <div class="lamps"><div class="lamp small" id="otherLamp"></div><div class="lamp" id="lamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
+    <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
+    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other sounds in the clip (ignore them).</div>
     <div class="row"><button class="big" id="play">▶ Play again</button></div>
 
     <div class="q">Did a piano key start at the flash?</div>
@@ -150,6 +156,8 @@ async function show() {
   }));
   clipBuf = await fetch(`clips/${c.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
   $('mark').style.left = `${(100 * c.mark) / clipBuf.duration}%`;
+  document.querySelectorAll('#bar .tick').forEach((x) => x.remove());
+  for (const o of c.others ?? []) { const tk = document.createElement('div'); tk.className = 'tick'; tk.style.left = `${(100 * o) / clipBuf.duration}%`; $('bar').append(tk); }
   refresh();
   play();
 }
@@ -165,7 +173,8 @@ function play() {
     const t = heard(t0);
     $('fill').style.width = `${Math.max(0, Math.min(100, (100 * t) / dur))}%`;
     $('lamp').classList.toggle('on', t >= c.mark && t < c.mark + FLASH);
-    if (t < dur + 0.1) requestAnimationFrame(tick); else $('lamp').classList.remove('on');
+    $('otherLamp').classList.toggle('on', (c.others ?? []).some((o) => t >= o && t < o + FLASH));
+    if (t < dur + 0.1) requestAnimationFrame(tick); else { $('lamp').classList.remove('on'); $('otherLamp').classList.remove('on'); }
   };
   tick();
 }
