@@ -101,8 +101,15 @@ export const DEFAULTS = {
   // lowNetSpanMs of it (15 ms: as good as 30 in CV, and low notes then arrive
   // no later than the voice check allows, ~45 ms). Key and damper thumps just before an attack otherwise read as low
   // notes (seen in calibration takes).
-  dspFallbackClarity: 0.85, // 1: no fallback. Network mode's D4s today: 16/74 -> 55/74
+  // Tuned on the parent's labels (2026-09-27): the real notes the network
+  // missed were loud (-32..-48 dBFS over the first 40 ms, clarity 0.68-0.85);
+  // the classic detector's junk was quiet (-57..-73). Absolute level: it's
+  // her iPad in its usual place; if the iPad moves much closer, re-check.
+  // Validated elsewhere: calibration takes 72/12/9 -> 73/11/11 (right/missed/
+  // extra), loud D4s today 23 -> 83 of 134 (classic 82).
+  dspFallbackClarity: 0.65, // 1: no fallback
   dspFallbackWaitMs: 100,
+  dspFallbackMinDb: -50, // ...and at least this loud (RMS dBFS over 40 ms from the onset)
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
@@ -394,7 +401,9 @@ export class PianoDetector {
       // A confident classic reading above lowDspBelow is a fallback for strikes
       // the network misses (her repeated D4s): wait for the network, then
       // keep it if the network registered nothing for this strike.
-      const fallback = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi >= this.lowDspBelow && out.clarity >= this.dspFallbackClarity;
+      const level = this._rms(job.onset, Math.round(0.04 * this.sr));
+      const fallback = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi >= this.lowDspBelow &&
+        out.clarity >= this.dspFallbackClarity && level >= this.dspFallbackMinDb;
       if (fallback && this.pos < job.onset + (this.dspFallbackWaitMs / 1000) * this.sr) continue;
       const span = (this.lowNetSpanMs / 1000) * this.sr;
       if (lowDsp && this.tpl.lowActivity && this.pos < job.onset + 1024 + span + this.tpl.hop) continue; // wait for the network's view
@@ -415,7 +424,7 @@ export class PianoDetector {
         if (out.clarity > (expected ? 0.4 : 0.6)) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -605,6 +614,13 @@ export class PianoDetector {
       if (n[p2] >= n[pick] && this._level(x, W, res.f0 / 2) > this._level(x, W, res.f0) - this.octaveDownDb) res = this._peak(p2);
     }
     return res;
+  }
+
+  // Loudness (dBFS, RMS) of buf[from, from + W).
+  _rms(from, W) {
+    let e = 0;
+    for (let i = 0; i < W; i++) { const v = this.buf[(from + i) & this.mask]; e += v * v; }
+    return 10 * Math.log10(e / W + 1e-12);
   }
 
   // Level (dB) of frequency f in buf[from, from + W), Hann-windowed.

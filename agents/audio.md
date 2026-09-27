@@ -199,3 +199,12 @@ As of 2026-09-26:
   Pitch disagreements: 5 real, network right 4, classic 1 (2 splats).
   Blind spot fixed in batch 2 (labels-2, 28 clips): two sources agree and
   the third is silent (net-miss / classic-miss / ref-miss) plus more pitch.
+- **Parent labels, both batches (61 answers).** only-classic 0/8 real;
+  only-net 1/8; only-ref 3/8; net+ref with classic silent 7/8 real (+1
+  hard); classic+ref with net silent 8/8 real; both detectors without ref
+  2/6 real (2 no, 2 splat/unsure); pitch disagreements: network right 6/8,
+  classic 3/8. The real notes the network misses are LOUD (-32..-48 dBFS),
+  classic's junk quiet (-57..-73), hence the loud fallback (net mode):
+  calibration 73/11/11 vs classic 59/25/25; loud-note hits today match or
+  beat classic on every key but B3. Recommended as the default; waiting on
+  the parent's OK (we flip-flopped once already).
