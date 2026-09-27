@@ -1,4 +1,7 @@
-// Pixel-art character editor.
+// Pixel-art character editor. Her drawing is kept as she goes (after each
+// stroke, and whenever she leaves the screen, by 🏠, ✓ or anything else), so
+// no way out loses it. The two ways to wipe it (👑 back to the default, 🧽
+// clear) each take a second tap.
 import { h } from '../dom.js';
 import { getState, save } from '../store.js';
 import { CHAR_W, CHAR_H, CHAR_PALETTE, characterUrl, defaultCharacter, texture } from '../pixels.js';
@@ -13,6 +16,7 @@ export function me(root) {
   const board = h('div', { class: 'board', style: `grid-template-columns:repeat(${CHAR_W}, 1fr);aspect-ratio:${CHAR_W}/${CHAR_H}` }, cells);
   const preview = h('img', { class: 'me-preview' });
 
+  const keep = () => { st.character = [...grid]; save(); };
   const paint = (i) => {
     if (i == null || grid[i] === color) return;
     grid[i] = color;
@@ -31,8 +35,8 @@ export function me(root) {
   };
   board.addEventListener('pointerdown', (e) => { painting = true; board.setPointerCapture(e.pointerId); paint(cellAt(e)); });
   board.addEventListener('pointermove', (e) => { if (painting) paint(cellAt(e)); });
-  board.addEventListener('pointerup', () => { painting = false; });
-  board.addEventListener('pointercancel', () => { painting = false; });
+  board.addEventListener('pointerup', () => { painting = false; keep(); });
+  board.addEventListener('pointercancel', () => { painting = false; keep(); });
 
   const swatches = [...CHAR_PALETTE.map((c, i) => i), -1].map((i) => {
     const b = h('button', {
@@ -42,24 +46,42 @@ export function me(root) {
     return b;
   });
 
-  let clearArmed = false;
+  // Tap once to arm (the button asks), again to do it; arming one disarms
+  // the other, and an armed button gives up after a few seconds.
+  const armed = (icon, question, act) => {
+    let timer = 0;
+    const b = h('button', {
+      class: 'btn', onclick: () => {
+        if (!b.classList.contains('armed')) {
+          for (const o of wipers) disarm(o);
+          b.classList.add('armed'); b.textContent = question;
+          timer = setTimeout(() => disarm(b), 3000);
+          return;
+        }
+        clearTimeout(timer); disarm(b);
+        act(); render(); keep();
+      },
+    }, icon);
+    b.dataset.icon = icon;
+    return b;
+  };
+  const disarm = (b) => { b.classList.remove('armed'); b.textContent = b.dataset.icon; };
+  const wipers = [
+    armed('👑', 'Start over?', () => grid.splice(0, grid.length, ...defaultCharacter())),
+    armed('🧽', 'Clear?', () => grid.fill(-1)),
+  ];
   root.append(h('div', { class: 'screen me' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, 'Make yourself!'),
       h('div', { class: 'spacer' }),
-      h('button', { class: 'btn', onclick: () => { grid.splice(0, grid.length, ...defaultCharacter()); render(); } }, '👑'),
-      h('button', {
-        class: 'btn', onclick: (e) => {
-          if (!clearArmed) { clearArmed = true; e.target.textContent = 'Clear?'; return; }
-          grid.fill(-1); render(); clearArmed = false; e.target.textContent = '🧽';
-        },
-      }, '🧽'),
-      h('button', { class: 'btn primary big', onclick: () => { st.character = grid; save(); location.hash = '#/'; } }, '✓')),
+      wipers,
+      h('a', { class: 'btn primary big', href: '#/' }, '✓')),
     h('div', { class: 'me-body' },
       board,
       h('div', { class: 'me-side' },
         h('div', { class: 'palette' }, swatches),
         h('div', { class: 'me-stand' }, preview, h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))))));
   render();
+  return keep;
 }
