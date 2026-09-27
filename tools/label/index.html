@@ -44,7 +44,8 @@
 
   <div class="card hidden" id="examples">
     <div class="q">Examples (from your calibration takes, answers known)</div>
-    <div class="lamp" id="exLamp"></div>
+    <div class="lamps"><div class="lamp small" id="exOther"></div><div class="lamp" id="exLamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
+    <div class="muted center legend">Big yellow light: the moment the answer is about. Small grey light: other moments where something was detected (maybe nothing real).</div>
     <div id="exList"></div>
     <div class="row"><button id="hideEx">Close examples</button></div>
   </div>
@@ -59,7 +60,7 @@
   <div class="card hidden" id="task">
     <div class="lamps"><div class="lamp small" id="otherLamp"></div><div class="lamp" id="lamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
     <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
-    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other sounds in the clip (ignore them).</div>
+    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other moments where something was detected (maybe nothing real); ignore them.</div>
     <div class="row"><button class="big" id="play">▶ Play again</button></div>
 
     <div class="q">Did a piano key start at the flash?</div>
@@ -136,7 +137,12 @@ async function playExample(e) {
   const buf = await fetch(`examples/${e.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
   const t0 = ctx.currentTime + 0.05; src.start(t0);
-  const tick = () => { const t = heard(t0); $('exLamp').classList.toggle('on', t >= e.mark && t < e.mark + FLASH); if (t < buf.duration + 0.1) requestAnimationFrame(tick); };
+  const tick = () => {
+    const t = heard(t0);
+    $('exLamp').classList.toggle('on', t >= e.mark && t < e.mark + FLASH);
+    $('exOther').classList.toggle('on', (e.others ?? []).some((o) => t >= o && t < o + FLASH));
+    if (t < buf.duration + 0.1) requestAnimationFrame(tick); else { $('exLamp').classList.remove('on'); $('exOther').classList.remove('on'); }
+  };
   tick();
 }
 $('showEx').onclick = (ev) => { ev.preventDefault(); $('examples').classList.remove('hidden'); $('examples').scrollIntoView({ behavior: 'smooth' }); };

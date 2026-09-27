@@ -32,18 +32,22 @@ const detect = (x, o) => {
   for (let i = 0; i < x.length; i += 128) d.process(x.subarray(i, i + 128));
   return got;
 };
-const groups = { 'classic-only': [], 'net-only': [], 'ref-only': [], pitch: [] };
-for (const f of rest) {
+// Every note any source heard in a recording, merged into moments within 70 ms.
+function momentsOf(f) {
   const rf = f.replace(/\.mp4$/, '.kong.json');
-  if (!existsSync(rf)) continue;
   const x = decode(f, SR);
   const classic = detect(x, profileOptions([]));
   const net = detect(x, { ...profileOptions(['--net']), dspFallbackClarity: 0.85, dspFallbackWaitMs: 100 });
-  const ref = JSON.parse(readFileSync(rf, 'utf8')).filter((r) => r.vel >= 40).map((r) => ({ t: r.t, midi: r.midi }));
-  // Moments: every event from any source, merged within 70 ms.
+  const ref = existsSync(rf) ? JSON.parse(readFileSync(rf, 'utf8')).filter((r) => r.vel >= 40).map((r) => ({ t: r.t, midi: r.midi })) : [];
   const all = [...classic.map((n) => ({ ...n, s: 'c' })), ...net.map((n) => ({ ...n, s: 'n' })), ...ref.map((n) => ({ ...n, s: 'r' }))].sort((a, b) => a.t - b.t);
   const moments = [];
   for (const e of all) { const m = moments.at(-1); if (m && e.t - m.t0 < NEAR) m.ev.push(e); else moments.push({ t0: e.t, ev: [e] }); }
+  return { x, moments };
+}
+const groups = { 'classic-only': [], 'net-only': [], 'ref-only': [], pitch: [] };
+for (const f of rest) {
+  if (!existsSync(f.replace(/\.mp4$/, '.kong.json'))) continue;
+  const { x, moments } = momentsOf(f);
   for (const m of moments) {
     const t = m.ev.find((e) => e.s === 'c')?.t ?? m.ev.find((e) => e.s === 'n')?.t ?? m.t0;
     if (t < PRE || t + POST > x.length / SR) continue;
@@ -85,7 +89,8 @@ if (exArg) {
   mkdirSync(join(out, 'examples'), { recursive: true });
   const ex = JSON.parse(readFileSync(exArg.split('=')[1], 'utf8')).map((e, i) => {
     const id = `e${i + 1}`;
-    return { id, title: e.title, answer: e.answer, mark: PRE, gain: cut(e.file, e.t, join(out, 'examples', `${id}.wav`)) };
+    const others = momentsOf(e.file).moments.filter((o) => Math.abs(o.t0 - e.t) >= NEAR && o.t0 > e.t - PRE && o.t0 < e.t + POST).map((o) => +(o.t0 - (e.t - PRE)).toFixed(3));
+    return { id, title: e.title, answer: e.answer, mark: PRE, others, gain: cut(e.file, e.t, join(out, 'examples', `${id}.wav`)) };
   });
   writeFileSync(join(out, 'examples.json'), JSON.stringify(ex, null, 1));
 }
