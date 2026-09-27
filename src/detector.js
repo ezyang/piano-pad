@@ -98,7 +98,7 @@ export const DEFAULTS = {
   // lowNetSpanMs of it (15 ms: as good as 30 in CV, and low notes then arrive
   // no later than the voice check allows, ~45 ms). Key and damper thumps just before an attack otherwise read as low
   // notes (seen in calibration takes).
-  lowNetMin: 0.2,
+  lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
   // weren't learned from (tools/nn/nmf_proto.py, tools/ref-audit.mjs).
