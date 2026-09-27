@@ -60,6 +60,9 @@ export const DEFAULTS = {
   // octaveDownDb). For keys whose fundamental is too weak on a particular
   // piano and mic; set by the piano profile (src/piano-profile.json).
   octaveDown: [],
+  // How sharp (cents) each key reads at the attack on this piano, from the
+  // piano profile. Rounding to keys centers on these.
+  tuning: {},
   octaveDownDb: 30,
   // If the note before is still ringing (energy before the attack within this
   // many dB of after), plain autocorrelation can lock onto the mixture; with
@@ -554,7 +557,13 @@ export class PianoDetector {
     const shift = den !== 0 ? (0.5 * (a - c)) / den : 0;
     const f0 = this.sr / (p + shift);
     const midiF = 69 + 12 * Math.log2(f0 / 440);
-    const midi = Math.round(midiF);
+    let midi = Math.round(midiF);
+    // Round to the nearest key as this piano reads (tuning: key -> cents).
+    let best = Infinity;
+    for (let k = midi - 1; k <= midi + 1; k++) {
+      const d = Math.abs(midiF - k - (this.tuning[k] ?? 0) / 100);
+      if (d < best) { best = d; midi = k; }
+    }
     return { f0, midi, cents: Math.round((midiF - midi) * 100), clarity: b - 0.25 * (a - c) * shift };
   }
 }

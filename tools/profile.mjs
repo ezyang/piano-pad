@@ -14,5 +14,5 @@ const net = profile.net && decodeNet(profile.net);
 export function profileOptions(args) {
   if (args.includes('--no-profile')) return {};
   const onsets = args.includes('--profile-onsets') ? 'templates' : args.includes('--classic') || !net ? 'dsp' : 'net';
-  return { octaveDown: profile.octaveDown, templates: profile.templates, net, onsets };
+  return { octaveDown: profile.octaveDown, tuning: profile.tuning ?? {}, templates: profile.templates, net, onsets };
 }

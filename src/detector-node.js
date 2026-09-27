@@ -23,7 +23,7 @@ const loadProfile = () => (profile ??= fetch(new URL('./piano-profile.json', imp
 
 export async function createDetectorNode(ctx, opts = {}) {
   const p = await loadProfile();
-  if (p) opts = { octaveDown: p.octaveDown, templates: p.templates, net: p.net, onsets: p.net ? 'net' : 'dsp', ...opts };
+  if (p) opts = { octaveDown: p.octaveDown, tuning: p.tuning ?? {}, templates: p.templates, net: p.net, onsets: p.net ? 'net' : 'dsp', ...opts };
   if (!loaded.has(ctx)) {
     const srcs = ['./detector.js', './detector-worklet.js'].map((p) => new URL(p, import.meta.url));
     const [a, b] = await Promise.all(srcs.map((u) => fetch(u).then((r) => r.text())));
