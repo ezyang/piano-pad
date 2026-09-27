@@ -50,7 +50,9 @@ As of 2026-09-26:
   the G song and Stairs each gives a "Who joins your band?" pick (Froggy /
   Beep Bot / Buzzy, she missed Buzzy); Up and Down brings Blobby. The party
   plays Up and Down (piece buttons switch), then free Build! / Copy me.
-  Pieces: right letter (any octave) advances, grey ghost otherwise (none
+  Pieces: right letter (any octave) advances; the NEXT note also counts for
+  both (look-ahead, judge grade 'assumed' for the skipped one; one note
+  only, since stepwise wrong notes are neighbours); grey ghost otherwise (none
   below A3), fingers + ✋ always (pedagogy: this worked; she switched to
   several fingers right away, so keep it exactly). The G song is played
   back in rhythm after. The band lives in memory only (`src/app/adventure.js`).

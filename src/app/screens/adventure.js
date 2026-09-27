@@ -6,7 +6,10 @@
 //   #/adventure/party       her band plays a piece (Up and Down first), then
 //                           free Build! or Copy me
 // Pieces: the right letter moves on, anything else is a faint grey ghost (no
-// red, no counts, no timeout); finger numbers and ✋ always.
+// red, no counts, no timeout); finger numbers and ✋ always. Look-ahead: the
+// detector still misses about 1 note in 4, so the note after the expected
+// one also counts, for both (the missed one is 'assumed'), and she keeps
+// going forward instead of re-striking one key.
 import { h, flash, sparkle } from '../dom.js';
 import { getState } from '../store.js';
 import { createStaff, systemHeight } from '../staff.js';
@@ -190,12 +193,22 @@ function piece(root, id) {
   // expect()ed notes): a miss costs her far more than a rare false accept.
   function onNote(n) {
     if (!session || n.time < session.tStart) return;
-    const k = session.cur, t = staff.targets;
+    const t = staff.targets;
+    let k = session.cur;
     if (k >= t.length) return;
     const ok = sameNote(n.midi, want(k), false);
-    if ((n.voice && !ok) || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
-    log.event('judge', { k, want: want(k), got: n.midi, grade: ok ? 'hit' : 'other' });
-    if (!ok) {
+    // She's on the next note: the expected one was almost surely played and
+    // missed by the detector.
+    const ahead = !ok && k + 1 < t.length && sameNote(n.midi, want(k + 1), false);
+    if ((n.voice && !ok && !ahead) || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
+    if (ahead) {
+      log.event('judge', { k, want: want(k), got: n.midi, grade: 'assumed' });
+      staff.mark(t[k], 'hit');
+      build.place(k, want(k));
+      session.cur = ++k;
+    }
+    log.event('judge', { k, want: want(k), got: n.midi, grade: ok || ahead ? 'hit' : 'other' });
+    if (!ok && !ahead) {
       if (n.midi >= 57) staff.ghost(t[k], n.midi);
       return;
     }
