@@ -57,9 +57,18 @@ const PLACEMENT = [
   { id: 'p-usual-2', say: `Back in the usual spot (no towel), once more: ${PASSAGE}`, notes: PLACEMENT_NOTES },
 ];
 
-const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT };
+// The same passage through a USB mic (plug it in BEFORE opening the app; the
+// log's audio.track.label says which input was used).
+const MIC = [
+  { id: 'u-stand', say: `USB mic on the stand beside the piano, just above the top at the right (treble) end, angled over the top, NOT touching the piano: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'u-pad', say: `USB mic lying on top of the piano on a folded towel or foam: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'u-shelf', say: `USB mic on the shelf next to the piano: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'u-stand-2', say: `Back on the stand beside the piano, once more: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+];
 
-// #/calibrate (the basic set), #/calibrate/messy or #/calibrate/placement.
+const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT, mic: MIC };
+
+// #/calibrate (the basic set), or #/calibrate/<messy|placement|mic>.
 export function calibrate(root, set = 'basic') {
   const STEPS = SETS[set] ?? BASIC;
   let i = 0, heard = [], off = null;
@@ -95,7 +104,7 @@ export function calibrate(root, set = 'basic') {
   }
 
   root.append(h('div', { class: 'screen calibrate' },
-    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, { messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits' }[set] ?? '🎯 Calibrate the ears')),
+    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, { messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits', mic: '🎯 Calibrate: USB mic placement' }[set] ?? '🎯 Calibrate the ears')),
     h('div', { class: 'panel cal-panel' }, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
