@@ -19,6 +19,9 @@
 //   simulate(midi)      a pretend key press: onNote fires right away (the
 //                       detector isn't involved)
 //   configure()         re-apply detectorOptions() after settings change
+//   expect(midis|null)  the note(s) the app is waiting for next (homework
+//                       targets); the detector listens harder for them and
+//                       accepts them more readily. null: nothing in particular
 //   level, takeLevelStats()   input level (dB)
 // Changes to these need a heads-up to piano-app before they ship.
 import { createDetectorNode } from '../detector-node.js';
@@ -102,7 +105,8 @@ class Engine {
         onsets.set(e.sample, e);
         if (onsets.size > 50) onsets.delete(onsets.keys().next().value);
       }
-      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > 0.6 && !e.reject;
+      // Readings of an expected note (see expect()) count at lower clarity.
+      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > (e.expected ? 0.4 : 0.6) && !e.reject;
       // Everything the detector says, for the practice log.
       for (const fn of this.rawListeners) fn({ ...e, time: e.sample / ctx.sampleRate, detectedTime: e.detectedAt / ctx.sampleRate, accepted });
       if (accepted) {
@@ -112,6 +116,7 @@ class Engine {
     };
     this.ctx = ctx;
     this.node = node;
+    if (this.expected) node.port.postMessage({ type: 'expect', midis: this.expected });
     this._attachMic();
   }
 
@@ -162,6 +167,14 @@ class Engine {
   }
 
   now() { return this.ctx ? this.ctx.currentTime : 0; }
+
+  // The note(s) the app is waiting for (midi numbers), or null when it isn't
+  // waiting for anything in particular. The detector listens harder for
+  // those notes and is less strict about accepting them.
+  expect(midis) {
+    this.expected = midis?.length ? [...midis] : null;
+    this.node?.port.postMessage({ type: 'expect', midis: this.expected });
+  }
 
   onNote(fn) {
     this.listeners.add(fn);

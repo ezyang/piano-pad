@@ -14,6 +14,9 @@ class DetectorProcessor extends AudioWorkletProcessor {
       if (data.type === 'config') {
         Object.assign(this.opts, data.opts);
         this.det = null; // rebuild with new options on the next block
+      } else if (data.type === 'expect') {
+        this.expect = data.midis;
+        this.det?.setExpect?.(data.midis);
       }
     };
   }
@@ -23,6 +26,7 @@ class DetectorProcessor extends AudioWorkletProcessor {
     if (!this.det) {
       this.det = new PianoDetector(sampleRate, this.opts);
       this.det.pos = currentFrame; // report positions on the AudioContext clock
+      if (this.expect) this.det.setExpect(this.expect);
       this.det.onEvent = (e) => {
         if (e.type !== 'frame') return this.port.postMessage(e);
         this.frames.push(e);

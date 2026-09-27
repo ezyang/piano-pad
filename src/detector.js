@@ -52,6 +52,9 @@ export const DEFAULTS = {
   minF0: 60,
   maxF0: 2200,
   clarity: 0.85,
+  // If no window at the onset gives a clear pitch, retry this many ms later.
+  pitchRetryMs: [], // e.g. [20, 40, 60]: calibration takes +8 right, +11 false; off pending labeled kid data
+  retryRiseDb: 6, // ...and only if that pitch got this much louder than before the onset
   // McLeod's "k": take the shortest period whose NSDF peak is within this
   // fraction of the best one. Lower values favor octave-up errors.
   mpmK: 0.9,
@@ -98,6 +101,8 @@ export const DEFAULTS = {
   // lowNetSpanMs of it (15 ms: as good as 30 in CV, and low notes then arrive
   // no later than the voice check allows, ~45 ms). Key and damper thumps just before an attack otherwise read as low
   // notes (seen in calibration takes).
+  dspFallbackClarity: 0.85, // 1: no fallback. Network mode's D4s today: 16/74 -> 55/74
+  dspFallbackWaitMs: 100,
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
@@ -107,6 +112,11 @@ export const DEFAULTS = {
   tplShare: 0.15, // the key's share of all key activation at the attack
   tplFloorDb: -70,
   tplRefractoryMs: 100, // one strike can re-fire ~75 ms later; nobody plays 10 notes/s
+  // When the app says which note it's waiting for (setExpect): the network,
+  // if the profile has one, also watches just the expected key(s) with this
+  // much lower bar, and readings of the expected letter skip the voice check
+  // (they're marked `expected`; the engine accepts them at lower clarity).
+  expectNetThr: 2, // >1: off. 0.3 caught more but added many false notes on the calibration takes
   debug: false,
 };
 
@@ -174,6 +184,12 @@ export class PianoDetector {
     else if (this.templates && (this.onsets === 'templates' || this.onsets === 'both')) this.tpl = new TemplateOnsets(this.templates, sampleRate, this);
     if (this.tpl) this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
     this.dspRole = !this.tpl || this.onsets === 'dsp' || this.onsets === 'both' ? 'all' : this.lowDspBelow > 0 ? 'low' : 'off';
+    // The network as a helper for expected notes (in any onset mode).
+    this.helper = this.expectNetThr > 1 ? null : this.tpl instanceof NetOnsets ? this.tpl : this.net ? new NetOnsets(this.net, sampleRate, this) : null;
+    if (this.helper) this.helperEvery = Math.max(1, Math.round(this.helper.hop / hop));
+    this.expect = null;
+    this.lastExpSample = -Infinity;
+    this.lastAcc = { sample: -Infinity, pc: -1 };
     this.lastTplSample = -Infinity;
     this.lastAcceptedNet = -Infinity;
     this.onEvent = () => {};
@@ -190,6 +206,16 @@ export class PianoDetector {
         if (this.jobs.length) this._runJobs();
       }
     }
+  }
+
+  // The note(s) the app is waiting for (midi numbers), or null.
+  setExpect(midis) {
+    const was = this.expect;
+    this.expect = midis?.length ? { midis, pcs: new Set(midis.map((m) => ((m % 12) + 12) % 12)) } : null;
+    if (!this.helper) return;
+    // A helper that only runs while expecting starts from a clean context.
+    if (!was && this.expect && this.helper !== this.tpl) this.helper.reset();
+    this.helper.setExpect(this.expect ? midis.flatMap((m) => [m - 12, m, m + 12]) : null);
   }
 
   _frame() {
@@ -251,6 +277,17 @@ export class PianoDetector {
         this.jobs.push({ onset, w: 0, key: found.key, via: this.onsets });
       }
     }
+    if (this.helper && this.expect && this.helper !== this.tpl && this.frames % this.helperEvery === 0) this.helper.frame(this.buf, this.mask, end);
+    const ef = this.helper?.expFound;
+    if (ef) {
+      this.helper.expFound = null;
+      const near = 0.06 * this.sr, refr = (this.tplRefractoryMs / 1000) * this.sr;
+      if (warm && this.expect && ef.onset - this.lastExpSample > refr && Math.abs(ef.onset - this.lastOnsetSample) > near && Math.abs(ef.onset - this.lastTplSample) > near) {
+        this.lastExpSample = ef.onset;
+        this.onEvent({ type: 'onset', sample: ef.onset, detectedAt: end, flux: 0, via: 'expect', key: ef.key });
+        this.jobs.push({ onset: ef.onset, w: 0, key: ef.key, via: 'expect' });
+      }
+    }
     this.dbHist[this.frames % this.dbHist.length] = db;
     this.endHist[this.frames % this.endHist.length] = end;
     if (this.debug) this.onEvent({ type: 'frame', sample: end, flux, thr, rise, rThr, db, floorDb: this.floorDb });
@@ -298,7 +335,7 @@ export class PianoDetector {
   _runJobs() {
     for (let j = 0; j < this.jobs.length; j++) {
       const job = this.jobs[j];
-      const from = job.onset + this.pitchSkip;
+      let from = job.onset + this.pitchSkip;
       if (!job.r1) {
         const W = this.pitchWindows[job.w];
         if (this.pos < from + W) continue;
@@ -312,10 +349,31 @@ export class PianoDetector {
         }
         const res = this._pitch(from, W);
         const last = job.w === this.pitchWindows.length - 1;
-        if (res && (res.clarity >= this.clarity || last)) job.r1 = res;
-        else if (last) job.r1 = { f0: 0, midi: null, cents: 0, clarity: 0 };
-        else { job.w++; continue; }
+        if (res && (res.clarity >= this.clarity || (last && !this.pitchRetryMs.length))) job.r1 = res;
+        else if (!last) { job.w++; continue; }
+        else {
+          // No clear pitch yet: the onset may have fired on the finger/key
+          // noise before the string sounds (~30 ms early on loud notes here).
+          // Look again a little later before giving up.
+          job.best = res && res.clarity > (job.best?.clarity ?? -1) ? res : job.best;
+          job.retry ??= 0;
+          const r = job.retry < this.pitchRetryMs.length ? Math.round((this.pitchRetryMs[job.retry] / 1000) * this.sr) : null;
+          if (r != null) {
+            const W0 = this.pitchWindows[0];
+            if (this.pos < from + r + W0) continue;
+            let again = this._pitch(from + r, W0);
+            job.retry++;
+            // Only a tone that started after the onset counts, not the previous
+            // note still ringing (the onset may have been a key release).
+            if (again && this._rawLevel(from + r, W0, again.f0) - this._rawLevel(job.onset - 32 - W0, W0, again.f0) < this.retryRiseDb) again = null;
+            if (again && again.clarity > (job.best?.clarity ?? -1)) { job.best = again; job.bestFrom = from + r; }
+            if (!(again && again.clarity >= this.clarity)) continue;
+          }
+          job.r1 = job.best ?? { f0: 0, midi: null, cents: 0, clarity: 0 };
+          if (job.bestFrom != null && job.r1 === job.best) job.from = job.bestFrom;
+        }
       }
+      if (job.from != null) from = job.from; // pitch was found later in the note
       let out = job.r1;
       // Arbitrate when a note is still ringing: always if we know its pitch,
       // and otherwise when r1 looks like a mixture's low common period.
@@ -326,27 +384,38 @@ export class PianoDetector {
         out = { ...picked, why: { r1: job.r1.midi, old: job.old?.midi, sp: sp?.midi } };
       }
       if (this.confirmRiseDb > 0 && this.pos < job.onset + (this.confirmMs / 1000) * this.sr) continue; // not yet
+      const expected = !!(this.expect && out.midi != null && this.expect.pcs.has(((out.midi % 12) + 12) % 12));
       let voice;
-      if (out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
+      if (!expected && out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
         if (this.pos < from + this.voiceSpan) continue; // need the longer look
         voice = this._drift(from, out.f0) > this.voiceCents;
       }
       const lowDsp = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi < this.lowDspBelow;
+      // A confident classic reading above lowDspBelow is a fallback for strikes
+      // the network misses (her repeated D4s): wait for the network, then
+      // keep it if the network registered nothing for this strike.
+      const fallback = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi >= this.lowDspBelow && out.clarity >= this.dspFallbackClarity;
+      if (fallback && this.pos < job.onset + (this.dspFallbackWaitMs / 1000) * this.sr) continue;
       const span = (this.lowNetSpanMs / 1000) * this.sr;
       if (lowDsp && this.tpl.lowActivity && this.pos < job.onset + 1024 + span + this.tpl.hop) continue; // wait for the network's view
       let reject = this._confirm(job.onset, out.midi);
+      const win = (this.tplRefractoryMs / 1000) * this.sr, pcOut = out.midi != null ? ((out.midi % 12) + 12) % 12 : -1;
+      if (!reject && job.via === 'expect' && !expected) reject = 'unexpected'; // the helper only adds expected notes
+      if (!reject && out.midi != null && (job.via === 'expect' || expected) && pcOut === this.lastAcc.pc && Math.abs(job.onset - this.lastAcc.sample) < win) reject = 'dup';
       if (!reject && out.midi != null && this.dspRole === 'low') {
         const win = (this.tplRefractoryMs / 1000) * this.sr;
-        if (job.via === 'dsp' && out.midi >= this.lowDspBelow) reject = 'high'; // the profile's range
+        if (fallback) { if (Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; }
+        else if (job.via === 'dsp' && out.midi >= this.lowDspBelow && !expected) reject = 'high'; // the profile's range
         else if (job.via !== 'dsp' && out.midi < this.lowDspBelow) reject = 'low'; // dsp's range
         else if (lowDsp && Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; // the network already has it
         else if (lowDsp && this.tpl.lowActivity && this.tpl.lowActivity(job.onset, span) < this.lowNetMin) reject = 'no-net';
       }
       if (!reject && out.midi != null) {
         this.lastNote = { sample: job.onset, midi: out.midi };
+        if (out.clarity > (expected ? 0.4 : 0.6)) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -538,6 +607,13 @@ export class PianoDetector {
     return res;
   }
 
+  // Level (dB) of frequency f in buf[from, from + W), Hann-windowed.
+  _rawLevel(from, W, f) {
+    const x = this.lvlBuf ??= new Float32Array(this.bufSize);
+    for (let i = 0; i < W; i++) x[i] = this.buf[(from + i) & this.mask];
+    return this._level(x, W, f);
+  }
+
   // Level (dB) of frequency f in x[0, W), Hann-windowed (Goertzel).
   _level(x, W, f) {
     const c = 2 * Math.cos((2 * Math.PI * f) / this.sr);
@@ -701,7 +777,19 @@ class NetOnsets {
     this.ref = 1e-9;
     this.t = 0;
     this.lowK = net.keys.filter((k) => k < o.lowDspBelow).length; // keys are ascending
+    this.expThr = o.expectNetThr;
+    this.expK = null; // indices of expected keys, see setExpect
+    this.expFound = null;
     this.lowHist = Array.from({ length: 16 }, () => ({ center: -Infinity, max: 0 }));
+  }
+
+  setExpect(midis) {
+    this.expK = midis ? midis.map((m) => this.keys.indexOf(m)).filter((k) => k >= 0) : null;
+  }
+
+  reset() {
+    this.t = 0; this.ref = 1e-9; this.expFound = null;
+    for (const p of this.p) p.fill(0);
   }
 
   // Highest probability of any key below lowDspBelow in frames centered
@@ -743,6 +831,12 @@ class NetOnsets {
     for (let k = 0; k < this.lowK; k++) if (p0[k] > lh.max) lh.max = p0[k];
     if (t < 2) return null;
     const p2 = this.p[(t + 1) % 3], p1 = this.p[(t + 2) % 3], m1 = this.meta[(t + 2) % 3];
+    // An expected key peaking one frame back, with a much lower bar.
+    if (this.expK && m1.loud >= this.floorDb) {
+      let bestK = -1;
+      for (const q of this.expK) if (p1[q] >= this.expThr && p1[q] >= p2[q] && p1[q] >= p0[q] && (bestK < 0 || p1[q] > p1[bestK])) bestK = q;
+      if (bestK >= 0) this.expFound = { onset: m1.start + N / 2, key: this.keys[bestK] };
+    }
     let k = 0;
     for (let q = 1; q < K; q++) if (p1[q] > p1[k]) k = q;
     if (p1[k] < this.thr || m1.loud < this.floorDb) return null;
