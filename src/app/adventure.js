@@ -1,5 +1,6 @@
 // Today's adventure: a short practice with a beginning and an end.
-//   warm-up (a Build! blueprint or Copy me) → homework (the whole piece) → party
+//   warm-up (a Build! blueprint, Copy me, or the G piece) → homework (the
+//   piece she picks, played whole) → party
 // Each finished step brings in a band member; only the homework brings the
 // headliner, and the party waits for it. "Finished" means she got to the
 // end, never how well she played.
@@ -51,14 +52,15 @@ export function startStep(step, info = {}) {
   return a.id;
 }
 
-export function finishStep(step) {
+export function finishStep(step, info = {}) {
   const a = current();
   if (a.active === step) a.active = null;
+  if (info.piece) a.piece = info.piece; // the party plays the homework she picked
   const first = !a.done.has(step);
   a.done.add(step);
   const m = JOINS[step];
   if (first && m && !a.band.includes(m)) { a.band.push(m); a.joined = m; }
-  event('finish', { step });
+  event('finish', { step, ...info });
 }
 
 // Left a step before finishing it (no-op once it's finished).

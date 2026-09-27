@@ -44,8 +44,12 @@ parent's direction into things she wants to open.
 
 As of 2026-09-26:
 - **Today's adventure** (pedagogy request, parent-approved, 2026-09-26) leads
-  the home screen: warm-up (Build! mountain via `#/world/adventure`, or Copy
-  me ×3 via `#/echo/adventure`) → homework (whole piece, advances on the right
+  the home screen: warm-up (her choice: Build! mountain via
+  `#/world/adventure`, Copy me ×3 via `#/echo/adventure`, or the G piece via
+  `#/adventure/warmup/g`, played back in rhythm after) → homework (her
+  choice of piece, `#/adventure/homework/<stairs|updown>`; the party plays
+  the one she picked). Pieces live in `src/app/homework.js` (`PIECES`; notes
+  may carry `f` for a finger outside C position). Homework (whole piece, advances on the right
   letter in any octave, other notes a grey ghost (none below A3: speech),
   fingers + ✋, no counts, scores, or timeout) → party (session band plays it,
   then free Build!). Each step brings a band member (warm-up: Beep Bot,
@@ -68,7 +72,9 @@ As of 2026-09-26:
   learned from her piano), classic, overlap, profile. Only the root app
   passes it; old /v/ versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
-  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)`.
+  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)`. Set
+  `detector: 'classic'` in the test profile: the default network (trained on
+  her piano) misses many synthesized notes, especially repeats.
 - Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
   `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
   The parent may deliberately send her back to an old version (removing

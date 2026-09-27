@@ -44,8 +44,8 @@ export const systemHeight = (s, clef, letters) => metrics(s, clef, letters).heig
 
 export function createStaff(song, { s = 20, width = 1000, letters = 'letters', visible = 2 } = {}) {
   const mode = labelMode(letters);
-  const label = (g, m, x, y) => {
-    const { text, fallback } = labelFor(m, mode);
+  const label = (g, m, x, y, finger) => {
+    const { text, fallback } = labelFor(m, mode, finger);
     if (text) g.append(svg('text', { x, y, class: 'letter' + (mode === 'fingers' && !fallback ? ' finger' : '') + (fallback ? ' fallback' : '') }, text));
   };
   const clef = resolveClef(song);
@@ -149,7 +149,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     if (n.d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
     if (n.d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
     if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
-    label(g, n.p, hx, letterY);
+    label(g, n.p, hx, letterY, n.f);
   });
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];

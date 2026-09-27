@@ -1,20 +1,10 @@
 // Persistent app state in localStorage.
 import { defaultCharacter } from './pixels.js';
+import { PIECES } from './homework.js';
 
 const KEY = 'pianopad.v1';
 
-const HOMEWORK = {
-  id: 'homework-g',
-  title: 'Homework: G',
-  by: 'teacher',
-  bpm: 80,
-  notes: [
-    { d: 2, p: 67 }, { d: 2, p: 67 },
-    { d: 1, p: 67 }, { d: 1, p: 67 }, { d: 0.5, p: 67 }, { d: 0.5, p: 67 }, { d: 1, p: 67 },
-  ],
-  band: 1,
-  plays: 0,
-};
+const HOMEWORK = { ...PIECES.g, band: 1, plays: 0 };
 
 function fresh() {
   return { songs: [HOMEWORK], character: defaultCharacter() };

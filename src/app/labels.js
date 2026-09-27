@@ -15,12 +15,13 @@ const LH = { 48: 5, 50: 4, 52: 3, 53: 2, 55: 1 };
 export const fingerFor = (m) => RH[m] ?? LH[m] ?? null;
 export const handFor = (m) => (m in RH ? 'right' : m in LH ? 'left' : null);
 
-// { text, fallback } for a note under the given mode.
-export function labelFor(m, mode = labelMode()) {
+// { text, fallback } for a note under the given mode. `finger` overrides
+// the C-position number (a note's `f`, for pieces outside the position).
+export function labelFor(m, mode = labelMode(), finger = null) {
   if (mode === 'none') return { text: '' };
   const name = letter(m) + (isSharp(m) ? '♯' : '');
   if (mode === 'fingers') {
-    const f = fingerFor(m);
+    const f = finger ?? fingerFor(m);
     return f ? { text: String(f) } : { text: name, fallback: true };
   }
   return { text: name };
