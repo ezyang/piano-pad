@@ -186,3 +186,10 @@ As of 2026-09-26:
     her repeated D4s); network+fallback 0.85: 73/11/21, and D4s today
     55/74. Classic's big weakness here: onsets fire on finger/key noise
     ~30 ms before the string sounds, so the pitch window has no tone yet.
+- **Parent labels (2026-09-27).** tools/label/: 60 disputed moments from
+  Sep 27 sessions (15 each: classic-only, net-only, ref-only, pitch), served
+  on autobox at http://192.168.86.239:8770/ (`~/piano-labels`, started by
+  hand; stop it when done; this Mac's firewall blocks LAN). Answers:
+  autobox:piano-labels/labels-1/labels.jsonl. Score them with
+  `node tools/label/score.mjs <dir> [--rows]` after copying them back. The
+  parent won't label endlessly, so pick clips by what the decision needs.
