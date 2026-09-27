@@ -25,7 +25,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == '/labels':
             rows = [json.loads(l) for l in open(LABELS)] if os.path.exists(LABELS) else []
             return self._send(json.dumps(rows).encode(), 'application/json')
-        if self.path == '/manifest.json' or self.path.startswith('/clips/'):
+        if self.path in ('/manifest.json', '/examples.json') or self.path.startswith(('/clips/', '/examples/')):
             return super().do_GET()
         self.send_error(404)
 

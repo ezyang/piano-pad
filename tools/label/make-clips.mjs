@@ -62,13 +62,14 @@ const picked = [];
 for (let i = 0; picked.length < N && Object.values(groups).some((g) => g.length > i); i++) {
   for (const [name, g] of Object.entries(groups)) if (g[i] && picked.length < N) picked.push({ ...g[i], group: name });
 }
-// Cut a clip, turned up so quiet notes are audible: peak to -1 dBFS, at most +30 dB.
+// Cut a clip, turned up by the SAME amount for every clip (the iPad mic hears
+// the piano quietly), so relative loudness still tells a faint background
+// sound from a real strike; a limiter keeps loud notes from distorting.
+const GAIN_DB = 26;
 export function cut(file, t, dest) {
-  const x = decode(file, SR).subarray(Math.max(0, Math.round((t - PRE) * SR)), Math.round((t + POST) * SR));
-  let peak = 1e-6; for (const v of x) peak = Math.max(peak, Math.abs(v));
-  const gain = Math.min(30, -1 - 20 * Math.log10(peak));
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', (t - PRE).toFixed(3), '-t', (PRE + POST).toFixed(3), '-i', file, '-ac', '1', '-ar', '48000', '-af', `volume=${gain.toFixed(1)}dB`, dest]);
-  return +gain.toFixed(1);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', (t - PRE).toFixed(3), '-t', (PRE + POST).toFixed(3), '-i', file, '-ac', '1', '-ar', '48000',
+    '-af', `volume=${GAIN_DB}dB,alimiter=limit=0.9:attack=2:release=50`, dest]);
+  return GAIN_DB;
 }
 const manifest = picked.map((p, i) => {
   const id = `c${String(i + 1).padStart(3, '0')}`;
