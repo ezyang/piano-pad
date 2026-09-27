@@ -169,3 +169,20 @@ As of 2026-09-26:
   TODO: a full table from `node tools/tuning.mjs <recs> --by-day` (B4 ~+23,
   A4 ~-9, A#4 ~-18 at the attack). Re-measure regularly: the logs carry f0
   for every note even without audio, so drift shows up there first.
+- **2026-09-27 lessons (read before changing defaults).**
+  - Evaluation: the Kong reference misses quick re-strikes/mashing, and the
+    song target isn't ground truth (she and the parent play other things).
+    CV against Kong approved two changes that hurt her real homework (the
+    low-note gate; the network default, which missed repeated D4s: 16/74
+    loud D4s today vs classic 60/74). The ONLY true labels are the parent's
+    calibration takes (`cal-report.mjs --summary [--expect] [--net]`), and
+    they're clean adult playing. Don't flip defaults on Kong-only evidence;
+    get labeled messy takes (asked the parent) or labels for disagreements.
+  - State: classic is the default (0f9b37f), with the profile's tuning
+    (F4 +60, aa02741) and C4 octave fix. engine.expect (f8ef96d): expected
+    letter skips the voice filter, accepted at clarity > 0.4.
+  - Calibration takes (right/missed/extra): classic 59/25/25; +expect
+    62/22/25; classic+pitch retry 67/17/36; network 72/12/9 (fell apart on
+    her repeated D4s); network+fallback 0.85: 73/11/21, and D4s today
+    55/74. Classic's big weakness here: onsets fire on finger/key noise
+    ~30 ms before the string sounds, so the pitch window has no tone yet.
