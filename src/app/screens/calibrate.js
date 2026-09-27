@@ -45,9 +45,21 @@ const MESSY = [
   { id: 'm-little-one', say: 'If the little one is around: let them bang the low keys while you play C D E F G. (Skip otherwise.)', notes: [60, 62, 64, 65, 67], extrasOk: true },
 ];
 
-const SETS = { basic: BASIC, messy: MESSY };
+// Where the iPad sits: the same passage in three placements (2026-09-27), to
+// see how much vibration through the piano's case hurts (key and action
+// thumps reach the mic through the wood).
+const PASSAGE = 'play C D E F G at medium loudness, then G three times SOFTLY, about one per second.';
+const PLACEMENT_NOTES = [60, 62, 64, 65, 67, 67, 67, 67];
+const PLACEMENT = [
+  { id: 'p-usual', say: `iPad in its usual spot: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'p-towel', say: `Same spot, but put a folded towel (or a soft cloth) under the iPad: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'p-off', say: `Take the iPad OFF the piano: put it on a chair or table beside the piano, about as far from the keys as usual, not touching the piano: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+  { id: 'p-usual-2', say: `Back in the usual spot (no towel), once more: ${PASSAGE}`, notes: PLACEMENT_NOTES },
+];
 
-// #/calibrate (the basic set) or #/calibrate/messy.
+const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT };
+
+// #/calibrate (the basic set), #/calibrate/messy or #/calibrate/placement.
 export function calibrate(root, set = 'basic') {
   const STEPS = SETS[set] ?? BASIC;
   let i = 0, heard = [], off = null;
@@ -83,7 +95,7 @@ export function calibrate(root, set = 'basic') {
   }
 
   root.append(h('div', { class: 'screen calibrate' },
-    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, set === 'messy' ? '🎯 Calibrate: messy playing' : '🎯 Calibrate the ears')),
+    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, { messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits' }[set] ?? '🎯 Calibrate the ears')),
     h('div', { class: 'panel cal-panel' }, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
