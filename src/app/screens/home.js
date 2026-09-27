@@ -62,7 +62,7 @@ export function home(root) {
           resetAll();
           location.reload();
         },
-      }, 'Reset all data'),
+      }, 'Reset all data (keeps her character)'),
       h('div', { class: 'hint' }, 'Tip: on a computer, keys A–K play pretend piano notes.'),
       h('div', { class: 'hint' }, `Version ${VERSION.split(' ')[0]} (${VERSION.split(' ')[1]?.slice(0, 10) ?? 'local'}) · `,
         location.pathname.startsWith('/v/') ? [h('a', { href: '/' }, 'today’s app'), ' · '] : null,

@@ -82,4 +82,8 @@ As of 2026-09-26:
 - Storage is disposable (parent's direction, 2026-09-26): no migrations,
   bump the key and start fresh when the shape changes, and prefer features
   that don't need persistence. Existing persistent bits (song library,
-  character, settings) are grandfathered, not a pattern to extend.
+  settings) are grandfathered, not a pattern to extend.
+- Except her character, which the parent says is special (2026-09-27): own
+  key `pianopad.character`, kept across versions/clean slates/"Reset all
+  data", mirrored into the blob for old versions. The editor (`me.js`)
+  saves after every stroke and on leaving; wipes (👑, 🧽) take two taps.

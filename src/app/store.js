@@ -1,8 +1,15 @@
-// Persistent app state in localStorage.
-import { defaultCharacter } from './pixels.js';
+// App state in localStorage. Most of it is disposable (see CLAUDE.md): a
+// deploy may bump KEY and start fresh. Her character is the exception: it
+// lives under its own key, kept across versions, clean slates and "Reset
+// all data". It's a CHAR_W×CHAR_H array of CHAR_PALETTE indices (-1 = clear),
+// so that format and the palette's order must never change (append colors
+// only). It's mirrored into the state blob too, so old /v/ versions (which
+// only read the blob) show her current character.
+import { defaultCharacter, CHAR_W, CHAR_H } from './pixels.js';
 import { PIECES } from './homework.js';
 
 const KEY = 'pianopad.v1';
+const CHARACTER_KEY = 'pianopad.character';
 
 const HOMEWORK = { ...PIECES.g, band: 1, plays: 0 };
 
@@ -16,12 +23,21 @@ try {
 } catch {
   state = fresh();
 }
+const isCharacter = (c) => Array.isArray(c) && c.length === CHAR_W * CHAR_H && c.every(Number.isInteger);
+let kept = null;
+try { kept = JSON.parse(localStorage.getItem(CHARACTER_KEY)); } catch { /* none yet */ }
+// Her own key first; before it existed, the character lived in the blob.
+state.character = [kept, state.character].find(isCharacter) ?? defaultCharacter();
+// Copy it to its own key right away, so a clean slate can't catch it first.
+if (!isCharacter(kept)) try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(state.character)); } catch { /* storage unavailable */ }
 // Fill in anything missing from older or partial saves.
-if (!Array.isArray(state.character) || !state.character.length) state.character = defaultCharacter();
 if (!Array.isArray(state.songs)) state.songs = fresh().songs;
 
 export function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(CHARACTER_KEY, JSON.stringify(state.character));
+  } catch { /* storage unavailable */ }
 }
 
 export const getState = () => state;
@@ -42,7 +58,8 @@ export function deleteSong(id) {
   save();
 }
 
+// Everything but her character.
 export function resetAll() {
-  state = fresh();
+  state = { ...fresh(), character: state.character };
   save();
 }
