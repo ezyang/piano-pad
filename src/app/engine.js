@@ -15,7 +15,9 @@
 //                       The shape may change; don't build features on it.
 //   start(), listen(on) open the audio context / mic (start() only from a tap)
 //   now()               current audio clock (s)
-//   play(audio, opts), stopAll(), simulate(midi)
+//   play(audio, opts), stopAll()
+//   simulate(midi)      a pretend key press: onNote fires right away (the
+//                       detector isn't involved)
 //   configure()         re-apply detectorOptions() after settings change
 //   level, takeLevelStats()   input level (dB)
 // Changes to these need a heads-up to piano-app before they ship.
@@ -214,15 +216,23 @@ class Engine {
     this.sources.clear();
   }
 
-  // Pretend a piano key was struck: synthesize it straight into the detector.
+  // Pretend a piano key was struck (test keyboard, computer keys): the note
+  // goes straight to onNote listeners. It used to be synthesized into the
+  // detector, but the default detector is trained on her piano and misses
+  // most synth notes; the detector has its own tests (jig, bench).
   async simulate(midi, { audible = !this.listening } = {}) {
     await this.start();
     for (const fn of this.simListeners) fn(midi);
-    const sr = this.ctx.sampleRate;
-    const audio = new Float32Array(Math.round(1.0 * sr));
-    renderNote(audio, 0, { midi, vel: 0.7, dur: 0.5 }, sr, Math.random);
-    // Quiet by default while the mic is on, or the mic would hear it twice.
-    this.play(audio, { toDetector: true, audible });
+    let time = this.ctx.currentTime;
+    // Quiet by default while the mic is on, or the mic could hear it too.
+    if (audible) {
+      const sr = this.ctx.sampleRate;
+      const audio = new Float32Array(Math.round(1.0 * sr));
+      renderNote(audio, 0, { midi, vel: 0.7, dur: 0.5 }, sr, Math.random);
+      time = this.play(audio).startTime;
+    }
+    const note = { time, midi, clarity: 1, voice: false };
+    for (const fn of this.listeners) fn(note);
   }
 }
 
