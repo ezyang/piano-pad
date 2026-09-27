@@ -2,7 +2,7 @@
 // disagree, and cut short clips for the parent to label (tools/label/).
 //   node tools/label/make-clips.mjs <out dir> <session .mp4 files...> [--n=60]
 //        [--groups=net-miss:8,classic-miss:8,...] [--skip=<earlier manifest>] [--prefix=c]
-// Four groups, interleaved so an early stop still covers all of them:
+// Groups (shown in random order; --interleave rotates through them instead):
 //   classic-only  the classic detector accepted a note, network and reference didn't
 //   net-only      the network (with its classic fallback) accepted one, the others didn't
 //   ref-only      the reference transcribed a note (vel >= 40), neither detector did
@@ -92,6 +92,9 @@ export function cut(file, t, dest) {
     '-af', `volume=${GAIN_DB}dB,alimiter=limit=0.9:attack=2:release=50`, dest]);
   return GAIN_DB;
 }
+// Present in random order (not a fixed rotation of groups the labeler could
+// pick up on). --interleave keeps the rotation, for batches you may stop early.
+if (!args.includes('--interleave')) shuffle(picked);
 const manifest = picked.map((p, i) => {
   const id = `${prefix}${String(i + 1).padStart(3, '0')}`;
   p.gain = cut(p.file, p.t, join(out, 'clips', `${id}.wav`));
