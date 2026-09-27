@@ -45,7 +45,7 @@
   </div>
 
   <div class="card center" id="intro">
-    <p>Each clip is 1½ seconds of a real session. A light flashes at one moment. Tell me whether a piano key started <b>right at the flash</b>, and if so, which one. Use the 🔊 buttons to hear each candidate note.</p>
+    <p>Each clip is 1½ seconds of a real session. A light flashes at one moment. Tell me whether a piano key started <b>as the light comes on</b> (give or take a tenth of a second), and if so, which one. Use the 🔊 buttons to hear each candidate note.</p>
     <p class="muted">Answers save as you go, and the most useful clips come first, so stop whenever you like.</p>
     <p class="muted">New to this? Try the <b>examples</b> first (link at the top) to hear what a soft note, a loud note and talking sound like here.</p>
     <button class="primary big" id="start">Start</button>
@@ -57,6 +57,7 @@
     <div class="row"><button class="big" id="play">▶ Play again</button></div>
 
     <div class="q">Did a piano key start at the flash?</div>
+    <div class="muted center">(when the light comes on, give or take a tenth of a second)</div>
     <div class="row">
       <button class="yes" data-strike="yes">Yes</button>
       <button class="no" data-strike="no">No piano key (silence, talking, other noise)</button>
@@ -89,6 +90,10 @@ const $ = (id) => document.getElementById(id);
 let ctx, manifest = [], answers = {}, i = 0, clipBuf = null, playing = null, cur = {};
 
 let examples = [];
+// The light comes on when the moment reaches the speaker (the audio clock runs
+// ahead of what you hear by the output latency) and stays on briefly.
+const FLASH = 0.18;
+const heard = (t0) => ctx.currentTime - t0 - (ctx.outputLatency || 0) - (ctx.baseLatency || 0);
 async function init() {
   manifest = await fetch('manifest.json').then((r) => r.json());
   examples = await fetch('examples.json').then((r) => (r.ok ? r.json() : []), () => []);
@@ -119,7 +124,7 @@ async function playExample(e) {
   const buf = await fetch(`examples/${e.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
   const t0 = ctx.currentTime + 0.05; src.start(t0);
-  const tick = () => { const t = ctx.currentTime - t0; $('exLamp').classList.toggle('on', Math.abs(t - e.mark) < 0.12); if (t < buf.duration + 0.1) requestAnimationFrame(tick); };
+  const tick = () => { const t = heard(t0); $('exLamp').classList.toggle('on', t >= e.mark && t < e.mark + FLASH); if (t < buf.duration + 0.1) requestAnimationFrame(tick); };
   tick();
 }
 $('showEx').onclick = (ev) => { ev.preventDefault(); $('examples').classList.remove('hidden'); $('examples').scrollIntoView({ behavior: 'smooth' }); };
@@ -157,9 +162,9 @@ function play() {
   const dur = clipBuf.duration;
   const tick = () => {
     if (playing !== src) return;
-    const t = ctx.currentTime - t0;
+    const t = heard(t0);
     $('fill').style.width = `${Math.max(0, Math.min(100, (100 * t) / dur))}%`;
-    $('lamp').classList.toggle('on', Math.abs(t - c.mark) < 0.12);
+    $('lamp').classList.toggle('on', t >= c.mark && t < c.mark + FLASH);
     if (t < dur + 0.1) requestAnimationFrame(tick); else $('lamp').classList.remove('on');
   };
   tick();
