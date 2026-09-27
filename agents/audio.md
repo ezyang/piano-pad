@@ -193,3 +193,9 @@ As of 2026-09-26:
   autobox:piano-labels/labels-1/labels.jsonl. Score them with
   `node tools/label/score.mjs <dir> [--rows]` after copying them back. The
   parent won't label endlessly, so pick clips by what the decision needs.
+- **Parent labels, batch 1 (32 of 60 answered, Sep 27 sessions).** Notes
+  only the classic detector heard: 0/8 real. Only the network (+fallback):
+  1/8. Only the reference: 3/8 (both detectors missed D4 twice, C3 once).
+  Pitch disagreements: 5 real, network right 4, classic 1 (2 splats).
+  Blind spot fixed in batch 2 (labels-2, 28 clips): two sources agree and
+  the third is silent (net-miss / classic-miss / ref-miss) plus more pitch.
