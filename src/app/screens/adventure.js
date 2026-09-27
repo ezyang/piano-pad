@@ -26,8 +26,6 @@ import * as adv from '../adventure.js';
 
 const member = (id) => BAND.find((m) => m.id === id);
 const spriteOf = (id) => (id === 'piano' ? characterUrl(getState().character) : bandSprite(member(id)));
-// Who she can gather, in lineup order.
-const LINEUP = ['piano', adv.JOINS.warmup, adv.JOINS.homework];
 
 export function adventure(root, sub, id) {
   if (sub === 'warmup' && PIECES[id]) return piece(root, 'warmup', id);
@@ -59,14 +57,25 @@ function welcome(parent, id, then) {
   if (!then) setTimeout(() => box.remove(), 3500);
 }
 
+// Her, the warm-up's pick (a mystery until she picks), the headliner.
 function lineup(a, big = false) {
-  return h('div', { class: 'adv-band' + (big ? ' big' : '') }, LINEUP.map((id) => {
-    const here = a.band.includes(id);
-    return h('div', { class: 'member' },
-      h('img', { class: 'member-sprite' + (here ? '' : ' locked'), src: spriteOf(id) }),
-      h('div', { class: 'member-name' }, here ? member(id).name : id === adv.JOINS.homework ? '⭐' : '?'),
-      h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }));
-  }));
+  const picked = a.band.find((id) => adv.PICKS.includes(id));
+  const slots = [['piano', true], [picked, !!picked], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
+  return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
+    id ? h('img', { class: 'member-sprite' + (here ? '' : ' locked'), src: spriteOf(id) }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.HEADLINER ? '⭐' : '?'),
+    h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
+}
+
+// After the warm-up: "Who joins your band?" — tap one.
+function choosePick(parent, then) {
+  const box = h('div', { class: 'overlay adv-welcome' },
+    h('div', { class: 'joined' }, 'Who joins your band?'),
+    h('div', { class: 'adv-picks' }, adv.PICKS.map((id) => h('button', {
+      class: 'adv-pick', onclick: () => { adv.pick(id); box.remove(); then(); },
+    }, h('img', { class: 'adv-welcome-sprite', src: spriteOf(id) }), h('div', { class: 'member-name' }, member(id).name)))));
+  parent.append(box);
+  box.querySelectorAll('.adv-pick img').forEach((img, i) => setTimeout(() => flash(img, 'hop', 350), 200 + i * 180));
 }
 
 // --- the map ---
@@ -118,11 +127,16 @@ function map(root) {
     overlayBox,
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` }));
   root.append(screen);
-  if (a.joined) {
+  const greet = () => {
+    if (!a.joined) return;
     const id = a.joined;
     a.joined = null;
+    // Redraw the lineup with the newcomer, then welcome them.
+    screen.querySelector('.adv-band').replaceWith(lineup(a, true));
     setTimeout(() => screen.isConnected && welcome(screen, id), 300);
-  }
+  };
+  if (adv.pickPending(a)) setTimeout(() => screen.isConnected && choosePick(screen, greet), 300);
+  else greet();
 }
 
 // --- a piece: the G warm-up or a homework piece, played the whole way ---
@@ -282,7 +296,7 @@ function party(root) {
   const a = adv.current();
   if (!a.done.has('homework')) { location.hash = '#/adventure'; return; }
   const song = PIECES[a.piece] ?? PIECES.updown;
-  const ids = LINEUP.filter((id) => a.band.includes(id));
+  const ids = a.band;
   let playing = null, raf = 0, played = false;
 
   const imgs = ids.map((id) => h('img', { class: 'member-sprite', src: spriteOf(id) }));

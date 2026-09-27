@@ -52,7 +52,8 @@ As of 2026-09-26:
   may carry `f` for a finger outside C position). Homework (whole piece, advances on the right
   letter in any octave, other notes a grey ghost (none below A3: speech),
   fingers + ✋, no counts, scores, or timeout) → party (session band plays it,
-  then free Build!). Each step brings a band member (warm-up: Beep Bot,
+  then free Build!). Each step brings a band member (warm-up: she picks
+  Froggy, Beep Bot or Buzzy, since she missed Buzzy (parent, 2026-09-27);
   homework: Blobby); the band lives in memory only (`src/app/adventure.js`).
   Logs: one `adventure` session per adventure (step start/finish/quit
   events, rewritten via `telemetry.record`), plus `homework` / `build` /

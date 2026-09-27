@@ -1,8 +1,9 @@
 // Today's adventure: a short practice with a beginning and an end.
 //   warm-up (a Build! blueprint, Copy me, or the G piece) → homework (the
 //   piece she picks, played whole) → party
-// Each finished step brings in a band member; only the homework brings the
-// headliner, and the party waits for it. "Finished" means she got to the
+// Each finished step brings in a band member: after the warm-up she picks
+// who joins (Froggy, Beep Bot or Buzzy); the homework brings the headliner
+// (Blobby), and the party waits for it. "Finished" means she got to the
 // end, never how well she played.
 //
 // Nothing is saved: the adventure and its band live in memory, and a new one
@@ -11,7 +12,8 @@
 // step screens log their own sessions tagged with `adventure: <id>`.
 import * as log from './telemetry.js';
 
-export const JOINS = { warmup: 'bot', homework: 'slime' }; // who each step brings in
+export const HEADLINER = 'slime'; // the homework brings Blobby
+export const PICKS = ['frog', 'bot', 'bee']; // the warm-up lets her choose one
 const STALE_MS = 60 * 60 * 1000;
 
 let adv = null;
@@ -58,9 +60,19 @@ export function finishStep(step, info = {}) {
   if (info.piece) a.piece = info.piece; // the party plays the homework she picked
   const first = !a.done.has(step);
   a.done.add(step);
-  const m = JOINS[step];
-  if (first && m && !a.band.includes(m)) { a.band.push(m); a.joined = m; }
+  if (first && step === 'homework' && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
   event('finish', { step, ...info });
+}
+
+// Waiting for her to pick the warm-up's band member (the map asks).
+export const pickPending = (a) => a.done.has('warmup') && !a.band.some((id) => PICKS.includes(id));
+
+export function pick(id) {
+  const a = current();
+  if (!pickPending(a) || !PICKS.includes(id)) return;
+  a.band.splice(1, 0, id); // lineup: her, her pick, the headliner
+  a.joined = id;
+  event('pick', { member: id });
 }
 
 // Left a step before finishing it (no-op once it's finished).
