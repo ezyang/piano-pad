@@ -35,10 +35,19 @@
 <main>
   <h1>Piano labels</h1>
   <div class="muted" id="progress">Loading…</div>
+  <div class="muted"><a href="#" id="showEx">Examples with known answers</a> · clips are turned up so quiet notes are audible</div>
+
+  <div class="card hidden" id="examples">
+    <div class="q">Examples (from your calibration takes, answers known)</div>
+    <div class="lamp" id="exLamp"></div>
+    <div id="exList"></div>
+    <div class="row"><button id="hideEx">Close examples</button></div>
+  </div>
 
   <div class="card center" id="intro">
     <p>Each clip is 1½ seconds of a real session. A light flashes at one moment. Tell me whether a piano key started <b>right at the flash</b>, and if so, which one. Use the 🔊 buttons to hear each candidate note.</p>
     <p class="muted">Answers save as you go, and the most useful clips come first, so stop whenever you like.</p>
+    <p class="muted">New to this? Try the <b>examples</b> first (link at the top) to hear what a soft note, a loud note and talking sound like here.</p>
     <button class="primary big" id="start">Start</button>
   </div>
 
@@ -79,8 +88,18 @@ const nm = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
 const $ = (id) => document.getElementById(id);
 let ctx, manifest = [], answers = {}, i = 0, clipBuf = null, playing = null, cur = {};
 
+let examples = [];
 async function init() {
   manifest = await fetch('manifest.json').then((r) => r.json());
+  examples = await fetch('examples.json').then((r) => (r.ok ? r.json() : []), () => []);
+  $('exList').replaceChildren(...examples.map((e) => {
+    const row = document.createElement('div'); row.className = 'row';
+    const b = document.createElement('button'); b.className = 'big'; b.textContent = '▶ ' + e.title;
+    const a = document.createElement('div'); a.className = 'muted center'; a.style.width = '100%'; a.textContent = 'Answer: ' + e.answer;
+    b.onclick = () => playExample(e);
+    row.append(b, a); return row;
+  }));
+  if (!examples.length) $('showEx').remove();
   for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
   i = manifest.findIndex((c) => !answers[c.id]);
   if (i < 0) i = manifest.length;
@@ -91,9 +110,23 @@ function showProgress() {
   $('progress').textContent = `${n} of ${manifest.length} answered · stop whenever you like`;
 }
 
-$('start').onclick = async () => {
-  ctx = new (window.AudioContext || window.webkitAudioContext)();
+async function audio() {
+  ctx ??= new (window.AudioContext || window.webkitAudioContext)();
   await ctx.resume();
+}
+async function playExample(e) {
+  await audio();
+  const buf = await fetch(`examples/${e.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+  const t0 = ctx.currentTime + 0.05; src.start(t0);
+  const tick = () => { const t = ctx.currentTime - t0; $('exLamp').classList.toggle('on', Math.abs(t - e.mark) < 0.12); if (t < buf.duration + 0.1) requestAnimationFrame(tick); };
+  tick();
+}
+$('showEx').onclick = (ev) => { ev.preventDefault(); $('examples').classList.remove('hidden'); $('examples').scrollIntoView({ behavior: 'smooth' }); };
+$('hideEx').onclick = () => $('examples').classList.add('hidden');
+
+$('start').onclick = async () => {
+  await audio();
   $('intro').classList.add('hidden');
   show();
 };

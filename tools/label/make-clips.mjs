@@ -62,10 +62,28 @@ const picked = [];
 for (let i = 0; picked.length < N && Object.values(groups).some((g) => g.length > i); i++) {
   for (const [name, g] of Object.entries(groups)) if (g[i] && picked.length < N) picked.push({ ...g[i], group: name });
 }
+// Cut a clip, turned up so quiet notes are audible: peak to -1 dBFS, at most +30 dB.
+export function cut(file, t, dest) {
+  const x = decode(file, SR).subarray(Math.max(0, Math.round((t - PRE) * SR)), Math.round((t + POST) * SR));
+  let peak = 1e-6; for (const v of x) peak = Math.max(peak, Math.abs(v));
+  const gain = Math.min(30, -1 - 20 * Math.log10(peak));
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', (t - PRE).toFixed(3), '-t', (PRE + POST).toFixed(3), '-i', file, '-ac', '1', '-ar', '48000', '-af', `volume=${gain.toFixed(1)}dB`, dest]);
+  return +gain.toFixed(1);
+}
 const manifest = picked.map((p, i) => {
   const id = `c${String(i + 1).padStart(3, '0')}`;
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', (p.t - PRE).toFixed(3), '-t', (PRE + POST).toFixed(3), '-i', p.file, '-ac', '1', '-ar', '48000', join(out, 'clips', `${id}.wav`)]);
-  return { id, session: p.session, t: +p.t.toFixed(3), mark: PRE, cands: shuffle([...p.cands]), group: p.group, heard: p.heard };
+  p.gain = cut(p.file, p.t, join(out, 'clips', `${id}.wav`));
+  return { id, session: p.session, t: +p.t.toFixed(3), mark: PRE, gain: p.gain, cands: shuffle([...p.cands]), group: p.group, heard: p.heard };
 });
 writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest, null, 1));
+// Reference examples with known answers (from the labeled calibration takes).
+const exArg = args.find((a) => a.startsWith('--examples='));
+if (exArg) {
+  mkdirSync(join(out, 'examples'), { recursive: true });
+  const ex = JSON.parse(readFileSync(exArg.split('=')[1], 'utf8')).map((e, i) => {
+    const id = `e${i + 1}`;
+    return { id, title: e.title, answer: e.answer, mark: PRE, gain: cut(e.file, e.t, join(out, 'examples', `${id}.wav`)) };
+  });
+  writeFileSync(join(out, 'examples.json'), JSON.stringify(ex, null, 1));
+}
 console.log(`${manifest.length} clips; available per group: ${Object.entries(groups).map(([k, g]) => `${k} ${g.length}`).join(', ')}`);
