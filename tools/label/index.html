@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piano Labels</title>
+<style>
+  :root { --bg: #fbf8f3; --fg: #222; --muted: #777; --card: #fff; --line: #e3ddd3; --accent: #2f6fdb; --yes: #2e8b57; --no: #b8433a; --flash: #ffb400; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1b1a18; --fg: #eee; --muted: #999; --card: #262522; --line: #3a3834; --accent: #6e9dff; --yes: #4fb57f; --no: #e06a60; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 14px 0; }
+  .bar { position: relative; height: 14px; background: var(--line); border-radius: 7px; margin: 16px 0 8px; overflow: hidden; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: .35; }
+  .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--flash); }
+  .lamp { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 4px; background: var(--line); transition: background .05s; }
+  .lamp.on { background: var(--flash); box-shadow: 0 0 24px var(--flash); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 12px; padding: 12px 14px; margin: 5px 4px; min-height: 48px; cursor: pointer; }
+  button.big { width: 100%; font-size: 19px; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.yes { border-color: var(--yes); color: var(--yes); }
+  button.no { border-color: var(--no); color: var(--no); }
+  button.sel { outline: 3px solid var(--accent); }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; }
+  .cand { display: inline-flex; align-items: center; gap: 4px; }
+  .q { font-weight: 600; margin: 14px 0 4px; text-align: center; }
+  .hidden { display: none; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Piano labels</h1>
+  <div class="muted" id="progress">Loading…</div>
+
+  <div class="card center" id="intro">
+    <p>Each clip is 1½ seconds of a real session. A light flashes at one moment. Tell me whether a piano key started <b>right at the flash</b>, and if so, which one. Use the 🔊 buttons to hear each candidate note.</p>
+    <p class="muted">Answers save as you go, and the most useful clips come first, so stop whenever you like.</p>
+    <button class="primary big" id="start">Start</button>
+  </div>
+
+  <div class="card hidden" id="task">
+    <div class="lamp" id="lamp"></div>
+    <div class="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
+    <div class="row"><button class="big" id="play">▶ Play again</button></div>
+
+    <div class="q">Did a piano key start at the flash?</div>
+    <div class="row">
+      <button class="yes" data-strike="yes">Yes</button>
+      <button class="no" data-strike="no">No (nothing, or not piano)</button>
+      <button data-strike="unsure">Can't tell</button>
+    </div>
+
+    <div id="which" class="hidden">
+      <div class="q">Which note?</div>
+      <div class="row" id="cands"></div>
+      <div class="row">
+        <button data-note="other">Another note</button>
+        <button data-note="two">Two keys at once</button>
+        <button data-note="unsure">Not sure</button>
+      </div>
+    </div>
+
+    <div class="row"><button class="primary big hidden" id="next">Next ›</button></div>
+    <div class="row"><button id="back" class="muted">‹ Previous</button></div>
+  </div>
+
+  <div class="card center hidden" id="done"><p><b>All done. Thank you!</b></p><p class="muted">You can close this page.</p></div>
+</main>
+<script>
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const nm = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+const $ = (id) => document.getElementById(id);
+let ctx, manifest = [], answers = {}, i = 0, clipBuf = null, playing = null, cur = {};
+
+async function init() {
+  manifest = await fetch('manifest.json').then((r) => r.json());
+  for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
+  i = manifest.findIndex((c) => !answers[c.id]);
+  if (i < 0) i = manifest.length;
+  showProgress();
+}
+function showProgress() {
+  const n = Object.keys(answers).length;
+  $('progress').textContent = `${n} of ${manifest.length} answered · stop whenever you like`;
+}
+
+$('start').onclick = async () => {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+  $('intro').classList.add('hidden');
+  show();
+};
+
+async function show() {
+  if (i >= manifest.length) { $('task').classList.add('hidden'); $('done').classList.remove('hidden'); return; }
+  $('task').classList.remove('hidden'); $('done').classList.add('hidden');
+  const c = manifest[i];
+  cur = { ...(answers[c.id] ?? {}) };
+  $('cands').replaceChildren(...c.cands.map((m) => {
+    const b = document.createElement('span'); b.className = 'cand';
+    const hear = document.createElement('button'); hear.textContent = '🔊'; hear.onclick = () => tone(m);
+    const pick = document.createElement('button'); pick.textContent = nm(m); pick.dataset.note = String(m);
+    pick.onclick = () => pickNote(String(m));
+    b.append(hear, pick); return b;
+  }));
+  clipBuf = await fetch(`clips/${c.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
+  $('mark').style.left = `${(100 * c.mark) / clipBuf.duration}%`;
+  refresh();
+  play();
+}
+
+function play() {
+  if (playing) { try { playing.stop(); } catch {} }
+  const c = manifest[i], src = ctx.createBufferSource();
+  src.buffer = clipBuf; src.connect(ctx.destination);
+  const t0 = ctx.currentTime + 0.05; src.start(t0); playing = src;
+  const dur = clipBuf.duration;
+  const tick = () => {
+    if (playing !== src) return;
+    const t = ctx.currentTime - t0;
+    $('fill').style.width = `${Math.max(0, Math.min(100, (100 * t) / dur))}%`;
+    $('lamp').classList.toggle('on', Math.abs(t - c.mark) < 0.12);
+    if (t < dur + 0.1) requestAnimationFrame(tick); else $('lamp').classList.remove('on');
+  };
+  tick();
+}
+$('play').onclick = play;
+
+// A plain piano-ish reference tone for a candidate note.
+function tone(m) {
+  const f0 = 440 * 2 ** ((m - 69) / 12), t = ctx.currentTime + 0.02, out = ctx.createGain();
+  out.gain.value = 0.18; out.connect(ctx.destination);
+  [1, 0.5, 0.3, 0.2, 0.12, 0.08].forEach((a, k) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = f0 * (k + 1); g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(a, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2 - k * 0.12);
+    o.connect(g).connect(out); o.start(t); o.stop(t + 1.3);
+  });
+}
+
+document.querySelectorAll('[data-strike]').forEach((b) => b.onclick = () => { cur.strike = b.dataset.strike; if (cur.strike !== 'yes') delete cur.note; refresh(); });
+document.querySelectorAll('#which > .row:last-child [data-note]').forEach((b) => b.onclick = () => pickNote(b.dataset.note));
+function pickNote(n) { cur.note = n; refresh(); }
+
+function refresh() {
+  document.querySelectorAll('[data-strike]').forEach((b) => b.classList.toggle('sel', b.dataset.strike === cur.strike));
+  document.querySelectorAll('[data-note]').forEach((b) => b.classList.toggle('sel', b.dataset.note === cur.note));
+  $('which').classList.toggle('hidden', cur.strike !== 'yes');
+  $('next').classList.toggle('hidden', !(cur.strike && (cur.strike !== 'yes' || cur.note)));
+  $('back').classList.toggle('hidden', i === 0);
+}
+
+$('next').onclick = async () => {
+  const c = manifest[i], row = { id: c.id, strike: cur.strike, ...(cur.note ? { note: cur.note } : {}) };
+  answers[c.id] = row;
+  await fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  i++; showProgress(); show();
+};
+$('back').onclick = () => { if (i > 0) { i--; show(); } };
+
+init();
+</script>
+</body>
+</html>
