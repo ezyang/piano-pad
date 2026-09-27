@@ -71,9 +71,10 @@ As of 2026-09-26:
   `player: 'kid' | 'grownup' | 'mixed'` (every session from this version
   on; absent = older). In memory only: off on reload or after an hour with
   no taps/notes; a badge shows while on (tap to turn off). `player.js`.
-- ⚙︎ detector select → `st.detector`: simple (standard = classic DSP with the
-  piano profile's fixes; the network was demoted 2026-09-27 after missing
-  her D4s), net, overlap, profile. Only the root app passes it; old /v/
+- ⚙︎ detector select → `st.detector`: simple (standard = audio's onset
+  network with a loud-classic fallback, chosen on the parent's labels,
+  2026-09-27), classic (the fallback if it misbehaves), overlap, profile
+  ('net' is an alias of simple). Only the root app passes it; old /v/
   versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
   (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)` (goes

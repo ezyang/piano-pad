@@ -48,8 +48,8 @@ export function home(root) {
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
       h('label', { class: 'check' }, 'Detector: ',
         h('select', { onchange: (e) => { st.detector = e.target.value; save(); engine.configure(); } },
-          [['simple', 'standard'], ['net', 'experimental: network (learned from her piano)'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>
-            h('option', { value: v, selected: ({ classic: 'simple' }[st.detector] ?? st.detector ?? 'simple') === v || null }, t)))),
+          [['simple', 'standard (learned from her piano)'], ['classic', 'classic (older detector)'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>
+            h('option', { value: v, selected: ({ net: 'simple' }[st.detector] ?? st.detector ?? 'simple') === v || null }, t)))),
       h('div', { class: 'hint' }, 'Experiments on the home screen:'),
       EXPERIMENTS.map((e) => h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: getState().experiments?.[e.id] !== false || null, onchange: (ev) => { setExperimentEnabled(e.id, ev.target.checked); save(); location.reload(); } }),
