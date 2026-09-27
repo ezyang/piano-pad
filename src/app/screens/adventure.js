@@ -185,13 +185,15 @@ function piece(root, id) {
   // The right letter (any octave, forgiving detector octave slips) moves on,
   // like Learn mode: finishing takes playing it, not mashing. Anything else
   // is a faint grey ghost, except low notes, where adult speech lands
-  // (~B2-F#3, see piano-audio): those are silently skipped.
+  // (~B2-F#3, see piano-audio): those are silently skipped. A speech-like
+  // reading of the expected letter still counts (as the detector does for
+  // expect()ed notes): a miss costs her far more than a rare false accept.
   function onNote(n) {
     if (!session || n.time < session.tStart) return;
-    if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     const k = session.cur, t = staff.targets;
     if (k >= t.length) return;
     const ok = sameNote(n.midi, want(k), false);
+    if ((n.voice && !ok) || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     log.event('judge', { k, want: want(k), got: n.midi, grade: ok ? 'hit' : 'other' });
     if (!ok) {
       if (n.midi >= 57) staff.ghost(t[k], n.midi);
