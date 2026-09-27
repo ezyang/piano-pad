@@ -31,6 +31,8 @@
   .bar .tick { position: absolute; top: 2px; bottom: 2px; width: 3px; background: var(--grey); }
   .q { text-align: center; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .grid.four { grid-template-columns: repeat(4, 1fr); }
+  .grid.four button { font-size: 14px; padding: 4px; }
   .note { display: flex; gap: 4px; }
   .note .hear { flex: 0 0 40px; padding: 0; }
   .note .pick { flex: 1; font-weight: 700; font-size: 18px; border-color: var(--yes); color: var(--yes); }
@@ -50,10 +52,10 @@
 </head>
 <body>
 <main>
-  <header><b>Piano labels</b><span id="progress">…</span><span class="sp"></span><a href="#" id="showEx">Examples</a><button class="small" id="undo" disabled>↶ Undo</button></header>
+  <header><b>Piano labels</b><span id="progress">…</span><span class="sp"></span><a href="#" id="showRev">Answered</a><a href="#" id="showEx">Examples</a><button class="small" id="undo" disabled>↶ Undo</button></header>
 
   <div id="intro" class="center">
-    <p>Each clip is 1½ s of a real session. When the <b>big yellow light</b> comes on, did a piano key start? <b>One tap</b> answers and moves on; Undo fixes mistakes.</p>
+    <p>Each clip is 1½ s of a real session. When the <b>big yellow light</b> comes on, did a piano key start? <b>One tap</b> answers and moves on; Undo fixes mistakes. A key press that's there but genuinely hard to hear is <b>Hard: fine to miss</b>.</p>
     <p class="muted">Small grey light: other moments where something was detected (maybe nothing real); ignore it. Clips are all turned up by the same amount, so loudness still means something. Stop whenever you like.</p>
     <button class="primary" id="start" style="width:100%">Start</button>
   </div>
@@ -63,10 +65,11 @@
     <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
     <div class="q">A key started at the yellow light? Tap the note</div>
     <div class="grid" id="notes"></div>
-    <div class="grid">
+    <div class="grid four">
       <button class="yes" data-a="yes:other">Other note</button>
       <button class="yes" data-a="yes:two">Two keys</button>
       <button class="yes" data-a="yes:unsure">Yes, not sure which</button>
+      <button data-a="hard">Hard: fine to miss</button>
       <button class="no" data-a="no">No piano key</button>
       <button data-a="mess">Splat (any answer fine)</button>
       <button data-a="unsure">Can't tell</button>
@@ -76,6 +79,12 @@
 
   <div id="done" class="hidden center"><p><b>All done. Thank you!</b></p><p class="muted">You can close this page.</p></div>
 </main>
+
+<div class="overlay" id="review">
+  <header><b>Your answers</b><span class="sp"></span><button class="small" id="hideRev">Close</button></header>
+  <div class="hint">Newest first. Tap one to hear it again and change the answer.</div>
+  <div id="revList" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto"></div>
+</div>
 
 <div class="overlay" id="examples">
   <header><b>Examples</b><span class="sp"></span><button class="small" id="hideEx">Close</button></header>
@@ -106,8 +115,10 @@ async function init() {
     const a = document.createElement('span'); a.className = 'ans'; a.textContent = e.answer;
     row.append(b, a); return row;
   }));
+  // Undo works across reloads: the clips answered so far, in answer order.
+  history.push(...manifest.map((c, k) => k).filter((k) => answers[manifest[k].id]).sort((a, b) => (answers[manifest[a].id].saved < answers[manifest[b].id].saved ? -1 : 1)));
   // Resume after the last clip answered, wrapping around to skipped ones.
-  i = nextOpen(Math.max(-1, ...manifest.map((c, k) => (answers[c.id] ? k : -1))));
+  i = nextOpen(history.length ? history.at(-1) : -1);
   progress();
 }
 // The next unanswered clip after index k (wrapping), or manifest.length when done.
@@ -121,6 +132,20 @@ async function audio() { ctx ??= new (window.AudioContext || window.webkitAudioC
 $('start').onclick = async () => { await audio(); $('intro').classList.add('hidden'); show(); };
 $('showEx').onclick = async (e) => { e.preventDefault(); await audio(); $('examples').classList.add('show'); };
 $('hideEx').onclick = () => $('examples').classList.remove('show');
+const describe = (a) => (a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : LABEL[a.strike]);
+let resumeAt = null; // where to continue after revisiting an old clip
+$('showRev').onclick = async (e) => {
+  e.preventDefault(); await audio();
+  const done = manifest.map((c, k) => k).filter((k) => answers[manifest[k].id]).sort((a, b) => (answers[manifest[a].id].saved > answers[manifest[b].id].saved ? -1 : 1));
+  $('revList').replaceChildren(...done.map((k, n) => {
+    const b = document.createElement('button'); b.style.textAlign = 'left';
+    b.textContent = `${n + 1} back · ${manifest[k].id}: ${describe(answers[manifest[k].id])}`;
+    b.onclick = () => { resumeAt ??= i; i = k; $('review').classList.remove('show'); $('intro').classList.add('hidden'); $('toast').textContent = `Re-answering ${manifest[k].id} (was: ${describe(answers[manifest[k].id])})`; show(); };
+    return b;
+  }));
+  $('review').classList.add('show');
+};
+$('hideRev').onclick = () => $('review').classList.remove('show');
 
 async function show() {
   if (i >= manifest.length) { $('task').classList.add('hidden'); $('done').classList.remove('hidden'); return; }
@@ -177,13 +202,17 @@ document.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => {
   answer({ strike, ...(note ? { note } : {}) });
 });
 
-const LABEL = { no: 'No piano key', mess: 'Splat', unsure: "Can't tell" };
+const LABEL = { no: 'No piano key', mess: 'Splat', unsure: "Can't tell", hard: 'Hard (fine to miss)' };
 function answer(a) {
   const c = manifest[i], row = { id: c.id, ...a };
+  // Local order for Undo/Answered: sorts after every server timestamp
+  // (digits) and in answer order among answers given on this page.
+  row.saved = '~' + String(Date.now()).padStart(15, '0');
   answers[c.id] = row; history.push(i);
   fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
   $('toast').textContent = `Saved ${c.id}: ${a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : LABEL[a.strike]}`;
-  i = nextOpen(i); progress(); show();
+  if (resumeAt != null) { i = answers[manifest[resumeAt]?.id] ? nextOpen(resumeAt) : resumeAt; resumeAt = null; } else i = nextOpen(i);
+  progress(); show();
 }
 $('undo').onclick = () => {
   if (!history.length) return;
