@@ -72,9 +72,8 @@ As of 2026-09-26:
   learned from her piano), classic, overlap, profile. Only the root app
   passes it; old /v/ versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
-  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)`. Set
-  `detector: 'classic'` in the test profile: the default network (trained on
-  her piano) misses many synthesized notes, especially repeats.
+  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)` (goes
+  straight to onNote listeners, bypassing the detector, since 9d268ae).
 - Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
   `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
   The parent may deliberately send her back to an old version (removing
