@@ -23,6 +23,23 @@ const MAX_AUDIO_BYTES = 150e6; // recordings waiting to upload
 // absent when served straight from a checkout.
 export const VERSION = document.querySelector('meta[name="piano-version"]')?.content ?? 'dev';
 
+// The iPad often keeps the app open for days, so a session may run on an
+// older copy than what's deployed. Logs say when this copy was loaded and
+// the newest deploy seen since (checked on load and every 10 minutes);
+// app.latest ≠ app.version means it wasn't reloaded. Old /v/ versions are
+// meant to be old and don't check.
+const LOADED = new Date().toISOString();
+let latest = null;
+async function checkLatest() {
+  if (location.pathname !== '/') return;
+  try {
+    const html = await (await fetch('/', { cache: 'no-store' })).text();
+    latest = html.match(/name="piano-version" content="([^"]*)"/)?.[1] ?? latest;
+  } catch { /* offline */ }
+}
+checkLatest();
+setInterval(checkLatest, 10 * 60 * 1000);
+
 let current = null;
 let levelTimer = 0;
 const unsubs = [];
@@ -68,6 +85,8 @@ export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.ra
     app: {
       version: VERSION,
       path: location.pathname, // /v/<sha>/ when she's on an old version
+      loaded: LOADED,
+      ...(latest ? { latest } : {}),
       built: document.lastModified,
       ua: navigator.userAgent,
       screen: [innerWidth, innerHeight, devicePixelRatio],
@@ -138,6 +157,7 @@ export function endSession(result = {}) {
   const s = current;
   current = null;
   s.player = mergePlayer(s.player, player());
+  if (latest && !s.app.latest) s.app.latest = latest; // the first check may finish after the session starts
   // Screens that start logging before the mic is up get it at the end.
   if (s.audio && !s.audio.track) Object.assign(s.audio, micInfo());
   // An abandoned run where nothing was heard isn't worth keeping.
