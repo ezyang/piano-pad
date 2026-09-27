@@ -126,11 +126,12 @@ export function startSession(kind, info) {
     // Audio-clock times, relative to the session's start on that clock.
     const t = (x) => Math.round((x - current.ctxT0) * 1000);
     if (e.type === 'mic-restart') event('mic-restart');
-    else if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1) });
+    else if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1), ...(e.via ? { via: e.via } : {}) });
     else if (e.type === 'pitch') {
       event('pitch', {
         at: t(e.time), seen: t(e.detectedTime), midi: e.midi, f0: e.f0 ? +e.f0.toFixed(1) : 0,
         clarity: +(e.clarity ?? 0).toFixed(2), ok: e.accepted, ...(e.method ? { method: e.method } : {}), ...(e.why ? { why: e.why } : {}), ...(e.voice !== undefined ? { voice: e.voice } : {}),
+        ...(e.reject ? { reject: e.reject } : {}), ...(e.via ? { via: e.via } : {}),
       });
     }
   }));
