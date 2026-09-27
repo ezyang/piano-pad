@@ -1,11 +1,15 @@
 // Pick the moments in her real sessions where the detectors and the reference
 // disagree, and cut short clips for the parent to label (tools/label/).
 //   node tools/label/make-clips.mjs <out dir> <session .mp4 files...> [--n=60]
+//        [--groups=net-miss:8,classic-miss:8,...] [--skip=<earlier manifest>] [--prefix=c]
 // Four groups, interleaved so an early stop still covers all of them:
 //   classic-only  the classic detector accepted a note, network and reference didn't
 //   net-only      the network (with its classic fallback) accepted one, the others didn't
 //   ref-only      the reference transcribed a note (vel >= 40), neither detector did
 //   pitch         two or more of them heard a note, with different letters
+//   net-miss      classic and reference agree, the network heard nothing
+//   classic-miss  network and reference agree, classic heard nothing
+//   ref-miss      both detectors agree, the reference heard nothing
 // Writes <out>/clips/<id>.wav (1.5 s: 0.6 s before the moment, 0.9 s after)
 // and <out>/manifest.json. Labels never go in git.
 import { execFileSync } from 'node:child_process';
@@ -18,6 +22,7 @@ import { profileOptions } from '../profile.mjs';
 const args = process.argv.slice(2);
 const [out, ...rest] = args.filter((a) => !a.startsWith('--'));
 const N = +(args.find((a) => a.startsWith('--n='))?.split('=')[1] ?? 60);
+const prefix = args.find((a) => a.startsWith('--prefix='))?.split('=')[1] ?? 'c';
 const SR = 48000, PRE = 0.6, POST = 0.9, NEAR = 0.07;
 mkdirSync(join(out, 'clips'), { recursive: true });
 
@@ -44,7 +49,13 @@ function momentsOf(f) {
   for (const e of all) { const m = moments.at(-1); if (m && e.t - m.t0 < NEAR) m.ev.push(e); else moments.push({ t0: e.t, ev: [e] }); }
   return { x, moments };
 }
-const groups = { 'classic-only': [], 'net-only': [], 'ref-only': [], pitch: [] };
+// --groups=name:count,... (default: the four below, N/4 each). --skip=<manifest>:
+// leave out moments already in an earlier batch.
+const spec = (args.find((a) => a.startsWith('--groups='))?.split('=')[1] ?? 'classic-only,net-only,ref-only,pitch').split(',').map((g) => g.split(':'));
+const want = Object.fromEntries(spec.map(([g, n]) => [g, n ? +n : Math.ceil(N / spec.length)]));
+const skipArg = args.find((a) => a.startsWith('--skip='));
+const skip = skipArg ? JSON.parse(readFileSync(skipArg.split('=')[1], 'utf8')).map((c) => `${c.session}@${c.t}`) : [];
+const groups = Object.fromEntries(Object.keys(want).map((g) => [g, []]));
 for (const f of rest) {
   if (!existsSync(f.replace(/\.mp4$/, '.kong.json'))) continue;
   const { x, moments } = momentsOf(f);
@@ -58,16 +69,19 @@ for (const f of rest) {
     // (A note that started just before the clip shows at its very start.)
     const others = moments.filter((o) => o !== m && o.t0 > t - PRE - 0.3 && o.t0 < t + POST).map((o) => +Math.max(0, o.t0 - (t - PRE)).toFixed(3));
     const item = { session: f.split('/').pop().replace('.mp4', ''), file: f, t, cands, others, heard: Object.fromEntries(['c', 'n', 'r'].map((s) => [s, m.ev.filter((e) => e.s === s).map((e) => e.midi)])) };
-    const n = ['c', 'n', 'r'].filter(has).length;
-    if (n === 1) groups[has('c') ? 'classic-only' : has('n') ? 'net-only' : 'ref-only'].push(item);
-    else if (letters.size > 1) groups.pitch.push(item);
+    if (skip.includes(`${item.session}@${+t.toFixed(3)}`)) continue;
+    // Which sources heard a note here, and did they agree on the letter?
+    const who = ['c', 'n', 'r'].filter(has).join('');
+    const g = letters.size > 1 ? 'pitch'
+      : { c: 'classic-only', n: 'net-only', r: 'ref-only', cr: 'net-miss', nr: 'classic-miss', cn: 'ref-miss' }[who];
+    groups[g]?.push(item);
   }
 }
 for (const g of Object.values(groups)) shuffle(g);
 // Interleave the groups, spreading each across sessions.
 const picked = [];
-for (let i = 0; picked.length < N && Object.values(groups).some((g) => g.length > i); i++) {
-  for (const [name, g] of Object.entries(groups)) if (g[i] && picked.length < N) picked.push({ ...g[i], group: name });
+for (let i = 0; Object.entries(groups).some(([name, g]) => g.length > i && i < want[name]); i++) {
+  for (const [name, g] of Object.entries(groups)) if (g[i] && i < want[name]) picked.push({ ...g[i], group: name });
 }
 // Cut a clip, turned up by the SAME amount for every clip (the iPad mic hears
 // the piano quietly), so relative loudness still tells a faint background
@@ -79,7 +93,7 @@ export function cut(file, t, dest) {
   return GAIN_DB;
 }
 const manifest = picked.map((p, i) => {
-  const id = `c${String(i + 1).padStart(3, '0')}`;
+  const id = `${prefix}${String(i + 1).padStart(3, '0')}`;
   p.gain = cut(p.file, p.t, join(out, 'clips', `${id}.wav`));
   return { id, session: p.session, t: +p.t.toFixed(3), mark: PRE, others: p.others, gain: p.gain, cands: shuffle([...p.cands]), group: p.group, heard: p.heard };
 });
