@@ -2,8 +2,8 @@
 //   node tools/label/score.mjs <data dir>      (manifest.json + labels.jsonl)
 // For each group: how many moments were real key presses, and whose note was
 // right. Groups: classic-only / net-only / ref-only (only that source heard a
-// note there) and pitch (they disagreed on the note). "Splat" answers (several
-// keys, voice: any classification is fine) count for no detector either way.
+// note there) and pitch (they disagreed on the note). "Splat" answers (piano, but
+// several keys or banging: any classification is fine) count for no detector either way.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
