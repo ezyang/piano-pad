@@ -7,7 +7,11 @@ import { engine } from '../engine.js';
 import { noteName } from '../music.js';
 import * as log from '../telemetry.js';
 
-const STEPS = [
+// Each step: what to play (`notes`, in order). Optional `alt`: other notes
+// that also count for each position (e.g. the neighbour key caught by
+// accident). `extrasOk`: uncontrolled sounds are expected (a splat, the
+// little one), so extra detections don't count against the detector.
+const BASIC = [
   { id: 'g-soft', say: 'Play G (above middle C) 5 times, SOFTLY, about one per second.', notes: [67, 67, 67, 67, 67] },
   { id: 'g-medium', say: 'Play G 5 times, medium loud, one per second.', notes: [67, 67, 67, 67, 67] },
   { id: 'g-loud', say: 'Play G 5 times, LOUD, one per second.', notes: [67, 67, 67, 67, 67] },
@@ -23,7 +27,29 @@ const STEPS = [
   { id: 'talk-and-play', say: 'Play C D E F G slowly while talking over it.', notes: [60, 62, 64, 65, 67] },
 ];
 
-export function calibrate(root) {
+// Messy, kid-like playing (the frozen eval set, 2026-09-27). Keep ids stable.
+const MESSY = [
+  { id: 'm-plink', say: 'Play G (above middle C) 5 times, poking with one finger like she does: uneven, some soft, some hard.', notes: [67, 67, 67, 67, 67] },
+  { id: 'm-mash', say: 'Mash D (next to middle C) quickly 6 times, like a kid who thinks it didn\'t hear.', notes: [62, 62, 62, 62, 62, 62] },
+  { id: 'm-restrike', say: 'Play D, let it ring for 2 seconds, play D again. Do that 4 times.', notes: [62, 62, 62, 62] },
+  { id: 'm-two-keys', say: 'Play C D E F G, but each time also catch the next key up by accident (C+D, D+E, E+F, F+G, G+A).', notes: [60, 62, 64, 65, 67], alt: [[62], [64], [65], [67], [69]] },
+  { id: 'm-hold', say: 'Hold middle C down with one finger and, while still holding it, play E G E G with another.', notes: [60, 64, 67, 64, 67] },
+  { id: 'm-sing', say: 'Play C D E F G slowly while singing along ("la la la").', notes: [60, 62, 64, 65, 67] },
+  { id: 'm-kid-voice', say: 'Play G G G G slowly while she talks or sings next to the piano.', notes: [67, 67, 67, 67] },
+  { id: 'm-left', say: 'Left hand: play C D E F G starting at the C BELOW middle C, one per second.', notes: [48, 50, 52, 53, 55] },
+  { id: 'm-left-right', say: 'Alternate the C below middle C and middle C: low, middle, low, middle, low, middle.', notes: [48, 60, 48, 60, 48, 60] },
+  { id: 'm-g-high', say: 'Play the G an octave above the usual G (the G song) 8 times: ti-ti ti-ti ti-ti ti-ti.', notes: [79, 79, 79, 79, 79, 79, 79, 79] },
+  { id: 'm-splat', say: 'Splat the keys with a flat hand 3 times (anywhere), then play middle C once.', notes: [60], extrasOk: true },
+  { id: 'm-far', say: 'Move the iPad about 3 feet further from the piano than usual, then play C D E F G. (Move it back after.)', notes: [60, 62, 64, 65, 67] },
+  { id: 'm-background', say: 'With music or the TV on at a normal volume, play C D E F G.', notes: [60, 62, 64, 65, 67] },
+  { id: 'm-little-one', say: 'If the little one is around: let them bang the low keys while you play C D E F G. (Skip otherwise.)', notes: [60, 62, 64, 65, 67], extrasOk: true },
+];
+
+const SETS = { basic: BASIC, messy: MESSY };
+
+// #/calibrate (the basic set) or #/calibrate/messy.
+export function calibrate(root, set = 'basic') {
+  const STEPS = SETS[set] ?? BASIC;
   let i = 0, heard = [], off = null;
   const title = h('div', { class: 'cal-step' });
   const say = h('div', { class: 'cal-say' });
@@ -50,11 +76,14 @@ export function calibrate(root) {
     say.textContent = s.say;
     expect.textContent = s.notes.length ? `Expecting ${s.notes.length} notes: ${s.notes.map(noteName).join(' ')}` : 'Expecting no notes.';
     heardEl.replaceChildren();
-    log.startSession('calibration', { calibration: s.id, prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) } });
+    log.startSession('calibration', {
+      calibration: s.id, calSet: SETS[set] ? set : 'basic', prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) },
+      ...(s.alt ? { alt: s.alt } : {}), ...(s.extrasOk ? { extrasOk: true } : {}),
+    });
   }
 
   root.append(h('div', { class: 'screen calibrate' },
-    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, '🎯 Calibrate the ears')),
+    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, set === 'messy' ? '🎯 Calibrate: messy playing' : '🎯 Calibrate the ears')),
     h('div', { class: 'panel cal-panel' }, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
