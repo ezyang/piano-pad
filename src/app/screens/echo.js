@@ -5,8 +5,6 @@
 //      six), and ⏭ skips.
 //   💬 Answer me — the partner asks, she answers with anything; her turn ends
 //      when she pauses.
-// #/echo/adventure is the adventure's warm-up: Copy me until she's earned
-// WARM_WINS gems, which brings in a band member and goes back to the map.
 // The app ignores the mic while the partner is playing. Notes show as blocks
 // in speech bubbles and on a staff.
 import { h, flash, sparkle } from '../dom.js';
@@ -21,7 +19,6 @@ import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { labelMode, labelFor, fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
-import * as adv from '../adventure.js';
 
 const PARTNERS = [
   { id: 'slime', voice: 'chip' },
@@ -45,7 +42,6 @@ const LEVEL_UP = 3; // wins in a row to move up
 const BPM = 72;
 const ANSWER_PAUSE = 1.6; // s of silence that ends her answer
 const MAX_ANSWER = 8;
-const WARM_WINS = 3;
 
 // A little melody: a walk through the pool, mostly steps.
 function phrase(len, pool) {
@@ -59,10 +55,9 @@ function phrase(len, pool) {
   return out.map((p, k) => ({ d: k === out.length - 1 && len > 1 ? 2 : 1, p }));
 }
 
-export function echo(root, id) {
+export function echo(root) {
   const st = getState();
-  const advId = id === 'adventure' ? adv.startStep('warmup', { choice: 'echo' }) : null;
-  let mode = advId ? 'copy' : st.echoMode ?? 'copy';
+  let mode = st.echoMode ?? 'copy';
   let partnerIdx = Math.max(0, PARTNERS.findIndex((p) => p.id === st.echoPartner));
   // Start a notch below where she left off, to warm up.
   let level = Math.max(0, Math.min(LEVELS.length - 1, (st.echoLevel ?? 0) - 1));
@@ -220,12 +215,6 @@ export function echo(root, id) {
     st.echoLevel = level;
     save();
     log.event('round', { ok: true, level });
-    if (advId && gems === WARM_WINS) {
-      log.endSession({ completed: true, gems });
-      adv.finishStep('warmup');
-      later(() => { location.hash = '#/adventure'; }, 2200);
-      return;
-    }
     later(nextRound, 2600);
   }
 
@@ -262,7 +251,8 @@ export function echo(root, id) {
 
   function setMode(m) {
     mode = m;
-    if (!advId) { st.echoMode = m; save(); }
+    st.echoMode = m;
+    save();
     for (const b of modeBtns) b.classList.toggle('on', b.dataset.mode === m);
     replayBtn.style.visibility = skipBtn.style.visibility = m === 'copy' ? '' : 'hidden';
     restart();
@@ -276,7 +266,7 @@ export function echo(root, id) {
     engine.stopAll();
     round = null;
     log.endSession({ aborted: true, gems });
-    log.startSession('echo', { mode, partner: PARTNERS[partnerIdx].id, level, ...(advId ? { adventure: advId } : {}) });
+    log.startSession('echo', { mode, partner: PARTNERS[partnerIdx].id, level });
     later(nextRound, 700);
   }
 
@@ -291,8 +281,8 @@ export function echo(root, id) {
 
   root.append(h('div', { class: 'screen echo' },
     h('header', { class: 'bar' },
-      h('a', { class: 'btn', href: advId ? '#/adventure' : '#/' }, advId ? '🗺️' : '🏠'),
-      advId ? null : h('div', { class: 'segs' }, modeBtns),
+      h('a', { class: 'btn', href: '#/' }, '🏠'),
+      h('div', { class: 'segs' }, modeBtns),
       h('div', { class: 'e-partners' }, partnerBtns),
       h('div', { class: 'spacer' }),
       replayBtn, skipBtn),
@@ -315,7 +305,6 @@ export function echo(root, id) {
 
   return () => {
     alive = false;
-    if (advId) adv.quitStep('warmup');
     for (const t of timers) clearTimeout(t);
     clearTimeout(silenceTimer);
     cancelAnimationFrame(callRaf);

@@ -43,22 +43,22 @@ parent's direction into things she wants to open.
 (Keep this section up to date. It's what the next instance of you reads.)
 
 As of 2026-09-26:
-- **Today's adventure** (pedagogy request, parent-approved, 2026-09-26) leads
-  the home screen: warm-up (her choice: Build! mountain via
-  `#/world/adventure`, Copy me ×3 via `#/echo/adventure`, or the G piece via
-  `#/adventure/warmup/g`, played back in rhythm after) → homework (her
-  choice of piece, `#/adventure/homework/<stairs|updown>`; the party plays
-  the one she picked). Pieces live in `src/app/homework.js` (`PIECES`; notes
-  may carry `f` for a finger outside C position). Homework (whole piece, advances on the right
-  letter in any octave, other notes a grey ghost (none below A3: speech),
-  fingers + ✋, no counts, scores, or timeout) → party (session band plays it,
-  then free Build!). Each step brings a band member (warm-up: she picks
-  Froggy, Beep Bot or Buzzy, since she missed Buzzy (parent, 2026-09-27);
-  homework: Blobby); the band lives in memory only (`src/app/adventure.js`).
-  Logs: one `adventure` session per adventure (step start/finish/quit
-  events, rewritten via `telemetry.record`), plus `homework` / `build` /
-  `echo` sessions tagged `adventure: <id>`. Homework is a code constant
-  (`src/app/homework.js`). Chunking the homework is deliberately held back.
+- **Today's adventure** leads the home screen. Since 2026-09-27 it's LINEAR
+  (parent: "choose your own adventure is bad, we want to do all the
+  material"): G song → Stairs → Up and Down → party, each unlocking the next
+  (`#/adventure/piece/<g|stairs|updown>`, `#/adventure/party`). Finishing
+  the G song and Stairs each gives a "Who joins your band?" pick (Froggy /
+  Beep Bot / Buzzy, she missed Buzzy); Up and Down brings Blobby. The party
+  plays Up and Down (piece buttons switch), then free Build! / Copy me.
+  Pieces: right letter (any octave) advances, grey ghost otherwise (none
+  below A3), fingers + ✋ always (pedagogy: this worked; she switched to
+  several fingers right away, so keep it exactly). The G song is played
+  back in rhythm after. The band lives in memory only (`src/app/adventure.js`).
+  Pieces are in `src/app/homework.js` (`PIECES`; `f` = finger override).
+  Logs: one `adventure` session (start/finish/quit/pick events), plus a
+  `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.
+  Pieces call `engine.expect?.([target])` (proposed to piano-audio for
+  rejected correct notes; a no-op until they ship it).
 - Hidden for now (files kept, routes still work): her songs, "New song", the
   editor, play and band screens, the ⚙︎ "Add homework song", and the 💾 save
   buttons in Build!/Copy me.

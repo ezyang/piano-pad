@@ -1,19 +1,22 @@
-// Today's adventure: a short practice with a beginning and an end.
-//   warm-up (a Build! blueprint, Copy me, or the G piece) → homework (the
-//   piece she picks, played whole) → party
-// Each finished step brings in a band member: after the warm-up she picks
-// who joins (Froggy, Beep Bot or Buzzy); the homework brings the headliner
-// (Blobby), and the party waits for it. "Finished" means she got to the
-// end, never how well she played.
+// Today's adventure: a short practice with a beginning and an end, the same
+// path every day so she does all the material (the parent's call):
+//   G song → Stairs → Up and Down → party
+// Each step unlocks the next. Finishing the G song and then Stairs each
+// lets her pick a band member (Froggy, Beep Bot or Buzzy); Up and Down
+// brings the headliner (Blobby), and the party waits for it. "Finished"
+// means she got to the end, never how well she played. Build! and Copy me
+// are free play, outside the adventure.
 //
 // Nothing is saved: the adventure and its band live in memory, and a new one
 // starts after a reload or an hour away. Its log is one session of kind
-// 'adventure' (step start / finish / quit events), rewritten as it goes; the
-// step screens log their own sessions tagged with `adventure: <id>`.
+// 'adventure' (step start / finish / quit and pick events), rewritten as it
+// goes; the pieces log their own sessions tagged with `adventure: <id>`.
 import * as log from './telemetry.js';
 
-export const HEADLINER = 'slime'; // the homework brings Blobby
-export const PICKS = ['frog', 'bot', 'bee']; // the warm-up lets her choose one
+export const STEPS = ['g', 'stairs', 'updown', 'party'];
+export const PICKING = ['g', 'stairs']; // finishing these earns a pick
+export const HEADLINER = 'slime'; // Up and Down brings Blobby
+export const PICKS = ['frog', 'bot', 'bee'];
 const STALE_MS = 60 * 60 * 1000;
 
 let adv = null;
@@ -46,6 +49,10 @@ function event(what, data = {}) {
   log.record(adv.log);
 }
 
+// A step is open once the one before it is done (done ones stay open).
+export const unlocked = (a, step) => STEPS.indexOf(step) === 0 || a.done.has(STEPS[STEPS.indexOf(step) - 1]);
+export const nextStep = (a) => STEPS.find((s) => !a.done.has(s)) ?? 'party';
+
 export function startStep(step, info = {}) {
   const a = current();
   if (a.active && a.active !== step) quitStep(a.active);
@@ -57,20 +64,21 @@ export function startStep(step, info = {}) {
 export function finishStep(step, info = {}) {
   const a = current();
   if (a.active === step) a.active = null;
-  if (info.piece) a.piece = info.piece; // the party plays the homework she picked
   const first = !a.done.has(step);
   a.done.add(step);
-  if (first && step === 'homework' && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
+  if (first && step === 'updown' && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
   event('finish', { step, ...info });
 }
 
-// Waiting for her to pick the warm-up's band member (the map asks).
-export const pickPending = (a) => a.done.has('warmup') && !a.band.some((id) => PICKS.includes(id));
+// Picks earned (one per finished picking step) but not yet made.
+const picked = (a) => a.band.filter((id) => PICKS.includes(id));
+export const pickPending = (a) => PICKING.filter((s) => a.done.has(s)).length > picked(a).length;
+export const pickable = (a) => PICKS.filter((id) => !a.band.includes(id));
 
 export function pick(id) {
   const a = current();
-  if (!pickPending(a) || !PICKS.includes(id)) return;
-  a.band.splice(1, 0, id); // lineup: her, her pick, the headliner
+  if (!pickPending(a) || !pickable(a).includes(id)) return;
+  a.band.splice(1 + picked(a).length, 0, id); // lineup: her, her picks, the headliner
   a.joined = id;
   event('pick', { member: id });
 }

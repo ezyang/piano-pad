@@ -1,12 +1,10 @@
-// Today's adventure (see adventure.js): a map of three stops and the band
-// she's gathering, plus the homework and party steps. She picks her warm-up
-// (Build! and Copy me run in their own screens: #/world/adventure,
-// #/echo/adventure) and which homework piece to play.
-//   #/adventure                  the map
-//   #/adventure/warmup/g         the G piece (homework she can already do),
-//                                then the app plays it back in rhythm
-//   #/adventure/homework/<piece> the whole piece (stairs | updown)
-//   #/adventure/party            her band plays the piece she picked
+// Today's adventure (see adventure.js): a map of the four stops, always in
+// the same order, and the band she's gathering; plus the pieces and party.
+//   #/adventure             the map
+//   #/adventure/piece/<id>  a piece played the whole way (g | stairs | updown);
+//                           after the G song the app plays it back in rhythm
+//   #/adventure/party       her band plays a piece (Up and Down first), then
+//                           free Build! or Copy me
 // Pieces: the right letter moves on, anything else is a faint grey ghost (no
 // red, no counts, no timeout); finger numbers and ✋ always.
 import { h, flash, sparkle } from '../dom.js';
@@ -14,7 +12,7 @@ import { getState } from '../store.js';
 import { createStaff, systemHeight } from '../staff.js';
 import { createBuild } from '../build.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
-import { characterUrl, BAND, bandSprite, texture, material } from '../pixels.js';
+import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
@@ -27,19 +25,14 @@ import * as adv from '../adventure.js';
 const member = (id) => BAND.find((m) => m.id === id);
 const spriteOf = (id) => (id === 'piano' ? characterUrl(getState().character) : bandSprite(member(id)));
 
-export function adventure(root, sub, id) {
-  if (sub === 'warmup' && PIECES[id]) return piece(root, 'warmup', id);
-  if (sub === 'homework') return piece(root, 'homework', PIECES[id] ? id : 'updown');
-  if (sub === 'party') return party(root);
-  return map(root);
-}
+const STOPS = { g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], party: ['🎉', 'Party!'] };
 
-// A piece's shape for a choice card: one bar per note, as tall as its letter
-// is high (C..G) and as wide as it is long, so a rhythm piece shows its rhythm.
-function shape(song) {
-  const lo = Math.min(...song.notes.map((n) => n.p % 12));
-  return h('div', { class: 'bp-mini adv-shape' }, song.notes.map((n) =>
-    h('span', { style: `height:${((n.p % 12) - lo + 2) * 5}px;width:${n.d * 6}px;background:${material(n.p).color}` })));
+export function adventure(root, sub, id) {
+  const a = adv.current();
+  if (sub === 'piece' && PIECES[id] && adv.unlocked(a, id)) return piece(root, id);
+  if (sub === 'party' && adv.unlocked(a, 'party')) return party(root);
+  if (sub) { location.replace('#/adventure'); return; }
+  return map(root);
 }
 
 // Welcome a band member who just joined: big sprite, a jingle, tap to close.
@@ -57,21 +50,21 @@ function welcome(parent, id, then) {
   if (!then) setTimeout(() => box.remove(), 3500);
 }
 
-// Her, the warm-up's pick (a mystery until she picks), the headliner.
+// Her, her two picks (mysteries until she picks), the headliner.
 function lineup(a, big = false) {
-  const picked = a.band.find((id) => adv.PICKS.includes(id));
-  const slots = [['piano', true], [picked, !!picked], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
+  const picked = a.band.filter((id) => adv.PICKS.includes(id));
+  const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
     id ? h('img', { class: 'member-sprite' + (here ? '' : ' locked'), src: spriteOf(id) }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
     h('div', { class: 'member-name' }, here ? member(id).name : id === adv.HEADLINER ? '⭐' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
 
-// After the warm-up: "Who joins your band?" — tap one.
-function choosePick(parent, then) {
+// After the G song and after Stairs: "Who joins your band?" — tap one.
+function choosePick(parent, a, then) {
   const box = h('div', { class: 'overlay adv-welcome' },
     h('div', { class: 'joined' }, 'Who joins your band?'),
-    h('div', { class: 'adv-picks' }, adv.PICKS.map((id) => h('button', {
+    h('div', { class: 'adv-picks' }, adv.pickable(a).map((id) => h('button', {
       class: 'adv-pick', onclick: () => { adv.pick(id); box.remove(); then(); },
     }, h('img', { class: 'adv-welcome-sprite', src: spriteOf(id) }), h('div', { class: 'member-name' }, member(id).name)))));
   parent.append(box);
@@ -81,50 +74,27 @@ function choosePick(parent, then) {
 // --- the map ---
 function map(root) {
   const a = adv.current();
-  const done = (s) => a.done.has(s);
-  const next = !done('warmup') ? 'warmup' : !done('homework') ? 'homework' : 'party';
-  const overlayBox = h('div', {});
-
-  const stop = (step, icon, label, onclick, locked = false) => {
+  const next = adv.nextStep(a);
+  const stop = (step) => {
+    const [icon, label] = STOPS[step];
+    const locked = !adv.unlocked(a, step), done = a.done.has(step);
     const el = h('button', {
-      class: 'adv-stop' + (done(step) ? ' done' : '') + (step === next ? ' next' : '') + (locked ? ' locked' : ''),
-      onclick: () => (locked ? flash(el, 'shake', 400) : onclick()),
+      class: 'adv-stop' + (done ? ' done' : '') + (step === next ? ' next' : '') + (locked ? ' locked' : ''),
+      onclick: () => {
+        if (locked) flash(el, 'shake', 400);
+        else location.hash = step === 'party' ? '#/adventure/party' : `#/adventure/piece/${step}`;
+      },
     }, h('div', { class: 'adv-icon' }, locked ? '🔒' : icon), h('div', { class: 'adv-label' }, label),
-      done(step) ? h('div', { class: 'adv-check' }, '✅') : null);
+      done ? h('div', { class: 'adv-check' }, '✅') : null);
     return el;
   };
-
-  const choose = (...cards) => {
-    const box = h('div', { class: 'overlay', onclick: (e) => { if (e.target === box) box.remove(); } }, h('div', { class: 'adv-choice' }, cards));
-    overlayBox.replaceChildren(box);
-  };
-  const pieceCard = (href, song, label) => h('a', { class: 'card adv-piece', href }, h('div', { class: 'plus' }, '📝'), shape(song), h('div', { class: 'card-title' }, label));
-  function chooseWarmup() {
-    const mountain = h('div', { class: 'bp-mini' }, [60, 62, 64, 65, 67, 65, 64, 62, 60].map((p, i) =>
-      h('span', { style: `height:${(Math.min(i, 8 - i) + 1) * 8}px;background:#8fd463` })));
-    choose(
-      h('a', { class: 'card world-card', href: '#/world/adventure', style: `background-image:url(${texture('grass')})` },
-        h('div', { class: 'plus' }, '⛏️'), mountain, h('div', { class: 'card-title' }, 'Build!')),
-      h('a', { class: 'card world-card', href: '#/echo/adventure', style: 'background:linear-gradient(#27366e,#5a4fa3)' },
-        h('img', { class: 'exp-sprite', src: bandSprite(member('frog')) }), h('div', { class: 'card-title' }, 'Copy me!')),
-      pieceCard('#/adventure/warmup/g', PIECES.g, 'G'));
-  }
-  const chooseHomework = () => choose(
-    pieceCard('#/adventure/homework/stairs', PIECES.stairs, 'Stairs'),
-    pieceCard('#/adventure/homework/updown', PIECES.updown, 'Up and Down'));
 
   const screen = h('div', { class: 'screen adventure' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, 'Today’s adventure')),
-    h('div', { class: 'adv-path' },
-      stop('warmup', '🌅', 'Warm up', chooseWarmup),
-      h('div', { class: 'adv-link' }),
-      stop('homework', '📝', 'Homework', chooseHomework),
-      h('div', { class: 'adv-link' }),
-      stop('party', '🎉', 'Party!', () => { location.hash = '#/adventure/party'; }, !done('homework'))),
+    h('div', { class: 'adv-path' }, adv.STEPS.flatMap((step, i) => [i ? h('div', { class: 'adv-link' }) : null, stop(step)])),
     lineup(a, true),
-    overlayBox,
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` }));
   root.append(screen);
   const greet = () => {
@@ -135,14 +105,14 @@ function map(root) {
     screen.querySelector('.adv-band').replaceWith(lineup(a, true));
     setTimeout(() => screen.isConnected && welcome(screen, id), 300);
   };
-  if (adv.pickPending(a)) setTimeout(() => screen.isConnected && choosePick(screen, greet), 300);
+  if (adv.pickPending(a)) setTimeout(() => screen.isConnected && choosePick(screen, a, greet), 300);
   else greet();
 }
 
-// --- a piece: the G warm-up or a homework piece, played the whole way ---
-function piece(root, step, id) {
+// --- a piece, played the whole way ---
+function piece(root, id) {
   const a = adv.current();
-  const song = PIECES[id];
+  const song = PIECES[id], step = id;
   let session = null, finished = false, gen = 0, hearing = null;
 
   const sceneBox = h('div', { class: 'scene-box' });
@@ -190,7 +160,7 @@ function piece(root, step, id) {
       return;
     }
     if (myGen !== gen) return;
-    adv.startStep(step, step === 'warmup' ? { choice: id } : { piece: id });
+    adv.startStep(step);
     const t = staff.targets;
     session = {
       cur: 0, tStart: engine.now(),
@@ -204,8 +174,9 @@ function piece(root, step, id) {
   const want = (k) => staff.laid[staff.targets[k]].p;
   function markCurrent() {
     const i = staff.targets[session.cur];
-    if (i == null) { hand.show(null); return; }
+    if (i == null) { hand.show(null); engine.expect?.(null); return; }
     const { p: m, f } = staff.laid[i];
+    engine.expect?.([m]); // lets the detector favour the note she's about to play (piano-audio)
     hand.show(f ?? fingerFor(m), handFor(m) ?? 'right');
     staff.mark(i, 'current');
     staff.show(i);
@@ -240,12 +211,16 @@ function piece(root, step, id) {
     session = null;
     finished = true;
     hand.show(null);
+    engine.expect?.(null);
     engine.listen(false);
     log.endSession({ completed: true });
-    adv.finishStep(step, step === 'warmup' ? { choice: id } : { piece: id });
+    adv.finishStep(step);
     build.celebrate();
-    // Warm-up: hear it back in rhythm, then the map welcomes the new member.
-    if (step === 'warmup') { setTimeout(() => hear(() => { location.hash = '#/adventure'; }), 900); return; }
+    // The G song is heard back in rhythm; then (after Stairs, right away) the
+    // map asks who joins the band.
+    const toMap = () => { if (screen.isConnected) location.hash = '#/adventure'; };
+    if (step === 'g') { setTimeout(() => hear(toMap), 900); return; }
+    if (step !== 'updown') { setTimeout(toMap, 1800); return; }
     const joined = a.joined;
     a.joined = null;
     setTimeout(() => {
@@ -287,21 +262,26 @@ function piece(root, step, id) {
     if (hearing) { cancelAnimationFrame(hearing); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
+    engine.expect?.(null);
     engine.listen(false);
   };
 }
 
-// --- party: her band plays the homework with her ---
+// --- party: her band plays a piece with her (Up and Down first; the piece
+// buttons pick another) ---
 function party(root) {
   const a = adv.current();
-  if (!a.done.has('homework')) { location.hash = '#/adventure'; return; }
-  const song = PIECES[a.piece] ?? PIECES.updown;
+  let song = PIECES.updown;
   const ids = a.band;
   let playing = null, raf = 0, played = false;
 
   const imgs = ids.map((id) => h('img', { class: 'member-sprite', src: spriteOf(id) }));
   const staffBox = h('div', { class: 'staff-box' });
   const playBtn = h('button', { class: 'btn primary huge', onclick: () => (playing ? stop() : start()) }, '▶');
+  const pieceBtns = ['g', 'stairs', 'updown'].map((pid) => h('button', {
+    class: 'btn big' + (PIECES[pid] === song ? ' on' : ''), 'data-piece': pid, title: STOPS[pid][1],
+    onclick: () => { if (playing) stop(); song = PIECES[pid]; drawStaff(); start(); },
+  }, STOPS[pid][0]));
   const scene = h('div', { class: 'band-stage' }, ids.map((id, i) => h('div', { class: 'member' },
     imgs[i], h('div', { class: 'member-name' }, member(id).name),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
@@ -310,12 +290,18 @@ function party(root) {
       h('a', { class: 'btn', href: '#/adventure', title: 'Map' }, '🗺️'),
       h('div', { class: 'song-title' }, '🎉 Party!')),
     scene,
-    h('div', { class: 'row center' }, playBtn, h('a', { class: 'btn big', href: '#/world' }, '⛏️ Build!')),
+    h('div', { class: 'row center' }, pieceBtns, playBtn),
+    h('div', { class: 'row center' }, h('a', { class: 'btn big', href: '#/world' }, '⛏️ Build!'), h('a', { class: 'btn big', href: '#/echo' }, '🐸 Copy me!')),
     staffBox));
-  const s = Math.max(12, Math.min(18, Math.round(innerHeight / 48)));
-  const H = systemHeight(s, song.clef, 'fingers');
-  const staff = createStaff(song, { s, letters: 'fingers', width: staffBox.clientWidth - 6, visible: innerHeight > 900 && 2 * H < innerHeight * 0.45 ? 2 : 1 });
-  staffBox.replaceChildren(staff.el);
+  let staff;
+  function drawStaff() {
+    for (const b of pieceBtns) b.classList.toggle('on', PIECES[b.dataset.piece] === song);
+    const s = Math.max(12, Math.min(18, Math.round(innerHeight / 48)));
+    const H = systemHeight(s, song.clef, 'fingers');
+    staff = createStaff(song, { s, letters: 'fingers', width: staffBox.clientWidth - 6, visible: innerHeight > 900 && 2 * H < innerHeight * 0.45 ? 2 : 1 });
+    staffBox.replaceChildren(staff.el);
+  }
+  drawStaff();
 
   async function start() {
     await engine.start();
@@ -345,7 +331,7 @@ function party(root) {
     }
     if (engine.now() > playing.end) {
       stop();
-      if (!played) { played = true; adv.finishStep('party'); }
+      if (!played) { played = true; adv.finishStep('party', { piece: song.id }); }
     }
   }
 
