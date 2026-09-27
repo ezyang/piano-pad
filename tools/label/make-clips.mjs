@@ -55,7 +55,8 @@ for (const f of rest) {
     const letters = new Set(m.ev.map((e) => e.midi % 12));
     const cands = [...new Set(m.ev.map((e) => e.midi))];
     // Other sounds in the same clip window, so the page can show them too.
-    const others = moments.filter((o) => o !== m && o.t0 > t - PRE && o.t0 < t + POST).map((o) => +(o.t0 - (t - PRE)).toFixed(3));
+    // (A note that started just before the clip shows at its very start.)
+    const others = moments.filter((o) => o !== m && o.t0 > t - PRE - 0.3 && o.t0 < t + POST).map((o) => +Math.max(0, o.t0 - (t - PRE)).toFixed(3));
     const item = { session: f.split('/').pop().replace('.mp4', ''), file: f, t, cands, others, heard: Object.fromEntries(['c', 'n', 'r'].map((s) => [s, m.ev.filter((e) => e.s === s).map((e) => e.midi)])) };
     const n = ['c', 'n', 'r'].filter(has).length;
     if (n === 1) groups[has('c') ? 'classic-only' : has('n') ? 'net-only' : 'ref-only'].push(item);
@@ -89,7 +90,7 @@ if (exArg) {
   mkdirSync(join(out, 'examples'), { recursive: true });
   const ex = JSON.parse(readFileSync(exArg.split('=')[1], 'utf8')).map((e, i) => {
     const id = `e${i + 1}`;
-    const others = momentsOf(e.file).moments.filter((o) => Math.abs(o.t0 - e.t) >= NEAR && o.t0 > e.t - PRE && o.t0 < e.t + POST).map((o) => +(o.t0 - (e.t - PRE)).toFixed(3));
+    const others = momentsOf(e.file).moments.filter((o) => Math.abs(o.t0 - e.t) >= NEAR && o.t0 > e.t - PRE - 0.3 && o.t0 < e.t + POST).map((o) => +Math.max(0, o.t0 - (e.t - PRE)).toFixed(3));
     return { id, title: e.title, answer: e.answer, mark: PRE, others, gain: cut(e.file, e.t, join(out, 'examples', `${id}.wav`)) };
   });
   writeFileSync(join(out, 'examples.json'), JSON.stringify(ex, null, 1));

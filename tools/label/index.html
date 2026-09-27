@@ -16,8 +16,9 @@
   .bar { position: relative; height: 14px; background: var(--line); border-radius: 7px; margin: 16px 0 8px; overflow: hidden; }
   .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: .35; }
   .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--flash); }
-  .lamp { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 4px; background: var(--line); transition: background .05s; }
-  .lamp.on { background: var(--flash); box-shadow: 0 0 24px var(--flash); }
+  /* Lights come on instantly and fade out slowly, like a note ringing. */
+  .lamp { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 4px; background: var(--line); transition: background .7s ease-out, box-shadow .7s ease-out; }
+  .lamp.on { background: var(--flash); box-shadow: 0 0 24px var(--flash); transition: none; }
   .lamps { display: flex; align-items: center; justify-content: center; gap: 18px; }
   .small { width: 26px; height: 26px; margin: 0; }
   .small.on { background: #999; box-shadow: 0 0 10px #999; }
@@ -60,7 +61,7 @@
   <div class="card hidden" id="task">
     <div class="lamps"><div class="lamp small" id="otherLamp"></div><div class="lamp" id="lamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
     <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
-    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other moments where something was detected (maybe nothing real); ignore them.</div>
+    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other moments where something was detected (maybe nothing real), including a note already ringing at the start; ignore them.</div>
     <div class="row"><button class="big" id="play">▶ Play again</button></div>
 
     <div class="q">Did a piano key start at the flash?</div>
