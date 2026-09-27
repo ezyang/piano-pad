@@ -2,196 +2,163 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Piano Labels</title>
 <style>
-  :root { --bg: #fbf8f3; --fg: #222; --muted: #777; --card: #fff; --line: #e3ddd3; --accent: #2f6fdb; --yes: #2e8b57; --no: #b8433a; --flash: #ffb400; }
+  :root { --bg: #fbf8f3; --fg: #222; --muted: #777; --card: #fff; --line: #e3ddd3; --accent: #2f6fdb; --yes: #2e8b57; --no: #b8433a; --flash: #ffb400; --grey: #999; }
   @media (prefers-color-scheme: dark) { :root { --bg: #1b1a18; --fg: #eee; --muted: #999; --card: #262522; --line: #3a3834; --accent: #6e9dff; --yes: #4fb57f; --no: #e06a60; } }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.4 -apple-system, system-ui, sans-serif; }
-  main { max-width: 560px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 20px; margin: 4px 0 2px; }
-  .muted { color: var(--muted); font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 14px 0; }
-  .bar { position: relative; height: 14px; background: var(--line); border-radius: 7px; margin: 16px 0 8px; overflow: hidden; }
-  .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: .35; }
-  .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--flash); }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.3 -apple-system, system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+  main { max-width: 520px; margin: 0 auto; padding: 10px 12px; min-height: 100%; display: flex; flex-direction: column; gap: 8px; }
+  header { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  header b { color: var(--fg); font-size: 16px; }
+  header .sp { flex: 1; }
+  a { color: var(--accent); text-decoration: none; }
+  button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 10px; min-height: 46px; padding: 6px 8px; cursor: pointer; }
+  button:active { transform: scale(.97); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.small { min-height: 34px; padding: 4px 10px; font-size: 14px; }
+  .stage { display: flex; align-items: center; justify-content: center; gap: 16px; }
   /* Lights come on instantly and fade out slowly, like a note ringing. */
-  .lamp { width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 4px; background: var(--line); transition: background .7s ease-out, box-shadow .7s ease-out; }
-  .lamp.on { background: var(--flash); box-shadow: 0 0 24px var(--flash); transition: none; }
-  .lamps { display: flex; align-items: center; justify-content: center; gap: 18px; }
-  .small { width: 26px; height: 26px; margin: 0; }
-  .small.on { background: #999; box-shadow: 0 0 10px #999; }
-  .bar .tick { position: absolute; top: 2px; bottom: 2px; width: 3px; background: #999; }
-  .legend { font-size: 13px; }
-  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 12px; padding: 12px 14px; margin: 5px 4px; min-height: 48px; cursor: pointer; }
-  button.big { width: 100%; font-size: 19px; }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  button.yes { border-color: var(--yes); color: var(--yes); }
-  button.no { border-color: var(--no); color: var(--no); }
-  button.sel { outline: 3px solid var(--accent); }
-  .row { display: flex; flex-wrap: wrap; justify-content: center; }
-  .cand { display: inline-flex; align-items: center; gap: 4px; }
-  .q { font-weight: 600; margin: 14px 0 4px; text-align: center; }
-  .hidden { display: none; }
+  .lamp { width: 58px; height: 58px; border-radius: 50%; background: var(--line); transition: background .7s ease-out, box-shadow .7s ease-out; }
+  .lamp.on { background: var(--flash); box-shadow: 0 0 22px var(--flash); transition: none; }
+  .lamp.other { width: 24px; height: 24px; }
+  .lamp.other.on { background: var(--grey); box-shadow: 0 0 10px var(--grey); }
+  .bar { position: relative; height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: .35; }
+  .bar .mark { position: absolute; top: 0; bottom: 0; width: 4px; background: var(--flash); }
+  .bar .tick { position: absolute; top: 2px; bottom: 2px; width: 3px; background: var(--grey); }
+  .q { text-align: center; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .note { display: flex; gap: 4px; }
+  .note .hear { flex: 0 0 40px; padding: 0; }
+  .note .pick { flex: 1; font-weight: 700; font-size: 18px; border-color: var(--yes); color: var(--yes); }
+  .yes { border-color: var(--yes); color: var(--yes); }
+  .no { border-color: var(--no); color: var(--no); }
+  .overlay { position: fixed; inset: 0; background: var(--bg); padding: 12px; display: none; flex-direction: column; gap: 8px; max-width: 520px; margin: 0 auto; }
+  .overlay.show { display: flex; }
+  .ex { display: flex; align-items: center; gap: 8px; }
+  .ex button { flex: 1; text-align: left; }
+  .ex .ans { flex: 0 0 90px; font-size: 13px; color: var(--muted); }
   .center { text-align: center; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .hint { text-align: center; color: var(--muted); font-size: 12px; }
+  .hidden { display: none !important; }
+  .toast { text-align: center; font-size: 13px; color: var(--muted); min-height: 17px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Piano labels</h1>
-  <div class="muted" id="progress">Loading…</div>
-  <div class="muted"><a href="#" id="showEx">Examples with known answers</a> · every clip is turned up by the same amount, so loudness still means something</div>
+  <header><b>Piano labels</b><span id="progress">…</span><span class="sp"></span><a href="#" id="showEx">Examples</a><button class="small" id="undo" disabled>↶ Undo</button></header>
 
-  <div class="card hidden" id="examples">
-    <div class="q">Examples (from your calibration takes, answers known)</div>
-    <div class="lamps"><div class="lamp small" id="exOther"></div><div class="lamp" id="exLamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
-    <div class="muted center legend">Big yellow light: the moment the answer is about. Small grey light: other moments where something was detected (maybe nothing real).</div>
-    <div id="exList"></div>
-    <div class="row"><button id="hideEx">Close examples</button></div>
+  <div id="intro" class="center">
+    <p>Each clip is 1½ s of a real session. When the <b>big yellow light</b> comes on, did a piano key start? <b>One tap</b> answers and moves on; Undo fixes mistakes.</p>
+    <p class="muted">Small grey light: other moments where something was detected (maybe nothing real); ignore it. Clips are all turned up by the same amount, so loudness still means something. Stop whenever you like.</p>
+    <button class="primary" id="start" style="width:100%">Start</button>
   </div>
 
-  <div class="card center" id="intro">
-    <p>Each clip is 1½ seconds of a real session. A light flashes at one moment. Tell me whether a piano key started <b>as the light comes on</b> (give or take a tenth of a second), and if so, which one. Use the 🔊 buttons to hear each candidate note.</p>
-    <p class="muted">Answers save as you go, and the most useful clips come first, so stop whenever you like.</p>
-    <p class="muted">New to this? Try the <b>examples</b> first (link at the top) to hear what a soft note, a loud note and talking sound like here.</p>
-    <button class="primary big" id="start">Start</button>
-  </div>
-
-  <div class="card hidden" id="task">
-    <div class="lamps"><div class="lamp small" id="otherLamp"></div><div class="lamp" id="lamp"></div><div class="lamp small" style="visibility:hidden"></div></div>
+  <div id="task" class="hidden" style="flex-direction:column;gap:8px">
+    <div class="stage"><div class="lamp other" id="otherLamp"></div><div class="lamp" id="lamp"></div><button class="small" id="play">▶ Replay</button></div>
     <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
-    <div class="muted center legend">Big yellow light: the moment to answer about. Small grey light: other moments where something was detected (maybe nothing real), including a note already ringing at the start; ignore them.</div>
-    <div class="row"><button class="big" id="play">▶ Play again</button></div>
-
-    <div class="q">Did a piano key start at the flash?</div>
-    <div class="muted center">(when the light comes on, give or take a tenth of a second)</div>
-    <div class="row">
-      <button class="yes" data-strike="yes">Yes</button>
-      <button class="no" data-strike="no">No piano key (silence, talking, other noise)</button>
-      <button data-strike="unsure">Can't tell</button>
+    <div class="q">A key started at the yellow light? Tap the note</div>
+    <div class="grid" id="notes"></div>
+    <div class="grid">
+      <button class="yes" data-a="yes:other">Other note</button>
+      <button class="yes" data-a="yes:two">Two keys</button>
+      <button class="yes" data-a="yes:unsure">Yes, not sure which</button>
+      <button class="no" data-a="no">No piano key</button>
+      <button data-a="mess">Splat (any answer fine)</button>
+      <button data-a="unsure">Can't tell</button>
     </div>
-    <div class="row">
-      <button data-strike="mess">Piano, but a splat (several keys, banging): any answer is fine</button>
-    </div>
-
-    <div id="which" class="hidden">
-      <div class="q">Which note?</div>
-      <div class="row" id="cands"></div>
-      <div class="row">
-        <button data-note="other">Another note</button>
-        <button data-note="two">Two keys at once</button>
-        <button data-note="unsure">Not sure</button>
-      </div>
-    </div>
-
-    <div class="row"><button class="primary big hidden" id="next">Next ›</button></div>
-    <div class="row"><button id="back" class="muted">‹ Previous</button></div>
+    <div class="toast" id="toast"></div>
   </div>
 
-  <div class="card center hidden" id="done"><p><b>All done. Thank you!</b></p><p class="muted">You can close this page.</p></div>
+  <div id="done" class="hidden center"><p><b>All done. Thank you!</b></p><p class="muted">You can close this page.</p></div>
 </main>
+
+<div class="overlay" id="examples">
+  <header><b>Examples</b><span class="sp"></span><button class="small" id="hideEx">Close</button></header>
+  <div class="stage"><div class="lamp other" id="exOther"></div><div class="lamp" id="exLamp"></div></div>
+  <div class="hint">From your calibration takes; answers known.</div>
+  <div id="exList" style="display:flex;flex-direction:column;gap:6px"></div>
+</div>
+
 <script>
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const nm = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
 const $ = (id) => document.getElementById(id);
-let ctx, manifest = [], answers = {}, i = 0, clipBuf = null, playing = null, cur = {};
-
-let examples = [];
-// The light comes on when the moment reaches the speaker (the audio clock runs
-// ahead of what you hear by the output latency) and stays on briefly.
 const FLASH = 0.18;
+let ctx, manifest = [], examples = [], answers = {}, i = 0, clip = null, playing = null;
+const history = [];
+// When the moment reaches the speaker: the audio clock runs ahead of what you
+// hear by the output latency.
 const heard = (t0) => ctx.currentTime - t0 - (ctx.outputLatency || 0) - (ctx.baseLatency || 0);
+
 async function init() {
   manifest = await fetch('manifest.json').then((r) => r.json());
   examples = await fetch('examples.json').then((r) => (r.ok ? r.json() : []), () => []);
+  for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
+  if (!examples.length) $('showEx').remove();
   $('exList').replaceChildren(...examples.map((e) => {
-    const row = document.createElement('div'); row.className = 'row';
-    const b = document.createElement('button'); b.className = 'big'; b.textContent = '▶ ' + e.title;
-    const a = document.createElement('div'); a.className = 'muted center'; a.style.width = '100%'; a.textContent = 'Answer: ' + e.answer;
-    b.onclick = () => playExample(e);
+    const row = document.createElement('div'); row.className = 'ex';
+    const b = document.createElement('button'); b.textContent = '▶ ' + e.title; b.onclick = () => playClip(`examples/${e.id}.wav`, e, 'exLamp', 'exOther');
+    const a = document.createElement('span'); a.className = 'ans'; a.textContent = e.answer;
     row.append(b, a); return row;
   }));
-  if (!examples.length) $('showEx').remove();
-  for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
-  // Resume after the last clip answered, wrapping around to any skipped ones.
-  const last = Math.max(-1, ...manifest.map((c, k) => (answers[c.id] ? k : -1)));
-  i = nextOpen(last);
-  showProgress();
+  // Resume after the last clip answered, wrapping around to skipped ones.
+  i = nextOpen(Math.max(-1, ...manifest.map((c, k) => (answers[c.id] ? k : -1))));
+  progress();
 }
 // The next unanswered clip after index k (wrapping), or manifest.length when done.
 function nextOpen(k) {
   for (let d = 1; d <= manifest.length; d++) { const j = (k + d) % manifest.length; if (!answers[manifest[j].id]) return j; }
   return manifest.length;
 }
-function showProgress() {
-  const n = Object.keys(answers).length;
-  $('progress').textContent = `${n} of ${manifest.length} answered · stop whenever you like`;
-}
+function progress() { $('progress').textContent = `${Object.keys(answers).length}/${manifest.length}`; $('undo').disabled = !history.length; }
+async function audio() { ctx ??= new (window.AudioContext || window.webkitAudioContext)(); await ctx.resume(); }
 
-async function audio() {
-  ctx ??= new (window.AudioContext || window.webkitAudioContext)();
-  await ctx.resume();
-}
-async function playExample(e) {
-  await audio();
-  const buf = await fetch(`examples/${e.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
-  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
-  const t0 = ctx.currentTime + 0.05; src.start(t0);
-  const tick = () => {
-    const t = heard(t0);
-    $('exLamp').classList.toggle('on', t >= e.mark && t < e.mark + FLASH);
-    $('exOther').classList.toggle('on', (e.others ?? []).some((o) => t >= o && t < o + FLASH));
-    if (t < buf.duration + 0.1) requestAnimationFrame(tick); else { $('exLamp').classList.remove('on'); $('exOther').classList.remove('on'); }
-  };
-  tick();
-}
-$('showEx').onclick = (ev) => { ev.preventDefault(); $('examples').classList.remove('hidden'); $('examples').scrollIntoView({ behavior: 'smooth' }); };
-$('hideEx').onclick = () => $('examples').classList.add('hidden');
-
-$('start').onclick = async () => {
-  await audio();
-  $('intro').classList.add('hidden');
-  show();
-};
+$('start').onclick = async () => { await audio(); $('intro').classList.add('hidden'); show(); };
+$('showEx').onclick = async (e) => { e.preventDefault(); await audio(); $('examples').classList.add('show'); };
+$('hideEx').onclick = () => $('examples').classList.remove('show');
 
 async function show() {
   if (i >= manifest.length) { $('task').classList.add('hidden'); $('done').classList.remove('hidden'); return; }
-  $('task').classList.remove('hidden'); $('done').classList.add('hidden');
+  $('done').classList.add('hidden'); $('task').classList.remove('hidden'); $('task').style.display = 'flex';
   const c = manifest[i];
-  cur = { ...(answers[c.id] ?? {}) };
-  $('cands').replaceChildren(...c.cands.map((m) => {
-    const b = document.createElement('span'); b.className = 'cand';
-    const hear = document.createElement('button'); hear.textContent = '🔊'; hear.onclick = () => tone(m);
-    const pick = document.createElement('button'); pick.textContent = nm(m); pick.dataset.note = String(m);
-    pick.onclick = () => pickNote(String(m));
-    b.append(hear, pick); return b;
+  $('notes').replaceChildren(...c.cands.map((m) => {
+    const cell = document.createElement('div'); cell.className = 'note';
+    const hear = document.createElement('button'); hear.className = 'hear'; hear.textContent = '🔊'; hear.onclick = () => tone(m);
+    const pick = document.createElement('button'); pick.className = 'pick'; pick.textContent = nm(m); pick.onclick = () => answer({ strike: 'yes', note: String(m) });
+    cell.append(hear, pick); return cell;
   }));
-  clipBuf = await fetch(`clips/${c.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
-  $('mark').style.left = `${(100 * c.mark) / clipBuf.duration}%`;
+  const buf = await fetch(`clips/${c.id}.wav`).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
+  clip = { buf, c };
   document.querySelectorAll('#bar .tick').forEach((x) => x.remove());
-  for (const o of c.others ?? []) { const tk = document.createElement('div'); tk.className = 'tick'; tk.style.left = `${(100 * o) / clipBuf.duration}%`; $('bar').append(tk); }
-  refresh();
-  play();
+  $('mark').style.left = `${(100 * c.mark) / buf.duration}%`;
+  for (const o of c.others ?? []) { const t = document.createElement('div'); t.className = 'tick'; t.style.left = `${(100 * o) / buf.duration}%`; $('bar').append(t); }
+  playBuf(buf, c, 'lamp', 'otherLamp', true);
 }
 
-function play() {
+async function playClip(url, meta, lampId, otherId) {
+  const buf = await fetch(url).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a));
+  playBuf(buf, meta, lampId, otherId, false);
+}
+function playBuf(buf, meta, lampId, otherId, withBar) {
   if (playing) { try { playing.stop(); } catch {} }
-  const c = manifest[i], src = ctx.createBufferSource();
-  src.buffer = clipBuf; src.connect(ctx.destination);
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
   const t0 = ctx.currentTime + 0.05; src.start(t0); playing = src;
-  const dur = clipBuf.duration;
   const tick = () => {
     if (playing !== src) return;
     const t = heard(t0);
-    $('fill').style.width = `${Math.max(0, Math.min(100, (100 * t) / dur))}%`;
-    $('lamp').classList.toggle('on', t >= c.mark && t < c.mark + FLASH);
-    $('otherLamp').classList.toggle('on', (c.others ?? []).some((o) => t >= o && t < o + FLASH));
-    if (t < dur + 0.1) requestAnimationFrame(tick); else { $('lamp').classList.remove('on'); $('otherLamp').classList.remove('on'); }
+    if (withBar) $('fill').style.width = `${Math.max(0, Math.min(100, (100 * t) / buf.duration))}%`;
+    $(lampId).classList.toggle('on', t >= meta.mark && t < meta.mark + FLASH);
+    $(otherId).classList.toggle('on', (meta.others ?? []).some((o) => t >= o && t < o + FLASH));
+    if (t < buf.duration + 0.1) requestAnimationFrame(tick); else { $(lampId).classList.remove('on'); $(otherId).classList.remove('on'); }
   };
   tick();
 }
-$('play').onclick = play;
+$('play').onclick = () => clip && playBuf(clip.buf, clip.c, 'lamp', 'otherLamp', true);
 
 // A plain piano-ish reference tone for a candidate note.
 function tone(m) {
@@ -205,25 +172,25 @@ function tone(m) {
   });
 }
 
-document.querySelectorAll('[data-strike]').forEach((b) => b.onclick = () => { cur.strike = b.dataset.strike; if (cur.strike !== 'yes') delete cur.note; refresh(); });
-document.querySelectorAll('#which > .row:last-child [data-note]').forEach((b) => b.onclick = () => pickNote(b.dataset.note));
-function pickNote(n) { cur.note = n; refresh(); }
+document.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => {
+  const [strike, note] = b.dataset.a.split(':');
+  answer({ strike, ...(note ? { note } : {}) });
+});
 
-function refresh() {
-  document.querySelectorAll('[data-strike]').forEach((b) => b.classList.toggle('sel', b.dataset.strike === cur.strike));
-  document.querySelectorAll('[data-note]').forEach((b) => b.classList.toggle('sel', b.dataset.note === cur.note));
-  $('which').classList.toggle('hidden', cur.strike !== 'yes');
-  $('next').classList.toggle('hidden', !(cur.strike && (cur.strike !== 'yes' || cur.note)));
-  $('back').classList.toggle('hidden', i === 0);
+const LABEL = { no: 'No piano key', mess: 'Splat', unsure: "Can't tell" };
+function answer(a) {
+  const c = manifest[i], row = { id: c.id, ...a };
+  answers[c.id] = row; history.push(i);
+  fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  $('toast').textContent = `Saved ${c.id}: ${a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : LABEL[a.strike]}`;
+  i = nextOpen(i); progress(); show();
 }
-
-$('next').onclick = async () => {
-  const c = manifest[i], row = { id: c.id, strike: cur.strike, ...(cur.note ? { note: cur.note } : {}) };
-  answers[c.id] = row;
-  await fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
-  i = nextOpen(i); showProgress(); show();
+$('undo').onclick = () => {
+  if (!history.length) return;
+  i = history.pop(); delete answers[manifest[i].id];
+  $('toast').textContent = 'Undone: answer this one again';
+  progress(); show();
 };
-$('back').onclick = () => { if (i > 0) { i--; show(); } };
 
 init();
 </script>
