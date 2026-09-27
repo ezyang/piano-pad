@@ -12,6 +12,7 @@
 // titles.
 import { engine } from './engine.js';
 import { getState } from './store.js';
+import { player, mergePlayer } from './player.js';
 
 const KEY = 'pianopad.logs';
 const MAX_BYTES = 1_500_000; // localStorage is ~5 MB on Safari; leave room for songs
@@ -63,6 +64,7 @@ export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.ra
     id,
     kind,
     started: new Date().toISOString(),
+    player: player(), // 'kid' | 'grownup' | 'mixed' (see player.js)
     app: {
       version: VERSION,
       path: location.pathname, // /v/<sha>/ when she's on an old version
@@ -78,6 +80,7 @@ export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.ra
 // startSession, e.g. the adventure's step log, and send it again.
 export function record(session) {
   if (!loggingEnabled()) return;
+  session.player = mergePlayer(session.player, player());
   session.rev = (session.rev ?? 0) + 1; // so an upload in flight doesn't mark this copy as sent
   const sessions = load().filter((s) => s.id !== session.id);
   sessions.push({ ...session, uploaded: false });
@@ -134,6 +137,7 @@ export function endSession(result = {}) {
   while (unsubs.length) unsubs.pop()();
   const s = current;
   current = null;
+  s.player = mergePlayer(s.player, player());
   // Screens that start logging before the mic is up get it at the end.
   if (s.audio && !s.audio.track) Object.assign(s.audio, micInfo());
   // An abandoned run where nothing was heard isn't worth keeping.

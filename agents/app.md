@@ -60,6 +60,10 @@ As of 2026-09-26:
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
 - Other screens: me, calibrate (audio's).
+- ⚙︎ "A grown-up is playing" (pedagogy, parent-approved): sessions carry
+  `player: 'kid' | 'grownup' | 'mixed'` (every session from this version
+  on; absent = older). In memory only: off on reload or after an hour with
+  no taps/notes; a badge shows while on (tap to turn off). `player.js`.
 - ⚙︎ detector select → `st.detector`: simple (default; audio's network,
   learned from her piano), classic, overlap, profile. Only the root app
   passes it; old /v/ versions always run the default (agreed with audio).

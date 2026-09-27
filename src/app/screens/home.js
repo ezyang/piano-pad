@@ -6,6 +6,7 @@ import { shareLogs, sessionCount, VERSION } from '../telemetry.js';
 import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
 import { labelMode } from '../labels.js';
+import { isGrownup, setGrownup } from '../player.js';
 
 export function home(root) {
   const st = getState();
@@ -25,6 +26,9 @@ export function home(root) {
   const parent = h('details', { class: 'parent' },
     h('summary', {}, '⚙︎'),
     h('div', { class: 'parent-menu' },
+      h('label', { class: 'check' },
+        h('input', { type: 'checkbox', checked: isGrownup() || null, onchange: (e) => setGrownup(e.target.checked) }),
+        'A grown-up is playing (tags the logs; turns off on reload or after an hour idle)'),
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: st.testKeyboard || null, onchange: (e) => { st.testKeyboard = e.target.checked; save(); } }),
         'Test keyboard (silent, on Play and Compose screens)'),
