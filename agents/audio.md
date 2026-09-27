@@ -208,3 +208,6 @@ As of 2026-09-26:
   calibration 73/11/11 vs classic 59/25/25; loud-note hits today match or
   beat classic on every key but B3. Recommended as the default; waiting on
   the parent's OK (we flip-flopped once already).
+- **Default = network + loud fallback (parent OK'd, 2026-09-27).** 'classic'
+  remains in the menu. Keep scoring changes on the calibration takes and on
+  new parent labels before touching the default again.

@@ -12,8 +12,8 @@ const loaded = new WeakSet();
 import { decodeNet } from './detector.js';
 
 // The piano profile (how this piano sounds through her iPad): tuning and
-// octave fixes, templates and the onset network (used only when opts.onsets
-// asks; the default is the classic detector). Weights are decoded here because
+// octave fixes, templates, and the onset network, which is the default
+// onset detector when present (engines that predate it get it too). Weights are decoded here because
 // worklets may lack atob.
 let profile;
 const loadProfile = () => (profile ??= fetch(new URL('./piano-profile.json', import.meta.url))
@@ -23,7 +23,7 @@ const loadProfile = () => (profile ??= fetch(new URL('./piano-profile.json', imp
 
 export async function createDetectorNode(ctx, opts = {}) {
   const p = await loadProfile();
-  if (p) opts = { octaveDown: p.octaveDown, tuning: p.tuning ?? {}, templates: p.templates, net: p.net, onsets: 'dsp', ...opts };
+  if (p) opts = { octaveDown: p.octaveDown, tuning: p.tuning ?? {}, templates: p.templates, net: p.net, onsets: p.net ? 'net' : 'dsp', ...opts };
   if (!loaded.has(ctx)) {
     const srcs = ['./detector.js', './detector-worklet.js'].map((p) => new URL(p, import.meta.url));
     const [a, b] = await Promise.all(srcs.map((u) => fetch(u).then((r) => r.text())));
