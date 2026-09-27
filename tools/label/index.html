@@ -112,9 +112,15 @@ async function init() {
   }));
   if (!examples.length) $('showEx').remove();
   for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
-  i = manifest.findIndex((c) => !answers[c.id]);
-  if (i < 0) i = manifest.length;
+  // Resume after the last clip answered, wrapping around to any skipped ones.
+  const last = Math.max(-1, ...manifest.map((c, k) => (answers[c.id] ? k : -1)));
+  i = nextOpen(last);
   showProgress();
+}
+// The next unanswered clip after index k (wrapping), or manifest.length when done.
+function nextOpen(k) {
+  for (let d = 1; d <= manifest.length; d++) { const j = (k + d) % manifest.length; if (!answers[manifest[j].id]) return j; }
+  return manifest.length;
 }
 function showProgress() {
   const n = Object.keys(answers).length;
@@ -208,7 +214,7 @@ $('next').onclick = async () => {
   const c = manifest[i], row = { id: c.id, strike: cur.strike, ...(cur.note ? { note: cur.note } : {}) };
   answers[c.id] = row;
   await fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
-  i++; showProgress(); show();
+  i = nextOpen(i); showProgress(); show();
 };
 $('back').onclick = () => { if (i > 0) { i--; show(); } };
 
