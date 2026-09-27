@@ -161,3 +161,11 @@ As of 2026-09-26:
   breaks (44 vs 47). Notes already arrive at ~27 ms (~45 below C4). Revisit
   only if the app wants a subtle "heard something" cue that tolerates false
   signals.
+- **Tuning, corrected 2026-09-27.** Rounding must use the pitch the detector
+  reads at the attack (~25 ms), not the steady pitch. My 2026-09-26 "no table
+  needed" (steady +13 cents) was wrong for F4: it read +25..+50 at the attack
+  on Sep 26 and +50..+75 on Sep 27 (drifting, or struck harder), so it came
+  out F#4. Hotfix aa02741: profile "tuning" {65: 60}; rounding centers on it.
+  TODO: a full table from `node tools/tuning.mjs <recs> --by-day` (B4 ~+23,
+  A4 ~-9, A#4 ~-18 at the attack). Re-measure regularly: the logs carry f0
+  for every note even without audio, so drift shows up there first.
