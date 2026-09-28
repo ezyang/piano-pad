@@ -97,6 +97,20 @@ export function calibrate(root, set = 'basic') {
   const meterFill = h('div', { style: 'height:100%;width:0;background:#4caf50;transition:width .05s' });
   const meter = h('div', { style: 'height:10px;background:rgba(127,127,127,.3);border-radius:5px;overflow:hidden;margin:4px 0 8px' }, meterFill);
   let meterRaf = 0;
+  // Every mic the browser can see, as buttons; tap one to listen through it.
+  const micList = h('div', { class: 'row cal-mics', style: 'flex-wrap:wrap;gap:6px;margin:2px 0 6px' });
+  async function showMics() {
+    const track = engine.stream?.getAudioTracks?.()[0];
+    const rate = track?.getSettings?.().sampleRate;
+    micEl.textContent = `Mic in use: ${track?.label || 'unknown'}${rate ? ` · ${rate} Hz` : ''}. Mics the browser can see:`;
+    const mics = await engine.micDevices().catch(() => []);
+    const current = track?.getSettings?.().deviceId;
+    micList.replaceChildren(...mics.map((m, k) => h('button', {
+      class: `btn${m.deviceId === current ? ' primary' : ''}`,
+      onclick: async () => { micEl.textContent = 'Switching…'; try { await engine.useMic(m.deviceId); } catch {} await showMics(); },
+    }, m.label || `mic ${k + 1}`)));
+    if (!mics.length) micList.replaceChildren(h('span', {}, '(none listed)'));
+  }
   const tickMeter = () => {
     // engine.level is the latest frame's level in dB (about -90 silent, 0 full scale).
     meterFill.style.width = `${Math.max(0, Math.min(100, ((engine.level + 80) / 70) * 100))}%`;
@@ -135,14 +149,13 @@ export function calibrate(root, set = 'basic') {
     // place: leaving and re-entering the screen would restart the mic, and a
     // newly plugged-in mic can make that restart need a fresh tap.
     setsRow,
-    h('div', { class: 'panel cal-panel' }, micEl, meter, title, say, expect,
+    h('div', { class: 'panel cal-panel' }, micEl, micList, meter, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
 
   (async () => {
     try { await engine.listen(true); } catch { say.textContent = 'Needs the microphone.'; return; }
-    const track = engine.stream?.getAudioTracks?.()[0];
-    micEl.textContent = `Mic: ${track?.label || 'unknown'}${track?.getSettings?.().sampleRate ? ` · ${track.getSettings().sampleRate} Hz` : ''} (plugged a mic in? reload the page if this doesn't show it)`;
+    await showMics();
     tickMeter();
     off = engine.onNote((n) => {
       heard.push(n);

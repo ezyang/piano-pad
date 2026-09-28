@@ -15,6 +15,7 @@
 //                       The shape may change; don't build features on it.
 //   start(), listen(on) open the audio context / mic (start() only from a tap)
 //   now()               current audio clock (s)
+//   micDevices(), useMic(deviceId|null)   list / pick the microphone (grown-up tools)
 //   play(audio, opts), stopAll()
 //   simulate(midi)      a pretend key press: onNote fires right away (the
 //                       detector isn't involved)
@@ -138,7 +139,7 @@ class Engine {
     this.acquiring = true;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, ...(this.micDeviceId ? { deviceId: { exact: this.micDeviceId } } : {}) },
       });
     } finally {
       this.acquiring = false;
@@ -165,6 +166,19 @@ class Engine {
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     this.stream = null;
     try { await this._openMic(); this._attachMic(); } catch { /* permission lost; the next listen() asks again */ }
+  }
+
+  // Microphones the browser can see ({deviceId, label}; labels need mic
+  // permission first), and switching to one (null: the default). Grown-up
+  // tools only; the choice lasts until the page reloads.
+  async micDevices() {
+    const all = await navigator.mediaDevices?.enumerateDevices?.() ?? [];
+    return all.filter((d) => d.kind === 'audioinput').map((d) => ({ deviceId: d.deviceId, label: d.label }));
+  }
+
+  async useMic(deviceId) {
+    this.micDeviceId = deviceId || null;
+    await this.restartMic();
   }
 
   now() { return this.ctx ? this.ctx.currentTime : 0; }
