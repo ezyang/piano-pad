@@ -68,7 +68,7 @@ for (const f of spec.takes ?? []) {
   } : null, useExpect && asked.length ? next : null);
   const right = align(asked, s.alt, heard), extra = s.extrasOk ? 0 : heard.length - right;
   T.takes++; T.asked += asked.length; T.right += right; T.missed += asked.length - right; T.extra += extra;
-  rows.push(`  ${(s.calSet ?? 'basic').padEnd(6)} ${s.calibration.padEnd(14)} asked ${String(asked.length).padStart(2)}  right ${right}  missed ${asked.length - right}  extra ${extra}${s.extrasOk ? ' (extras ok)' : ''}   heard: ${heard.map((n) => nm(n.midi)).join(' ')}`);
+  rows.push(`  ${(s.calSet ?? s.kind ?? '').padEnd(8)} ${(s.calibration ?? s.song?.title ?? s.id).slice(0, 22).padEnd(22)} asked ${String(asked.length).padStart(2)}  right ${right}  missed ${asked.length - right}  extra ${extra}${s.extrasOk ? ' (extras ok)' : ''}   heard: ${heard.map((n) => nm(n.midi)).join(' ')}`);
 }
 
 // Recordings by session id, from the logs directory (<logs>/<date>/<id>.mp4).

@@ -211,3 +211,12 @@ As of 2026-09-26:
 - **Default = network + loud fallback (parent OK'd, 2026-09-27).** 'classic'
   remains in the menu. Keep scoring changes on the calibration takes and on
   new parent labels before touching the default again.
+- **Grown-up homework runs 2026-09-28** (iPad on stiff fabric, still on the
+  piano; eval-grownup-0928.json, the song is the answer key). Live: G song
+  clean; the left hand (classic path) doubled or early notes on finger/key
+  noise 100-250 ms before strikes, and a D4 after C4 read as C#4. Replay
+  (AAC recording, not the raw live audio): 67/70 right, 6 extra. "Tone rise"
+  (the pitch must get louder at the onset) separates extras on clean takes,
+  but globally it cost 6 of her 29 labeled real notes; on the classic path
+  only (minToneRise 6): takes extras 11 -> 6, labels 22 -> 21 caught.
+  Off for now. Pitch events now carry `level` and `toneRise` for analysis.

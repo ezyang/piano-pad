@@ -110,6 +110,11 @@ export const DEFAULTS = {
   dspFallbackClarity: 0.65, // 1: no fallback
   dspFallbackWaitMs: 100,
   dspFallbackMinDb: -50, // ...and at least this loud (RMS dBFS over 40 ms from the onset)
+  // Reject a note whose pitch didn't get this much louder (dB) at its onset.
+  // Parent's runs + calibration takes: real notes rose >= 6 dB (27/27 below
+  // A3, 112/114 above); extras mostly didn't (median 3 dB).
+  minToneRise: -99, // for classic-path notes (below A3 in net mode; all in classic mode)
+  minToneRiseNet: -99, // for the network's notes
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
@@ -402,12 +407,20 @@ export class PianoDetector {
       // the network misses (her repeated D4s): wait for the network, then
       // keep it if the network registered nothing for this strike.
       const level = this._rms(job.onset, Math.round(0.04 * this.sr));
+      // How much the detected pitch got louder at this onset (a new tone vs a
+      // note still ringing from before).
+      const W0 = this.pitchWindows[0];
+      const toneRise = out.midi != null && out.f0 > 0 ? this._rawLevel(from, W0, out.f0) - this._rawLevel(job.onset - 32 - W0, W0, out.f0) : 0;
       const fallback = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi >= this.lowDspBelow &&
         out.clarity >= this.dspFallbackClarity && level >= this.dspFallbackMinDb;
       if (fallback && this.pos < job.onset + (this.dspFallbackWaitMs / 1000) * this.sr) continue;
       const span = (this.lowNetSpanMs / 1000) * this.sr;
       if (lowDsp && this.tpl.lowActivity && this.pos < job.onset + 1024 + span + this.tpl.hop) continue; // wait for the network's view
       let reject = this._confirm(job.onset, out.midi);
+      // A note is a new tone: its pitch must get louder at the onset. Onsets on
+      // key/action noise just before a strike (or a damper landing) re-read a
+      // note that's still ringing, and that doesn't rise.
+      if (!reject && out.midi != null && toneRise < (lowDsp || this.dspRole === 'all' ? this.minToneRise : this.minToneRiseNet)) reject = 'no-rise';
       const win = (this.tplRefractoryMs / 1000) * this.sr, pcOut = out.midi != null ? ((out.midi % 12) + 12) % 12 : -1;
       if (!reject && job.via === 'expect' && !expected) reject = 'unexpected'; // the helper only adds expected notes
       if (!reject && out.midi != null && (job.via === 'expect' || expected) && pcOut === this.lastAcc.pc && Math.abs(job.onset - this.lastAcc.sample) < win) reject = 'dup';
@@ -424,7 +437,7 @@ export class PianoDetector {
         if (out.clarity > (expected ? 0.4 : 0.6)) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
