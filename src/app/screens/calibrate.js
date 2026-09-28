@@ -70,12 +70,27 @@ const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT, mic: MIC };
 
 // #/calibrate (the basic set), or #/calibrate/<messy|placement|mic>.
 export function calibrate(root, set = 'basic') {
-  const STEPS = SETS[set] ?? BASIC;
+  if (!SETS[set]) set = 'basic';
+  let STEPS = SETS[set];
   let i = 0, heard = [], off = null;
   const title = h('div', { class: 'cal-step' });
   const say = h('div', { class: 'cal-say' });
   const expect = h('div', { class: 'cal-expect' });
   const heardEl = h('div', { class: 'cal-heard' });
+  const titles = { basic: '🎯 Calibrate the ears', messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits', mic: '🎯 Calibrate: USB mic placement' };
+  const titleEl = h('div', { class: 'song-title' }, titles[set]);
+  const setBtns = [['basic', 'Basic'], ['messy', 'Messy'], ['placement', 'iPad placement'], ['mic', 'USB mic']].map(([k, label]) =>
+    h('button', { class: `btn${k === set ? ' primary' : ''}`, 'data-set': k, onclick: () => switchSet(k) }, label));
+  const setsRow = h('div', { class: 'row cal-sets', style: 'flex-wrap:wrap;gap:6px;margin:6px 0' }, ...setBtns);
+  function switchSet(k) {
+    if (k === set) return;
+    log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, switched: true });
+    set = k; STEPS = SETS[k]; titleEl.textContent = titles[k];
+    for (const b of setBtns) b.classList.toggle('primary', b.dataset.set === k);
+    history.replaceState(null, '', k === 'basic' ? '#/calibrate' : `#/calibrate/${k}`);
+    nextBtn.style.display = redoBtn.style.display = skipBtn.style.display = '';
+    i = -1; go(0);
+  }
   // Which microphone the browser is using, and a live level, so a grown-up
   // can check that a plugged-in mic is really the one listening.
   const micEl = h('div', { class: 'cal-mic', style: 'font-size:14px;opacity:.8;margin:4px 0' }, 'Mic: …');
@@ -92,7 +107,7 @@ export function calibrate(root, set = 'basic') {
   const skipBtn = h('button', { class: 'btn big', onclick: () => go(i + 1, true) }, 'Skip');
 
   function go(k, skipped = false) {
-    log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, ...(skipped ? { skipped: true } : {}) });
+    if (i >= 0) log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, ...(skipped ? { skipped: true } : {}) });
     if (k >= STEPS.length) {
       say.textContent = 'All done — thank you! The recordings upload automatically when you are on home Wi-Fi.';
       title.textContent = '';
@@ -109,13 +124,17 @@ export function calibrate(root, set = 'basic') {
     expect.textContent = s.notes.length ? `Expecting ${s.notes.length} notes: ${s.notes.map(noteName).join(' ')}` : 'Expecting no notes.';
     heardEl.replaceChildren();
     log.startSession('calibration', {
-      calibration: s.id, calSet: SETS[set] ? set : 'basic', prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) },
+      calibration: s.id, calSet: set, prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) },
       ...(s.alt ? { alt: s.alt } : {}), ...(s.extrasOk ? { extrasOk: true } : {}),
     });
   }
 
   root.append(h('div', { class: 'screen calibrate' },
-    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, { messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits', mic: '🎯 Calibrate: USB mic placement' }[set] ?? '🎯 Calibrate the ears')),
+    h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), titleEl),
+    // Pick a set here (the home-screen app has no address bar). Switches in
+    // place: leaving and re-entering the screen would restart the mic, and a
+    // newly plugged-in mic can make that restart need a fresh tap.
+    setsRow,
     h('div', { class: 'panel cal-panel' }, micEl, meter, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
