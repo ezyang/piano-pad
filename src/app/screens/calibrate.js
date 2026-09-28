@@ -76,6 +76,17 @@ export function calibrate(root, set = 'basic') {
   const say = h('div', { class: 'cal-say' });
   const expect = h('div', { class: 'cal-expect' });
   const heardEl = h('div', { class: 'cal-heard' });
+  // Which microphone the browser is using, and a live level, so a grown-up
+  // can check that a plugged-in mic is really the one listening.
+  const micEl = h('div', { class: 'cal-mic', style: 'font-size:14px;opacity:.8;margin:4px 0' }, 'Mic: …');
+  const meterFill = h('div', { style: 'height:100%;width:0;background:#4caf50;transition:width .05s' });
+  const meter = h('div', { style: 'height:10px;background:rgba(127,127,127,.3);border-radius:5px;overflow:hidden;margin:4px 0 8px' }, meterFill);
+  let meterRaf = 0;
+  const tickMeter = () => {
+    // engine.level is the latest frame's level in dB (about -90 silent, 0 full scale).
+    meterFill.style.width = `${Math.max(0, Math.min(100, ((engine.level + 80) / 70) * 100))}%`;
+    meterRaf = requestAnimationFrame(tickMeter);
+  };
   const nextBtn = h('button', { class: 'btn primary big', onclick: () => go(i + 1) }, 'Done ✓ next');
   const redoBtn = h('button', { class: 'btn big', onclick: () => go(i) }, '↺ Redo');
   const skipBtn = h('button', { class: 'btn big', onclick: () => go(i + 1, true) }, 'Skip');
@@ -105,12 +116,15 @@ export function calibrate(root, set = 'basic') {
 
   root.append(h('div', { class: 'screen calibrate' },
     h('header', { class: 'bar' }, h('a', { class: 'btn', href: '#/' }, '🏠'), h('div', { class: 'song-title' }, { messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits', mic: '🎯 Calibrate: USB mic placement' }[set] ?? '🎯 Calibrate the ears')),
-    h('div', { class: 'panel cal-panel' }, title, say, expect,
+    h('div', { class: 'panel cal-panel' }, micEl, meter, title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
 
   (async () => {
     try { await engine.listen(true); } catch { say.textContent = 'Needs the microphone.'; return; }
+    const track = engine.stream?.getAudioTracks?.()[0];
+    micEl.textContent = `Mic: ${track?.label || 'unknown'}${track?.getSettings?.().sampleRate ? ` · ${track.getSettings().sampleRate} Hz` : ''} (plugged a mic in? reload the page if this doesn't show it)`;
+    tickMeter();
     off = engine.onNote((n) => {
       heard.push(n);
       heardEl.append(h('span', { class: 'cal-note' }, noteName(n.midi) + (Math.floor(n.midi / 12) - 1)));
@@ -119,6 +133,7 @@ export function calibrate(root, set = 'basic') {
   })();
 
   return () => {
+    cancelAnimationFrame(meterRaf);
     off?.();
     log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, aborted: true });
     engine.listen(false);
