@@ -220,3 +220,21 @@ As of 2026-09-26:
   but globally it cost 6 of her 29 labeled real notes; on the classic path
   only (minToneRise 6): takes extras 11 -> 6, labels 22 -> 21 caught.
   Off for now. Pitch events now carry `level` and `toneRise` for analysis.
+- **Design review with Astra (2026-09-28, agents/design-review-2026-09-28.md).**
+  Adopted top-7 for the next two weeks (pending the parent's OK): (1) PCM
+  replay parity: save the exact PCM entering the live detector in
+  diagnostic sessions and reproduce live events; (2) audit the 8 re-strikes
+  the network missed (Kong DID hear them: check targets/decoding, not "teacher
+  blind spot"); (3) independent eval: fully labeled random natural-practice
+  excerpts + an untouched later acceptance sample (the disagreement labels
+  are diagnostic only, not rates); (4) targeted real recordings (repeats,
+  soft/low, overlap, iPad isolation A/B); (5) attack confirmation: a
+  precursor opens a candidate, the acoustic onset is confirmed later, and
+  NSDF reads pitch there (keep NSDF; the pitch gap was onset timing);
+  (6) retrain the tiny model with verified supervision, then one compact
+  temporal challenger in a worker+WASM; (7) validate policies live
+  (octave-permissive guided acceptance on exact-pitch evidence, still
+  requiring a new piano attack; conservative free play). Cut for now:
+  velocity, full-keyboard sampling, offline-model ensemble, big teacher run,
+  WebGPU, more DSP patches. Parent time: ~40 min (5 verify failures, 10
+  targeted sequences, 15 random natural-practice labeling, 10 acceptance).
