@@ -116,6 +116,14 @@ export const DEFAULTS = {
   // A3, 112/114 above); extras mostly didn't (median 3 dB).
   minToneRise: -99, // for classic-path notes (below A3 in net mode; all in classic mode)
   minToneRiseNet: -99, // for the network's notes
+  // Reject a classic-path note (below A3, the loud fallback, classic mode)
+  // unless its upper partials jumped at the onset (see _attackJump): the
+  // classic onsets fire on noise while a note rings and re-read that note.
+  // Parent-labeled whole session (Sep 28 Stairs): re-reads jumped <= 8 dB,
+  // real strikes >= 16. 10 (2026-09-29): false notes there 24 -> 9,
+  // calibration extras 11 -> 5, grown-up runs 6 -> 3, no real note lost.
+  minJump: 10,
+  jumpMs: 20, // look this long after the onset for the jump's peak
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
   // Tuned 2026-09-26 against Kong references, on recordings the templates
@@ -424,6 +432,13 @@ export class PianoDetector {
       // key/action noise just before a strike (or a damper landing) re-read a
       // note that's still ringing, and that doesn't rise.
       if (!reject && out.midi != null && toneRise < (lowDsp || this.dspRole === 'all' ? this.minToneRise : this.minToneRiseNet)) reject = 'no-rise';
+      let jump;
+      if (out.midi != null && out.f0 > 0 && this.minJump > -99 && (lowDsp || fallback || this.dspRole === 'all')) {
+        const need = job.onset + Math.round((this.jumpMs / 1000) * this.sr) + 1024;
+        if (this.pos < need) continue; // wait for the window after the onset
+        jump = this._attackJump(job.onset, out.f0);
+        if (!reject && jump < this.minJump) reject = 'no-jump';
+      }
       const win = (this.tplRefractoryMs / 1000) * this.sr, pcOut = out.midi != null ? ((out.midi % 12) + 12) % 12 : -1;
       if (!reject && job.via === 'expect' && !expected) reject = 'unexpected'; // the helper only adds expected notes
       if (!reject && out.midi != null && job.via === 'expect' && pcOut === this.lastAcc.pc && Math.abs(job.onset - this.lastAcc.sample) < win) reject = 'dup';
@@ -440,7 +455,7 @@ export class PianoDetector {
         if (out.clarity > 0.6) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(jump !== undefined ? { jump: Math.round(jump) } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -633,6 +648,39 @@ export class PianoDetector {
   }
 
   // Loudness (dBFS, RMS) of buf[from, from + W).
+  // How much the upper partials (harmonics 2-8 of f) jumped near an onset:
+  // the largest rise from a trough before to a peak between 30 ms before and
+  // jumpMs after it (the onset time can be off either way). A note that is
+  // still ringing doesn't jump; a new strike does, even a re-strike of the
+  // same key or one right after a neighbouring key (a short window can't
+  // tell neighbouring fundamentals apart, but harmonics 2+ are farther).
+  _attackJump(onset, f) {
+    const W = 1024, hop = 240;
+    const first = onset - Math.round(0.12 * this.sr), last = onset + Math.round((this.jumpMs / 1000) * this.sr);
+    const peakFrom = onset - Math.round(0.03 * this.sr);
+    const x = this.lvlBuf ??= new Float32Array(this.bufSize), L = [];
+    if (!this.hann1024) { this.hann1024 = new Float32Array(W); for (let i = 0; i < W; i++) this.hann1024[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / W); }
+    const hann = this.hann1024, cs = [];
+    for (let h = 2; h <= 8 && f * h < this.sr / 2; h++) cs.push(2 * Math.cos((2 * Math.PI * f * h) / this.sr));
+    for (let t = first; t <= last; t += hop) {
+      for (let i = 0; i < W; i++) x[i] = this.buf[(t + i) & this.mask] * hann[i];
+      let e = 1e-20;
+      for (const c of cs) { // Goertzel
+        let s1 = 0, s2 = 0;
+        for (let i = 0; i < W; i++) { const s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        e += s1 * s1 + s2 * s2 - c * s1 * s2;
+      }
+      L.push(10 * Math.log10(e));
+    }
+    let best = -99, lo = Infinity, j = 0;
+    for (let k = 0; k < L.length; k++) {
+      const t = first + k * hop;
+      while (j < L.length && first + j * hop + W <= t) lo = Math.min(lo, L[j++]); // windows wholly before this one
+      if (t >= peakFrom && lo < Infinity) best = Math.max(best, L[k] - lo);
+    }
+    return best;
+  }
+
   _rms(from, W) {
     let e = 0;
     for (let i = 0; i < W; i++) { const v = this.buf[(from + i) & this.mask]; e += v * v; }
