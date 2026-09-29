@@ -337,3 +337,12 @@ As of 2026-09-26:
   verified net notes below A3 through (+2-3 extras). Stop patching; build
   Astra's verifier. labels-3what (served on 8770): the parent says what
   made the non-piano sounds in the Stairs session.
+- **The non-piano false notes are voices (parent, 2026-09-29, labels-3what).**
+  Stairs session: 3-11 s her voice; 28-29 s indistinct background talking;
+  32-36 s her voice + an adult; 43-47 s an adult voice. So the net path
+  (C4-C5) accepts speech from her AND adults, incl. background talk: the
+  drift voice filter only runs below C4. Training data for the verifier:
+  talk / talk-kid / talk-and-play calibration takes, messy m-talk-near,
+  voice-flagged events in her sessions; include speech over ringing piano.
+  (Page lesson: mark the real notes as landmarks and ask about one flash
+  at a time; the parent couldn't tell which interval was meant.)
