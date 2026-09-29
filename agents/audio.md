@@ -275,3 +275,11 @@ As of 2026-09-26:
   unlit presses count as misses. Add labels-3 to eval-v1.json's "sessions"
   once answered; this is the first real recall/false-note rate on her
   playing (dev set: don't tune on it and call it acceptance).
+- **Her exercise sessions are never ground truth (parent, 2026-09-28).**
+  When the detector misfires in homework she skips ahead to play what the
+  app now shows, so after a false advance her notes follow the display, not
+  the score. Only the parent's own prompted takes / grown-up runs use the
+  song's notes as truth (eval-v1 takes, eval-grownup-0928); her sessions
+  are labeled by ear only (labels-1/2/3). replay.mjs's "want" line is a hint,
+  not truth. In guided mode a false advance costs more than a miss: it
+  changes how she plays. Told pedagogy.
