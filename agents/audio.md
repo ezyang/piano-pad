@@ -325,3 +325,15 @@ As of 2026-09-26:
   acoustic events and homework false advances separately. The jump gate is
   provisional (10 dB is not physical); doubleMs 100 shipped for the
   near-duplicate it let through. PCM parity (Astra's #1) is already done.
+- **Grown-up homework runs 2026-09-29 (app e9e5986, eval-grownup-0929).**
+  Replay 70/70 right, 2 extras: G4 read over a ringing G3 from a network
+  onset (net key G#3, NSDF G4, jump ~0; Kong: nothing). Live, one D3 read as
+  D#3 (f0 155.6) that replay reads as D3 (Kong: D3): live onset ~18 ms
+  earlier, likely on action noise; pitch read before the string settled.
+  Real G3 at 8.51 s in Stairs: classic fired 50 ms early (jump window
+  missed the attack) while the net fired on it with the right key but is
+  barred below A3. Tried and reverted (not clean wins): jump-gating net
+  notes whose key != pitch (-3 real of 140 grown-up notes), letting jump-
+  verified net notes below A3 through (+2-3 extras). Stop patching; build
+  Astra's verifier. labels-3what (served on 8770): the parent says what
+  made the non-piano sounds in the Stairs session.
