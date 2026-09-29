@@ -408,3 +408,12 @@ As of 2026-09-26:
   unheard: k, with iois (ms) logged. Bars marked 'unheard' (and
   'unheard-end') point at missed notes, soft ones especially: use them to
   find soft-note misses to label.
+- **"A bit stronger!" cue (pedagogy idea, 2026-09-29).** Parent: her misses
+  are touch (a louder re-strike always registers). Traces, on her 20 fold-B
+  sessions (Kong-graded, provisional): of 120 missed lone soft strikes, 52%
+  leave a right-letter trace (41 are weak any-key net onsets, which exist
+  only with netAgg 'both'; 10 voice-flagged; 6 'high'). Rejected candidates
+  with nothing accepted nearby are real strikes of that letter 62% of the
+  time at vp >= 0.3, 10% at 0.1-0.3, 2% below. Told pedagogy: decide after
+  the parent-labeled acceptance sets; if needed, give piano-app a rule on
+  onRaw events (expected letter + vp band), no contract change.
