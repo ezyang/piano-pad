@@ -255,3 +255,23 @@ As of 2026-09-26:
   events exactly. Use it to separate "detector" from "replay" differences.
   expect() now takes effect at the start of the next block (recorded).
   The chosen mic is remembered by name (localStorage pianopad.micLabel).
+- **2026-09-28 evening.** Parity on the parent's real iPad captures: 10/10
+  exact after dropping events the previous detector emitted before the
+  capture's fresh one took over (06d7c09). Speech advanced homework on both
+  mics because expect() waived the voice check: hotfix bf9cddc (expected is
+  only a label now; eval with --expect == without). Before changing expect
+  again, add a talking-during-homework regression (the Sep 28 MV88+ Stairs
+  session pmulxilykrw11 has it). iPad placement set (usual / towel / off
+  the piano): no clear winner; keep the iPad in its usual spot.
+- **Whole-session labels (labels-3, started 2026-09-28).** The parent prefers
+  labeling ONE whole session in order over scattered snippets ("don't swiss
+  cheese"). tools/label/make-session.mjs: every moment any source heard
+  becomes a step; clips start just before the previous moment; a "+ unlit
+  key press before the yellow light" toggle and "any key presses here?"
+  stretch steps catch what nothing detected. First one: Sep 28 "Homework:
+  Stairs" on the iPad mic (pmulxnij41ivq, 51 s, 76 steps), served from
+  autobox ~/piano-labels (port 8770). eval.mjs scores `"sessions"` dirs: every
+  accepted note is right / wrong letter / false / duplicate / unreviewed, and
+  unlit presses count as misses. Add labels-3 to eval-v1.json's "sessions"
+  once answered; this is the first real recall/false-note rate on her
+  playing (dev set: don't tune on it and call it acceptance).
