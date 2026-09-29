@@ -91,6 +91,7 @@ export const DEFAULTS = {
   templates: null,
   net: null, // onsets: 'net' — see NetOnsets
   netThr: 0.8,
+  netAgg: 'max', // 'max': one key's score over netThr; 'any': the chance any key was struck
   // With profile-based onsets, still run the dsp onsets and split the range:
   // notes below this (midi) come from dsp, the rest from the profile, which
   // has seen few low notes so far. One strike read by both paths becomes one
@@ -807,6 +808,7 @@ class NetOnsets {
     this.t = 0;
     this.lowK = net.keys.filter((k) => k < o.lowDspBelow).length; // keys are ascending
     this.expThr = o.expectNetThr;
+    this.agg = o.netAgg; this.any = new Float64Array(3);
     this.expK = null; // indices of expected keys, see setExpect
     this.expFound = null;
     this.lowHist = Array.from({ length: 16 }, () => ({ center: -Infinity, max: 0 }));
@@ -858,6 +860,11 @@ class NetOnsets {
     const lh = this.lowHist[t % this.lowHist.length];
     lh.center = end - N / 2; lh.max = 0;
     for (let k = 0; k < this.lowK; k++) if (p0[k] > lh.max) lh.max = p0[k];
+    // Key-agnostic attack score: the chance that at least one key was struck
+    // (the network tends to split a strike across a key and its harmonics).
+    let miss = 1;
+    for (let k = 0; k < K; k++) miss *= 1 - p0[k];
+    this.any[t % 3] = 1 - miss;
     if (t < 2) return null;
     const p2 = this.p[(t + 1) % 3], p1 = this.p[(t + 2) % 3], m1 = this.meta[(t + 2) % 3];
     // An expected key peaking one frame back, with a much lower bar.
@@ -868,8 +875,11 @@ class NetOnsets {
     }
     let k = 0;
     for (let q = 1; q < K; q++) if (p1[q] > p1[k]) k = q;
-    if (p1[k] < this.thr || m1.loud < this.floorDb) return null;
-    if (p1[k] < p2[k] || p1[k] < p0[k]) return null;
+    if (m1.loud < this.floorDb) return null;
+    if (this.agg === 'any') {
+      const a0 = this.any[t % 3], a1 = this.any[(t + 2) % 3], a2 = this.any[(t + 1) % 3];
+      if (a1 < this.thr || a1 < a2 || a1 < a0) return null;
+    } else if (p1[k] < this.thr || p1[k] < p2[k] || p1[k] < p0[k]) return null;
     return { onset: m1.start + N / 2, key: this.keys[k] };
   }
 }

@@ -238,3 +238,11 @@ As of 2026-09-26:
   velocity, full-keyboard sampling, offline-model ensemble, big teacher run,
   WebGPU, more DSP patches. Parent time: ~40 min (5 verify failures, 10
   targeted sequences, 15 random natural-practice labeling, 10 acceptance).
+- **Audit of the 8 re-strikes the network missed (2026-09-28).** Kong heard
+  them; the network's best score for the true key was 0.15-0.72 (bar 0.8):
+  A5s just under the bar; D4s split across harmonic/other keys (Kong labels
+  most D4 strikes as D4+D5, so training taught the split). Today's loud
+  fallback rescues all 8. A key-agnostic score (netAgg 'any': chance any key
+  fired) caught ~1 more real note but added 3-8 false ones: the model is
+  under-confident on new sessions; fix with better labels (drop Kong's
+  ghost harmonics, add verified re-strikes), not decoding. Option kept, off.
