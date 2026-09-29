@@ -22,8 +22,26 @@ export function home(root) {
       h('span', {}, done(step) ? '✅' : icon))),
     h('div', { class: 'mini-band' }, (a?.band ?? ['piano']).map((id) => h('img', { class: 'mini-sprite', src: id === 'piano' ? me : bandSprite(BAND.find((m) => m.id === id)) }))));
 
+  // The microphone, listed when the menu opens (names show once the mic has
+  // been allowed). A pick is remembered by name and applies right away.
+  const micSelect = h('select', {
+    onchange: async (e) => { e.target.disabled = true; try { await engine.useMic(e.target.value || null); } catch { /* unplugged */ } await listMics(); },
+  });
+  async function listMics() {
+    const mics = await engine.micDevices().catch(() => []);
+    const inUse = engine.stream?.getAudioTracks?.()[0]?.getSettings?.().deviceId;
+    let saved = null;
+    try { saved = localStorage.getItem('pianopad.micLabel'); } catch { /* none */ }
+    const chosen = mics.find((m) => m.deviceId === inUse) ?? mics.find((m) => m.label && m.label === saved);
+    micSelect.replaceChildren(
+      h('option', { value: '', selected: !chosen || null }, 'default (the iPad’s own)'),
+      ...mics.filter((m) => m.label).map((m) => h('option', { value: m.deviceId, selected: m === chosen || null }, m.label)),
+      mics.some((m) => !m.label) ? h('option', { disabled: true }, '(start a piece once to see all mics)') : null);
+    micSelect.disabled = false;
+  }
+
   let armed = false;
-  const parent = h('details', { class: 'parent' },
+  const parent = h('details', { class: 'parent', ontoggle: (e) => { if (e.target.open) listMics(); } },
     h('summary', {}, '⚙︎'),
     h('div', { class: 'parent-menu' },
       h('label', { class: 'check' },
@@ -46,6 +64,7 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.recordAudio !== false || null, onchange: (e) => { st.recordAudio = e.target.checked; save(); } }),
         'Record audio with logs (goes only to the home server)'),
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
+      h('label', { class: 'check' }, 'Microphone: ', micSelect),
       h('label', { class: 'check' }, 'Detector: ',
         h('select', { onchange: (e) => { st.detector = e.target.value; save(); engine.configure(); } },
           [['simple', 'standard (learned from her piano)'], ['classic', 'classic (older detector)'], ['overlap', 'experimental: overlapping notes'], ['profile', 'experimental: piano profile (catches more notes, more false ones)']].map(([v, t]) =>

@@ -234,7 +234,13 @@ function piece(root, id) {
     // The G song is heard back in rhythm; then (after Stairs, right away) the
     // map asks who joins the band.
     const toMap = () => { if (screen.isConnected) location.hash = '#/adventure'; };
-    if (step === 'g') { setTimeout(() => hear(toMap), 900); return; }
+    if (step === 'g') {
+      // Skippable: it's a long listen after she's already played it.
+      const skip = h('button', { class: 'btn primary big adv-skip', onclick: () => { adv.note('skip', { step }); toMap(); } }, 'Skip ⏭️');
+      stageEl.append(skip);
+      setTimeout(() => hear(toMap), 900);
+      return;
+    }
     if (step !== 'updown') { setTimeout(toMap, 1800); return; }
     const joined = a.joined;
     a.joined = null;

@@ -83,6 +83,9 @@ export function pick(id) {
   event('pick', { member: id });
 }
 
+// Anything else worth a line in the adventure's log (e.g. a skip).
+export function note(what, data = {}) { current(); event(what, data); }
+
 // Left a step before finishing it (no-op once it's finished).
 export function quitStep(step) {
   if (!adv || adv.active !== step) return;
