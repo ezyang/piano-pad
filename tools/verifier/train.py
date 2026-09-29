@@ -2,6 +2,7 @@
 (letter) at its time? See PianoDetector._vfeat / Verifier in src/detector.js.
 
     .venv/bin/python tools/verifier/train.py <data dir> <out.json> [--hold ids.txt] [--epochs 40] [--cands dir] [--seed n]
+    .venv/bin/python tools/verifier/train.py <data dir> - --oof 5 oof.jsonl [--seeds 2] [--cands dir]
 
 <data dir> is ~/Dev/piano-audio-data: verifier/cands/ (tools/verifier/dump.mjs),
 logs/ (sessions, recordings, Kong .kong.json), labels-*/ (parent labels).
@@ -183,27 +184,55 @@ class Net(nn.Module):
         return self.fc2(torch.relu(self.fc1(self.drop(h))))
 
 dev = 'mps' if torch.backends.mps.is_available() else 'cpu'
-net = Net(CH, T, S.shape[1]).to(dev)
-opt = torch.optim.AdamW(net.parameters(), lr=2e-3, weight_decay=1e-3)
-Xt, St, Yt, Wt = (torch.tensor(a[train]) for a in (X, S, Y, W))
 bce = nn.BCEWithLogitsLoss(reduction='none')
-idx = np.arange(len(Xt))
-for ep in range(EPOCHS):
-    net.train(); np.random.shuffle(idx); tot = 0
-    for b in range(0, len(idx), 256):
-        k = idx[b:b + 256]
-        x = Xt[k].to(dev) + 0.02 * torch.randn_like(Xt[k]).to(dev)
-        o = net(x, St[k].to(dev))
-        l = (bce(o, Yt[k].to(dev)) * torch.tensor([0.5, 1.0], device=dev)).sum(1)
-        loss = (l * Wt[k].to(dev)).sum() / Wt[k].sum()
-        opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item() * len(k)
-    if ep % 10 == 9 or ep == EPOCHS - 1:
-        print(f'epoch {ep + 1}: loss {tot / len(idx):.4f}')
 
-net.eval()
-def prob(mask):
+def fit(mask, quiet=False):
+    net = Net(CH, T, S.shape[1]).to(dev)
+    opt = torch.optim.AdamW(net.parameters(), lr=2e-3, weight_decay=1e-3)
+    Xt, St, Yt, Wt = (torch.tensor(a[mask]) for a in (X, S, Y, W))
+    idx = np.arange(len(Xt))
+    for ep in range(EPOCHS):
+        net.train(); np.random.shuffle(idx); tot = 0
+        for b in range(0, len(idx), 256):
+            k = idx[b:b + 256]
+            x = Xt[k].to(dev) + 0.02 * torch.randn_like(Xt[k]).to(dev)
+            o = net(x, St[k].to(dev))
+            l = (bce(o, Yt[k].to(dev)) * torch.tensor([0.5, 1.0], device=dev)).sum(1)
+            loss = (l * Wt[k].to(dev)).sum() / Wt[k].sum()
+            opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item() * len(k)
+        if not quiet and (ep % 10 == 9 or ep == EPOCHS - 1):
+            print(f'epoch {ep + 1}: loss {tot / len(idx):.4f}')
+    return net.eval()
+
+def predict(net, mask):
     with torch.no_grad():
         return torch.sigmoid(net(torch.tensor(X[mask]).to(dev), torch.tensor(S[mask]).to(dev))[:, 1]).cpu().numpy()
+
+# --oof K out.jsonl: out-of-fold chances for every labeled candidate (K
+# folds by recording; `--seeds n` models per fold), to find labels the
+# model keeps contradicting (possible label errors).
+if '--oof' in args:
+    K, oof = int(args[args.index('--oof') + 1]), args[args.index('--oof') + 2]
+    nseeds = int(args[args.index('--seeds') + 1]) if '--seeds' in args else 2
+    ids = sorted(set(G)); random.Random(0).shuffle(ids)
+    fold = {g: i % K for i, g in enumerate(ids)}
+    F = np.array([fold[g] for g in G]); P = np.zeros((len(X), nseeds))
+    for f in range(K):
+        for sd in range(nseeds):
+            torch.manual_seed(100 * f + sd); np.random.seed(100 * f + sd)
+            net = fit((F != f) & (W > 0), quiet=True)
+            P[F == f, sd] = predict(net, F == f)
+        print(f'fold {f + 1}/{K} done')
+    with open(oof, 'w') as fh:
+        for i in np.where(W > 0)[0]:
+            c = META[i]
+            fh.write(json.dumps({'id': str(G[i]), 't': c['t'], 'midi': c['midi'], 'via': c['via'], 'reject': c['reject'], 'src': SRC[i], 'w': float(W[i]),
+                                 'y': [int(Y[i, 0]), int(Y[i, 1])], 'p': [round(float(v), 4) for v in P[i]]}) + '\n')
+    print('wrote', oof)
+    sys.exit(0)
+
+net = fit(train)
+prob = lambda mask: predict(net, mask)
 if test.any():
     p, y = prob(test), Y[test, 1]
     order = np.argsort(-p); tp = np.cumsum(y[order]); fp = np.cumsum(1 - y[order])

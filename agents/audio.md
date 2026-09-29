@@ -363,3 +363,26 @@ As of 2026-09-26:
   quantize before shipping). To deploy: profile.verifier + vPostMs 15,
   heads-up to piano-app (latency), parent OK, then check on the untouched
   acceptance session. Still open: D4/F4 misses need a retrained onset net.
+- **Verified detector deployed as opt-in (c935e74, 2026-09-29).** Grown-ups
+  menu 'verified' -> engine useVerifier; profile.verifier (int8, 98 KB);
+  older engines never turn it on. ~0.8 ms per candidate note.
+- **Label audit (verifier/oof.jsonl, train.py --oof 5).** Out-of-fold, the
+  model strongly contradicts none of the parent's labels (the 3 flags were
+  my 60 ms tolerance edges or model errors). Kong: 143 of 12.7k strongly
+  contradicted; 98.5% of model-sure strikes agree with Kong's letter; a
+  repeated pattern around A4: detector G#4 vs Kong A4 (13), detector A4 vs
+  Kong A#4 (17). tools/tuning.mjs: A4/A#4 read -42/-51 cents at the attack
+  on Sep 28-29 (iPad mic) vs -9/-18 on Sep 26-27. The parent's c024 (A#4,
+  classic read A4) supports Kong. labels-4 (port 8772): 16 which-note clips
+  to settle it before touching the tuning table.
+- **Sep 29 evening (her Homework G / Stairs / Up and Down, standard
+  detector).** G is notated G5; she tried G5 4x (Kong vel 43-68): none heard
+  as G5 (net's G5 score ~0.1); her 14 G4s all caught. Grown-ups have played
+  it as G4 (cal, Sep 29) and G5 (Sep 28). tools/repeat-report.mjs (vs Kong):
+  Stairs + Up and Down soft (vel<50) 36/86 std vs 30/86 verified, medium
+  30/34 vs 29/34, false 5.4/min vs 0.9/min; onset timing 90% within 5-11 ms,
+  IOI error 90% 4-16 ms (worst 61 std, 17 verified). Told pedagogy (asked
+  for soft recall vs false, repeated-note recall/timing) and piano-app
+  (rhythm gate on the G piece). UNTOUCHED ACCEPTANCE SETS (never train or
+  tune on them): labels-6 = her Stairs Sep 29 (port 8770), labels-5 = her G
+  Sep 29 (8771). Next: G5 (targeted takes + retrain the onset net).
