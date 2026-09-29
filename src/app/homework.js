@@ -43,19 +43,20 @@ export const PIECES = {
     ],
     setup: [{ at: 0, ...LEFT }, { at: 14, ...RIGHT }],
   },
-  // A rhythm piece on one note (ta-a, ta, ti-ti). Written high, as in the
-  // book (G5, right-hand finger 2); any octave counts in the app. `rhythm`:
-  // it goes bar by bar, on the rhythm (see scoring.js barRhythm).
+  // A rhythm piece on one note (ta-a, ta, ti-ti). The book writes it high
+  // (G5) for the teacher's duet; here it's G4, which the detector hears far
+  // better (piano-audio: G5 0/4, G4 14/14), and any G counts. `rhythm`: it
+  // goes bar by bar, on the rhythm (see scoring.js barRhythm).
   g: {
     id: 'homework-g',
     title: 'Homework: G',
     by: 'teacher', bpm: 80, clef: 'treble', rhythm: true,
     notes: [
-      ...n(2, 79, 79),
-      ...n(1, 79, 79), ...n(2, 79),
-      ...n(0.5, 79, 79), ...n(1, 79), ...n(0.5, 79, 79), ...n(1, 79),
-      ...n(1, 79, 79), ...n(2, 79),
+      ...n(2, 67, 67),
+      ...n(1, 67, 67), ...n(2, 67),
+      ...n(0.5, 67, 67), ...n(1, 67), ...n(0.5, 67, 67), ...n(1, 67),
+      ...n(1, 67, 67), ...n(2, 67),
     ].map((x, i) => (i === 0 ? { ...x, f: 2 } : x)), // the book marks only the first
-    setup: [{ at: 0, hand: 'right', finger: 2, text: 'Right hand: finger 2 on G' }],
+    setup: [{ at: 0, hand: 'right', finger: 2, text: 'Right hand: finger 2 on the G above middle C' }],
   },
 };

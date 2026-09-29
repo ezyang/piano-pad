@@ -67,8 +67,13 @@ As of 2026-09-28:
   bar by bar, gated by scoring.js `barRhythm` (her own tempo; ta-a ≥ 1.4×
   ta, ti ≤ 0.8× ta, same lengths within 2×; a bar is judged when the next
   bar's first note times its last); Piano Safari words under the notes;
-  an off bar → the band plays it with the words lit, she tries again. Logs:
-  `bar` events with `iois` (ms), `ok`, `why`, `by`; `model` events.
+  an off bar → the band plays it with the words lit, she tries again. Drawn
+  at G4 (the book's G5 is for the teacher's duet, and the detector barely
+  hears G5); any G counts. A missed onset (one interval spanning two notes,
+  scoring.js `missedNote`) is checked first and passes the bar ('unheard'),
+  keeping the next bar in step; the last bar one note short passes after 3 s
+  of quiet ('unheard-end'). Logs: `bar` events with `iois` (ms), `ok`,
+  `why`, `unheard`, `by`; `model` events.
 - Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
   the first block's letter as the one clue, no "next" column, no staff
   letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.

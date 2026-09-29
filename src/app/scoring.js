@@ -91,3 +91,27 @@ export function barRhythm(durs, iois) {
   if (by.quick.length && by.ta.length && mean(by.quick) > RHYTHM.quick * mean(by.ta)) return { ok: false, why: 'quick-too-slow' };
   return { ok: true };
 }
+
+// Was a note just not heard? A missed onset makes one interval span two
+// notes. durs: this bar's note lengths followed by the next bar's first two;
+// iois: the m intervals timed (m = this bar's notes). Tries "note j+1
+// unheard" for each j: the intervals then map to [d0..d(j-1), dj + d(j+1),
+// d(j+2)..dm]. Her implied beat (interval / length) should be steady; if it
+// is under one of those (max/min ≤ STEADY) and clearly steadier than taking
+// every note as heard, returns that j, else null. Checked before the rhythm
+// itself, so a missed note never reads as a rhythm mistake (and the next
+// bar starts in step).
+export const STEADY = 1.6;
+const spread = (xs) => Math.max(...xs) / Math.min(...xs);
+export function missedNote(durs, iois) {
+  const m = iois.length;
+  const heard = spread(iois.map((t, i) => t / durs[i]));
+  let best = null, bestSpread = STEADY;
+  for (let j = 0; j < m; j++) {
+    if (durs[j + 1] == null || durs[m] == null) break;
+    const e = [...durs.slice(0, j), durs[j] + durs[j + 1], ...durs.slice(j + 2, m + 1)];
+    const sp = spread(iois.map((t, i) => t / e[i]));
+    if (sp <= bestSpread && sp * 1.25 < heard) { best = j; bestSpread = sp; }
+  }
+  return best;
+}

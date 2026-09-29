@@ -1,7 +1,7 @@
 // Tests for practice scoring: node test/scoring.mjs
 import assert from 'node:assert/strict';
 import { layout } from '../src/app/music.js';
-import { rhythmReview, scoreGo, scoreLearn, scoreBeat, beatGrade, barRhythm } from '../src/app/scoring.js';
+import { rhythmReview, scoreGo, scoreLearn, scoreBeat, beatGrade, barRhythm, missedNote } from '../src/app/scoring.js';
 
 // Homework: ta-a ta-a ta ta ti ti ta
 const notes = [2, 2, 1, 1, 0.5, 0.5, 1].map((d) => ({ d, p: 67 }));
@@ -84,6 +84,23 @@ assert.equal(scoreBeat(4, new Map()).stars, 0);
   assert.equal(barRhythm([0.5, 0.5, 1, 0.5, 0.5, 1], [0.6, 0.6, 0.6, 0.6, 0.6, 0.6]).why, 'quick-too-slow');
   // A long hesitation inside a bar.
   assert.equal(barRhythm([2, 2], [1.0, 2.6]).why, 'uneven-long');
+}
+
+// A missed onset (she played it; the detector didn't hear it).
+{
+  const q = 0.6;
+  // Bar 2 (ta ta ta-a), then bar 3 starts ti ti: the second ta unheard, so
+  // the intervals are [ta, ta+ta-a(=3 beats), ti].
+  const durs = [1, 1, 2, 0.5, 0.5];
+  assert.equal(barRhythm([1, 1, 2], [q, 3 * q, q / 2]).ok, false);
+  assert.equal(missedNote(durs, [q, 3 * q, q / 2]), 1);
+  // Bar 3's last ta unheard: [ti ti ta ti ti, ta+ta(next bar)].
+  assert.equal(missedNote([0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1], [q / 2, q / 2, q, q / 2, q / 2, 2 * q]), 5);
+  // Genuinely even playing isn't explained by a missed note, and neither is
+  // playing it as written.
+  assert.equal(missedNote(durs, [q, q, q]), null);
+  assert.equal(missedNote(durs, [q, q, 2 * q]), null);
+  assert.equal(missedNote([0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1], [q / 2, q / 2, q, q / 2, q / 2, q]), null);
 }
 
 console.log('scoring tests passed');

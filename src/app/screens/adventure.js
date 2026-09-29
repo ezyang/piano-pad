@@ -15,7 +15,7 @@ import { getState } from '../store.js';
 import { createStaff } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
-import { barRhythm } from '../scoring.js';
+import { barRhythm, missedNote } from '../scoring.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle } from '../instruments.js';
@@ -209,28 +209,56 @@ function piece(root, id) {
     barRect = page.span(t[ks[0]], t[ks.at(-1)], 'bar-current');
     page.show(t[ks[0]]);
   }
+  const durOf = (k) => (k != null && k < t.length ? page.laid[t[k]].d : null);
+  let endTimer = 0;
   function onRhythmNote(n) {
     if (n.time < quietUntil) return; // the band's model, or just before
     if (!sameNote(n.midi, want(bars[bar][0]), false)) { log.event('judge', { got: n.midi, grade: 'other' }); return; }
     setupBox.style.display = 'none';
     times.push(n.time);
-    const ks = bars[bar], last = bar === bars.length - 1;
-    log.event('judge', { k: ks[0] + times.length - 1, want: want(ks[0]), got: n.midi, grade: 'hit', by: 'detector' });
-    if (times.length < (last ? ks.length : ks.length + 1)) return;
+    log.event('judge', { k: bars[bar][0] + times.length - 1, want: want(bars[bar][0]), got: n.midi, grade: 'hit', by: 'detector' });
+    judgeIfReady();
+  }
+  // A bar is judged once the next bar's first note times its last note (the
+  // piece's last bar: once all its notes are in, the last one untimed).
+  function judgeIfReady() {
+    const ks = bars[bar], m = ks.length, last = bar === bars.length - 1;
+    clearTimeout(endTimer);
+    if (last && times.length === m - 1) {
+      // One short at the very end: likely a note not heard; don't leave her waiting.
+      endTimer = setTimeout(() => { if (session && bar === bars.length - 1 && times.length === m - 1) { log.event('bar', { bar, ok: true, why: 'unheard-end', by: 'detector' }); passBar([]); } }, 3000);
+    }
+    if (times.length < (last ? m : m + 1)) return;
     const iois = times.slice(1).map((x, j) => x - times[j]);
-    const r = barRhythm(ks.slice(0, iois.length).map((k) => page.laid[t[k]].d), iois);
-    log.event('bar', { bar, iois: iois.map((x) => Math.round(x * 1000)), ok: r.ok, ...(r.why ? { why: r.why } : {}), by: 'detector' });
-    if (r.ok) passBar(last ? null : times.at(-1));
+    const ms = iois.map((x) => Math.round(x * 1000));
+    if (!last) {
+      // A note she played but the detector missed isn't a rhythm mistake.
+      const next = bars[bar + 1];
+      const j = missedNote([...ks.map(durOf), durOf(next[0]), durOf(next[1]) ?? durOf(bars[bar + 2]?.[0])], iois);
+      if (j != null) {
+        log.event('bar', { bar, iois: ms, ok: true, why: 'unheard', unheard: ks[0] + j + 1, by: 'detector' });
+        // Line the next bar up: the last onset was its second note.
+        const first = j < m - 1 ? times[m - 1] : times[m - 1] + iois[m - 1] * durOf(ks[m - 1]) / (durOf(ks[m - 1]) + durOf(next[0]));
+        passBar([first, times[m]]);
+        return;
+      }
+    }
+    const r = barRhythm(ks.slice(0, iois.length).map(durOf), iois);
+    log.event('bar', { bar, iois: ms, ok: r.ok, ...(r.why ? { why: r.why } : {}), by: 'detector' });
+    if (r.ok) passBar(last ? [] : [times.at(-1)]);
     else model();
   }
-  // carry: the onset that timed this bar, which is also the next bar's first note.
+  // carry: onsets already played in the next bar (the one that timed this
+  // bar's last note is also the next bar's first).
   function passBar(carry) {
+    clearTimeout(endTimer);
     barRect?.setAttribute('class', 'bar-done');
     bar++;
-    times = carry != null ? [carry] : [];
+    times = [...carry];
     if (bar >= bars.length) { session.cur = t.length; setTimeout(finish, 600); return; }
     session.cur = bars[bar][0];
     showBar();
+    if (times.length) judgeIfReady();
   }
   // The band plays the bar (at the piece's tempo), its words lit in time;
   // then she plays it again.
@@ -312,7 +340,7 @@ function piece(root, id) {
       if (modelRaf) { cancelAnimationFrame(modelRaf); modelRaf = 0; engine.stopAll(); quietUntil = 0; }
       log.event('bar', { bar, ok: true, by: 'grownup' });
       setupBox.style.display = 'none';
-      passBar(null);
+      passBar([]);
       return;
     }
     const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? barSpan(session.cur)[1] + 1 : t.length;
@@ -387,6 +415,7 @@ function piece(root, id) {
   return () => {
     gen++;
     removeEventListener('keydown', onKey);
+    clearTimeout(endTimer);
     if (hearing || modelRaf) { cancelAnimationFrame(hearing); cancelAnimationFrame(modelRaf); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
