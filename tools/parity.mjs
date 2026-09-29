@@ -9,7 +9,7 @@
 // made the capture (the session's app.version) for exact results.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { PianoDetector, decodeNet } from '../src/detector.js';
+import { PianoDetector, decodeNet, decodeVerifier } from '../src/detector.js';
 
 const args = process.argv.slice(2);
 const show = args.includes('--show');
@@ -37,7 +37,7 @@ for (const f of args.filter((a) => a.endsWith('.json'))) {
   const { sr, pcm } = readWav(wavPath);
   // The same options the live detector had: detector-node merges the profile
   // under the engine's options.
-  const opts = { octaveDown: profile.octaveDown, tuning: profile.tuning ?? {}, templates: profile.templates, net: profile.net && decodeNet(profile.net), onsets: profile.net ? 'net' : 'dsp', debug: true, ...cap.opts };
+  const opts = { octaveDown: profile.octaveDown, tuning: profile.tuning ?? {}, templates: profile.templates, net: profile.net && decodeNet(profile.net), onsets: profile.net ? 'net' : 'dsp', ...(profile.verifier ? { verifierModel: decodeVerifier(profile.verifier) } : {}), debug: true, ...cap.opts };
   const d = new PianoDetector(sr, opts);
   d.pos = cap.start;
   const got = [];

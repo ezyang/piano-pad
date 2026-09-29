@@ -134,10 +134,14 @@ export const DEFAULTS = {
   // spectrum around it (vPreMs before .. vPostMs after the onset). Needs the
   // network's spectrum (onsets 'net'). verifierRescue: rejection reasons the
   // verifier may overrule (it can always reject).
-  verifier: null,
+  verifier: null, // a Verifier, or a decoded model (see decodeVerifier)
+  // Or: the profile's model (detector-node passes it to every detector) and
+  // a switch, so only engines that ask for it turn it on.
+  verifierModel: null,
+  useVerifier: false,
   verifierThr: 0.5,
   vPreMs: 200,
-  vPostMs: 30,
+  vPostMs: 15, // the model's own vPostMs wins
   verifierRescue: [],
   jumpMs: 20, // look this long after the onset for the jump's peak
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
@@ -217,6 +221,9 @@ export class PianoDetector {
     this.specWin = new Float32Array(this.specWindow);
     for (let i = 0; i < this.specWindow; i++) this.specWin[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.specWindow);
     this.lastOnsetSample = -Infinity;
+    if (this.useVerifier && this.verifierModel && !this.verifier) this.verifier = this.verifierModel;
+    if (this.verifier && !(this.verifier instanceof Verifier)) this.verifier = new Verifier(this.verifier);
+    if (this.verifier?.m.vPostMs) this.vPostMs = this.verifier.m.vPostMs;
     if (this.onsets === 'net' && this.net) this.tpl = new NetOnsets(this.net, sampleRate, this);
     else if (this.templates && (this.onsets === 'templates' || this.onsets === 'both')) this.tpl = new TemplateOnsets(this.templates, sampleRate, this);
     if (this.tpl) this.tplEvery = Math.max(1, Math.round(this.tpl.hop / hop));
@@ -1039,10 +1046,14 @@ export class Verifier {
     let a = x, C = this.m.C, T = this.m.T;
     for (const { cin, cout, k, dil, w, b } of this.convs) {
       const To = T - dil * (k - 1), y = new Float32Array(cout * To);
-      for (let o = 0; o < cout; o++) for (let t = 0; t < To; t++) {
-        let z = b[o];
-        for (let i = 0; i < cin; i++) { const wr = (o * cin + i) * k, ar = i * T + t; for (let j = 0; j < k; j++) z += w[wr + j] * a[ar + j * dil]; }
-        y[o * To + t] = z > 0 ? z : 0;
+      for (let o = 0; o < cout; o++) {
+        const yo = o * To;
+        for (let t = 0; t < To; t++) y[yo + t] = b[o];
+        for (let i = 0; i < cin; i++) for (let j = 0; j < k; j++) {
+          const wv = w[(o * cin + i) * k + j], off = i * T + j * dil;
+          for (let t = 0; t < To; t++) y[yo + t] += wv * a[off + t];
+        }
+        for (let t = 0; t < To; t++) if (y[yo + t] < 0) y[yo + t] = 0;
       }
       a = y; C = cout; T = To;
     }
@@ -1058,6 +1069,20 @@ export class Verifier {
     for (let j = 0; j < H; j++) z += this.W2[H + j] * h[j];
     return 1 / (1 + Math.exp(-z));
   }
+}
+
+// A packed verifier (tools/verifier/pack.mjs: base64 int8 rows with scales)
+// -> float arrays. Done on the main thread, like decodeNet.
+export function decodeVerifier(m) {
+  if (!m) return m;
+  if (m.ensemble) return { ...m, ensemble: m.ensemble.map(decodeVerifier) };
+  const dq = (w) => {
+    if (!w || !w.q) return w;
+    const q = Int8Array.from(atob(w.q), (c) => (c.charCodeAt(0) << 24) >> 24), n = q.length / w.s.length, out = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i++) out[i] = q[i] * w.s[Math.floor(i / n)];
+    return out;
+  };
+  return { ...m, convs: m.convs.map((c) => ({ ...c, w: dq(c.w) })), W1: dq(m.W1), W2: dq(m.W2) };
 }
 
 // Base64 int8 weights -> Int8Arrays (already-decoded nets pass through).

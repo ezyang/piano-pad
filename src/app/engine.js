@@ -37,6 +37,9 @@ import { getState } from './store.js';
 //   'classic'           the classic detector alone (spectral flux + energy rise)
 //   'overlap'           classic, with the experimental overlapping-note pitch
 //   'profile'           experimental: onsets from per-key spectral templates
+//   'verified'          experimental: 'simple' plus the profile's verifier, a
+//                       learned last check on each note (fewer false notes
+//                       from voices and ringing notes; ~10 ms later)
 // See src/piano-profile.json; without a profile everything is classic.
 const MIC_KEY = 'pianopad.micLabel'; // the grown-up's chosen microphone, by name
 
@@ -45,7 +48,7 @@ export const detectorOptions = () => {
   // Default: the network with the loud-classic fallback (parent-labeled
   // evaluation, 2026-09-27). 'classic' keeps the older detector.
   const onsets = { classic: 'dsp', overlap: 'dsp', profile: 'templates' }[d] ?? 'net';
-  return { overlapAware: d === 'overlap', onsets };
+  return { overlapAware: d === 'overlap', onsets, useVerifier: d === 'verified' };
 };
 
 class Engine {
