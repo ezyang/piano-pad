@@ -15,6 +15,7 @@ import { getState } from '../store.js';
 import { createStaff } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
+import { barRhythm } from '../scoring.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle } from '../instruments.js';
@@ -113,10 +114,12 @@ function map(root) {
 
 // The page for a piece, like her book: pre-staff notation for the C-position
 // pieces, a treble staff for the G song; finger numbers only where printed.
-export function bookPage(song, width, height) {
+// A rhythm piece shows its rhythm words (ta-a, ta, ti) instead. labels:
+// see book.js ('book' | 'letters' | 'first').
+export function bookPage(song, width, height, labels = 'book') {
   return song.clef === 'grand'
-    ? createBook(song, { width, height })
-    : createStaff(song, { s: Math.max(14, Math.min(22, Math.round(width / 38))), letters: 'book', width, visible: 2 });
+    ? createBook(song, { width, height, labels })
+    : createStaff(song, { s: Math.max(14, Math.min(22, Math.round(width / 38))), letters: song.rhythm ? 'rhythm' : 'book', width, visible: 2 });
 }
 
 // --- a piece, played the whole way ---
@@ -128,11 +131,19 @@ export function bookPage(song, width, height) {
 // advance now that a grown-up can step it on: a TWO-FINGER TAP (or → on a
 // computer) advances one step at the current grain. The ✋ only shows how
 // each hand starts, then hides.
+// Rhythm pieces (the G song: all one note, so the rhythm is the point) go
+// bar by bar whatever the grain: a bar passes when its rhythm is roughly
+// right at her own tempo (scoring.js barRhythm). A bar's last note is timed
+// by the next bar's first, so a bar is judged as the next one starts. If
+// it's off, the band plays that bar with its rhythm words lit in time, and
+// she tries it again; no red, no counts.
 function piece(root, id) {
   const a = adv.current();
   const song = PIECES[id], step = id;
-  const grain = ['note', 'bar', 'piece'].includes(getState().feedback) ? getState().feedback : 'note';
+  const grain = song.rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(getState().feedback) ? getState().feedback : 'note';
+  const labels = song.clef === 'grand' && ['book', 'letters', 'first'].includes(getState().bookLabels) ? getState().bookLabels : 'book';
   let session = null, finished = false, gen = 0, hearing = null;
+  let bar = 0, times = [], quietUntil = 0, modelRaf = 0; // rhythm pieces
 
   const pageBox = h('div', { class: 'staff-box book-box' });
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
@@ -148,7 +159,7 @@ function piece(root, id) {
     testKeyboard());
   root.append(screen);
 
-  const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150);
+  const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150, labels);
   pageBox.replaceChildren(page.el);
   const t = page.targets;
   // Bars, as runs of target indices k.
@@ -177,8 +188,76 @@ function piece(root, id) {
     if (myGen !== gen) return;
     adv.startStep(step, { grain });
     session = { cur: 0, tStart: engine.now(), lo: Math.min(...t.map((i) => page.laid[i].p)), hi: Math.max(...t.map((i) => page.laid[i].p)), off: engine.onNote(onNote) };
-    log.startSession('homework', { adventure: a.id, step, grain, song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
-    showCurrent();
+    log.startSession('homework', { adventure: a.id, step, grain, labels, ...(song.rhythm ? { rhythm: true } : {}), song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
+    if (song.rhythm) { showSetup(0); showBar(); engine.expect?.([want(0)]); } else showCurrent();
+  }
+
+  function showSetup(k) {
+    const setup = song.setup?.find((x) => x.at === k);
+    if (!setup) return;
+    hand.show(setup.finger, setup.hand);
+    setupText.textContent = setup.text;
+    setupBox.style.display = '';
+  }
+
+  // --- rhythm pieces, bar by bar ---
+  const barKs = [];
+  t.forEach((i, k) => (barKs[barOf[k]] ??= []).push(k));
+  const bars = barKs.filter(Boolean);
+  function showBar() {
+    const ks = bars[bar];
+    barRect = page.span(t[ks[0]], t[ks.at(-1)], 'bar-current');
+    page.show(t[ks[0]]);
+  }
+  function onRhythmNote(n) {
+    if (n.time < quietUntil) return; // the band's model, or just before
+    if (!sameNote(n.midi, want(bars[bar][0]), false)) { log.event('judge', { got: n.midi, grade: 'other' }); return; }
+    setupBox.style.display = 'none';
+    times.push(n.time);
+    const ks = bars[bar], last = bar === bars.length - 1;
+    log.event('judge', { k: ks[0] + times.length - 1, want: want(ks[0]), got: n.midi, grade: 'hit', by: 'detector' });
+    if (times.length < (last ? ks.length : ks.length + 1)) return;
+    const iois = times.slice(1).map((x, j) => x - times[j]);
+    const r = barRhythm(ks.slice(0, iois.length).map((k) => page.laid[t[k]].d), iois);
+    log.event('bar', { bar, iois: iois.map((x) => Math.round(x * 1000)), ok: r.ok, ...(r.why ? { why: r.why } : {}), by: 'detector' });
+    if (r.ok) passBar(last ? null : times.at(-1));
+    else model();
+  }
+  // carry: the onset that timed this bar, which is also the next bar's first note.
+  function passBar(carry) {
+    barRect?.setAttribute('class', 'bar-done');
+    bar++;
+    times = carry != null ? [carry] : [];
+    if (bar >= bars.length) { session.cur = t.length; setTimeout(finish, 600); return; }
+    session.cur = bars[bar][0];
+    showBar();
+  }
+  // The band plays the bar (at the piece's tempo), its words lit in time;
+  // then she plays it again.
+  async function model() {
+    times = [];
+    const ks = bars[bar];
+    log.event('model', { bar });
+    const notes = ks.map((k) => ({ d: page.laid[t[k]].d, p: want(k) }));
+    const { audio, lead } = renderBand({ notes, bpm: song.bpm }, a.band.map((id) => member(id).instrument), engine.ctx.sampleRate);
+    const { startTime } = engine.play(audio);
+    const beatSec = 60 / song.bpm, laid = layout(notes);
+    const end = startTime + lead + totalBeats(notes) * beatSec;
+    quietUntil = end + 0.3;
+    let last = -1;
+    const tick = () => {
+      if (!session) return;
+      const beat = (engine.now() - startTime - lead) / beatSec;
+      const j = laid.findIndex((n) => beat >= n.start && beat < n.start + n.d);
+      if (j !== last) {
+        if (last >= 0) page.mark(t[ks[last]], '');
+        if (j >= 0) page.mark(t[ks[j]], 'current');
+        last = j;
+      }
+      if (engine.now() > end) { if (last >= 0) page.mark(t[ks[last]], ''); modelRaf = 0; return; }
+      modelRaf = requestAnimationFrame(tick);
+    };
+    tick();
   }
 
   const want = (k) => page.laid[t[k]].p;
@@ -220,6 +299,7 @@ function piece(root, id) {
   function onNote(n) {
     if (!session || n.time < session.tStart || session.cur >= t.length) return;
     if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
+    if (song.rhythm) return onRhythmNote(n);
     const k = session.cur;
     if (sameNote(n.midi, want(k), false)) advance('detector', n.midi);
     else log.event('judge', { k, want: want(k), got: n.midi, grade: 'other' });
@@ -228,6 +308,13 @@ function piece(root, id) {
   // The grown-up's step: one note, the rest of the bar, or the whole piece.
   function grownupStep() {
     if (!session || session.cur >= t.length) return;
+    if (song.rhythm) {
+      if (modelRaf) { cancelAnimationFrame(modelRaf); modelRaf = 0; engine.stopAll(); quietUntil = 0; }
+      log.event('bar', { bar, ok: true, by: 'grownup' });
+      setupBox.style.display = 'none';
+      passBar(null);
+      return;
+    }
     const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? barSpan(session.cur)[1] + 1 : t.length;
     while (session && session.cur < end) advance('grownup');
   }
@@ -300,7 +387,7 @@ function piece(root, id) {
   return () => {
     gen++;
     removeEventListener('keydown', onKey);
-    if (hearing) { cancelAnimationFrame(hearing); engine.stopAll(); }
+    if (hearing || modelRaf) { cancelAnimationFrame(hearing); cancelAnimationFrame(modelRaf); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
     engine.expect?.(null);

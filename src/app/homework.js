@@ -44,11 +44,12 @@ export const PIECES = {
     setup: [{ at: 0, ...LEFT }, { at: 14, ...RIGHT }],
   },
   // A rhythm piece on one note (ta-a, ta, ti-ti). Written high, as in the
-  // book (G5, right-hand finger 2); any octave counts in the app.
+  // book (G5, right-hand finger 2); any octave counts in the app. `rhythm`:
+  // it goes bar by bar, on the rhythm (see scoring.js barRhythm).
   g: {
     id: 'homework-g',
     title: 'Homework: G',
-    by: 'teacher', bpm: 80, clef: 'treble',
+    by: 'teacher', bpm: 80, clef: 'treble', rhythm: true,
     notes: [
       ...n(2, 79, 79),
       ...n(1, 79, 79), ...n(2, 79),

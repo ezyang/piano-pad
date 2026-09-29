@@ -70,3 +70,24 @@ export function scoreBeat(n, grades) {
 
 // Beat grade from signed timing error (seconds; negative = early).
 export const beatGrade = (err) => (Math.abs(err) < 0.08 ? 'perfect' : Math.abs(err) < 0.16 ? 'good' : err < 0 ? 'early' : 'late');
+
+// A bar's rhythm, for rhythm pieces (the G song): is it roughly right at her
+// own tempo? Only contrasts inside the bar count, generously: long notes
+// (ta-a) clearly longer than ta's, quick ones (ti) clearly shorter, and
+// notes of the same length roughly even. durs[j]: note j's length in beats;
+// iois[j]: seconds from note j to the next one she played (a bar's last
+// note is timed to the next bar's first; the piece's last note isn't
+// timed, so pass one fewer). Returns { ok, why? }.
+export const RHYTHM = { long: 1.4, quick: 0.8, even: 2 };
+export function barRhythm(durs, iois) {
+  const cls = (d) => (d >= 2 ? 'long' : d <= 0.5 ? 'quick' : 'ta');
+  const by = { long: [], ta: [], quick: [] };
+  iois.forEach((t, j) => by[cls(durs[j])].push(t));
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  for (const [name, xs] of Object.entries(by)) {
+    if (xs.length > 1 && Math.max(...xs) > RHYTHM.even * Math.min(...xs)) return { ok: false, why: `uneven-${name}` };
+  }
+  if (by.long.length && by.ta.length && mean(by.long) < RHYTHM.long * mean(by.ta)) return { ok: false, why: 'long-too-short' };
+  if (by.quick.length && by.ta.length && mean(by.quick) > RHYTHM.quick * mean(by.ta)) return { ok: false, why: 'quick-too-slow' };
+  return { ok: true };
+}

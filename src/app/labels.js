@@ -3,7 +3,7 @@
 // pinky on the C below. Notes outside the position fall back to a faint
 // letter.
 import { getState } from './store.js';
-import { letter, isSharp } from './music.js';
+import { letter, isSharp, SYLLABLE } from './music.js';
 
 export function labelMode() {
   const st = getState();
@@ -18,9 +18,11 @@ export const handFor = (m) => (m in RH ? 'right' : m in LH ? 'left' : null);
 // { text, fallback } for a note under the given mode. `finger` overrides
 // the C-position number (a note's `f`, for pieces outside the position).
 // Mode 'book': only the finger numbers the lesson book prints (`finger`).
-export function labelFor(m, mode = labelMode(), finger = null) {
+// Mode 'rhythm': the Piano Safari rhythm words (ta-a, ta, ti) for `beats`.
+export function labelFor(m, mode = labelMode(), finger = null, beats = null) {
   if (mode === 'none') return { text: '' };
   if (mode === 'book') return { text: finger != null ? String(finger) : '' };
+  if (mode === 'rhythm') return { text: SYLLABLE[beats] ?? '' };
   const name = letter(m) + (isSharp(m) ? '♯' : '');
   if (mode === 'fingers') {
     const f = finger ?? fingerFor(m);

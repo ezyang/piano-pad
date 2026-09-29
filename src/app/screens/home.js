@@ -68,6 +68,10 @@ export function home(root) {
         h('select', { onchange: (e) => { st.feedback = e.target.value; save(); } },
           [['note', 'each note'], ['bar', 'each bar'], ['piece', 'only at the end']].map(([v, t]) =>
             h('option', { value: v, selected: (st.feedback ?? 'note') === v || null }, t)))),
+      h('label', { class: 'check' }, 'Homework labels: ',
+        h('select', { onchange: (e) => { st.bookLabels = e.target.value; save(); } },
+          [['book', 'as in the book'], ['letters', 'letters, no finger numbers'], ['first', 'first note only']].map(([v, t]) =>
+            h('option', { value: v, selected: (st.bookLabels ?? 'book') === v || null }, t)))),
       h('div', { class: 'hint' }, 'Two-finger tap on a homework page: step it on (a note, a bar, or the piece).'),
       h('label', { class: 'check' }, 'Microphone: ', micSelect),
       h('label', { class: 'check' }, 'Detector: ',

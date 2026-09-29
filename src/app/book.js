@@ -2,7 +2,13 @@
 // heads with the letter inside (half notes open), higher pitch drawn higher;
 // the right hand's row (stems up) above the left hand's (stems down); bar
 // lines through both. Finger numbers only where a note has `f` (where the
-// book prints one). Same interface as staff.js where the pieces need it:
+// book prints one). `labels` takes scaffolding away (⚙︎ Homework labels):
+//   'book'    as printed
+//   'letters' letters kept; finger numbers only on each hand's first note
+//   'first'   each hand's first note keeps its letter and finger; the other
+//             heads are blank, so she reads by direction
+// (`firsts`: the indices of each hand's first note, from the piece's setup.)
+// Same interface as staff.js where the pieces need it:
 // { el, laid, targets, mark(i, state), show(i), span(i0, i1, cls) }.
 import { svg } from './dom.js';
 import { layout, letter } from './music.js';
@@ -10,7 +16,9 @@ import { layout, letter } from './music.js';
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // steps above C in its octave
 const BEATS = 4;
 
-export function createBook(song, { width = 800, height = 800 } = {}) {
+export function createBook(song, { width = 800, height = 800, labels = 'book' } = {}) {
+  const firsts = new Set((song.setup ?? []).map((x) => x.at));
+  const setupFinger = new Map((song.setup ?? []).map((x) => [x.at, x]));
   const laid = layout(song.notes);
   const nBars = Math.max(1, Math.ceil(laid.reduce((a, n) => Math.max(a, n.start + n.d), 0) / BEATS));
   const perLine = width < 520 ? 2 : 4;
@@ -60,6 +68,12 @@ export function createBook(song, { width = 800, height = 800 } = {}) {
     }
   }
 
+  // The finger that plays a hand's first note, if the book doesn't print it:
+  // from the C position (thumb or pinky on C).
+  const fingerOn = (i) => {
+    const s = setupFinger.get(i), p = laid[i].p, steps = NAT[((p % 12) + 12) % 12];
+    return s ? (s.hand === 'left' ? 5 - steps : 1 + steps) : null;
+  };
   const groups = laid.map((n, i) => {
     const g = svg('g', { class: 'n' + (n.p == null ? ' rest' : '') });
     fg.append(g);
@@ -69,9 +83,12 @@ export function createBook(song, { width = 800, height = 800 } = {}) {
     const sx = up ? x + r * 0.92 : x - r * 0.92;
     g.append(svg('line', { x1: sx, x2: sx, y1: hy, y2: up ? hy - stem : hy + stem, class: 'stem' }));
     g.append(svg('ellipse', { cx: x, cy: hy, rx: r * 1.05, ry: r * 0.9, class: 'head' + (open ? ' open' : '') }));
-    g.append(svg('text', { x, y: hy + r * 0.42, class: 'ltr' + (open ? ' open' : ''), 'font-size': r * 1.15 }, letter(n.p)));
-    // Finger numbers sit at the end of the stem, as in the book.
-    if (n.f != null) g.append(svg('text', { x: sx, y: up ? hy - stem - r * 0.35 : hy + stem + r * 1.15, class: 'fing', 'font-size': r * 1.1 }, String(n.f)));
+    const first = firsts.has(i);
+    if (labels !== 'first' || first) g.append(svg('text', { x, y: hy + r * 0.42, class: 'ltr' + (open ? ' open' : ''), 'font-size': r * 1.15 }, letter(n.p)));
+    // Finger numbers sit at the end of the stem, as in the book. Off the
+    // book's labels, only a hand's first note keeps one (it sets the hand).
+    const f = labels === 'book' ? n.f : first ? n.f ?? fingerOn(i) : null;
+    if (f != null) g.append(svg('text', { x: sx, y: up ? hy - stem - r * 0.35 : hy + stem + r * 1.15, class: 'fing', 'font-size': r * 1.1 }, String(f)));
     return g;
   });
 

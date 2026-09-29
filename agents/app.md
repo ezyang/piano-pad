@@ -61,6 +61,17 @@ As of 2026-09-28:
   readings dropped (prefer misses to false advances). Logs: session `grain`,
   judge `by: detector | grownup`, `bar` events. The G song is played back
   in rhythm after (skippable).
+  ⚙︎ "Homework labels" (st.bookLabels: book | letters | first; book.js):
+  scaffolding comes off; 'first' = only each hand's first note labelled.
+  The G song is a RHYTHM piece (2026-09-29, her rhythm was "hopeless"):
+  bar by bar, gated by scoring.js `barRhythm` (her own tempo; ta-a ≥ 1.4×
+  ta, ti ≤ 0.8× ta, same lengths within 2×; a bar is judged when the next
+  bar's first note times its last); Piano Safari words under the notes;
+  an off bar → the band plays it with the words lit, she tries again. Logs:
+  `bar` events with `iois` (ms), `ok`, `why`, `by`; `model` events.
+- Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
+  the first block's letter as the one clue, no "next" column, no staff
+  letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.
   The band lives in memory only (`src/app/adventure.js`).
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a

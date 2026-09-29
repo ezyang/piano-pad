@@ -4,21 +4,23 @@
 // a staff below.
 //
 // Free build: anything goes.
-// Blueprints: ghost outlines (stairs, a mountain, her songs, 🎲 surprises)
-// filled by playing their notes in order, like Learn mode with the melody's
-// contour drawn as a building.
+// Blueprints: ghost outlines (🎲 surprises, stairs, a mountain, her songs)
+// filled by playing their notes in order. Only the shape is given: the
+// first block is labelled with its letter, and from there she reads it
+// (one higher = a step up = the next key to the right). No "next" column,
+// no letters on the staff, no ✋ (she'd memorised the fixed six; 🎲 is new
+// every time).
 import { h, flash, sparkle } from '../dom.js';
 import { getState, save } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture, characterUrl } from '../pixels.js';
-import { pitchClass, quantize, layout, sameNote, outOfRange } from '../music.js';
+import { pitchClass, quantize, layout, sameNote, outOfRange, noteName } from '../music.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
-import { labelMode, fingerFor, handFor } from '../labels.js';
-import { createHand } from '../hand.js';
+import { labelMode } from '../labels.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 // Height in blocks: C..B = 1..7 in any octave (octave slips in detection
@@ -72,12 +74,7 @@ export function world(root) {
   const climber = h('div', { class: 'climber' }, charImg);
   const decoEl = h('div', { class: 'w-deco' });
   const groundEl = h('div', { class: 'build-ground' });
-  const hand = createHand();
-  const worldEl = h('div', { class: 'build world-scene' }, decoEl, ghostsEl, colsEl, climber, groundEl, h('div', { class: 'hand-box' }, hand.el));
-  const showHand = () => {
-    const m = mode.kind === 'blueprint' ? mode.notes[mode.cur] : null;
-    hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
-  };
+  const worldEl = h('div', { class: 'build world-scene' }, decoEl, ghostsEl, colsEl, climber, groundEl);
   const staffBox = h('div', { class: 'staff-box' });
 
   function setSky(i) {
@@ -107,10 +104,14 @@ export function world(root) {
       class: 'w-col ' + cls,
       style: `left:${x0 + i * B}px;width:${B}px;height:${heightOf(m) * B}px;background-image:url(${material(m).url});background-size:${B}px ${B}px`,
     });
-    colsEl.replaceChildren(...built().map((m, i) => column(m, i, 'solid')));
-    ghostsEl.replaceChildren(...planned().map((m, i) => (i < mode.cur ? null : column(m, i, 'ghost' + (i === mode.cur ? ' next' : '')))).filter(Boolean));
+    // A blueprint's one clue: the first block's letter, just above it.
+    const first = mode.kind === 'blueprint' ? mode.notes[0] : null;
+    const clue = first == null ? null : h('div', {
+      class: 'w-letter', style: `left:${x0}px;width:${B}px;bottom:${GROUND + heightOf(first) * B + 4}px;font-size:${Math.max(14, B * 0.5)}px`,
+    }, noteName(first));
+    colsEl.replaceChildren(...built().map((m, i) => column(m, i, 'solid')), clue);
+    ghostsEl.replaceChildren(...planned().map((m, i) => (i < mode.cur ? null : column(m, i, 'ghost'))).filter(Boolean));
     placeChar(false);
-    showHand();
   }
   function placeChar(hop = true) {
     const b = built();
@@ -130,13 +131,13 @@ export function world(root) {
     if (staffBox.clientWidth < 100) return; // not laid out yet
     const notes = mode.kind === 'free' ? cols.map((c) => ({ d: 1, p: c.midi })) : mode.notes.map((p) => ({ d: 1, p }));
     const song = { notes: notes.length ? notes : [{ d: 1, p: null }] };
-    const letters = labelMode();
+    const letters = mode.kind === 'blueprint' ? 'none' : labelMode(); // blueprints: notes only
     const s = Math.max(12, Math.min(20, Math.round(innerHeight / 46)));
     staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: 1 });
     staffBox.replaceChildren(staff.el);
     if (mode.kind === 'blueprint') {
       for (let k = 0; k < mode.cur; k++) staff.mark(k, 'hit');
-      if (mode.cur < mode.notes.length) { staff.mark(mode.cur, 'current'); staff.show(mode.cur); }
+      if (mode.cur < mode.notes.length) staff.show(mode.cur);
     } else if (cols.length) staff.show(cols.length - 1);
   }
 
@@ -167,7 +168,7 @@ export function world(root) {
     log.event('judge', { k: mode.cur, want, got: n.midi, grade: ok ? 'hit' : 'wrong' });
     if (!ok) {
       staff?.ghost(mode.cur, n.midi);
-      flash(ghostsEl.querySelector('.next') ?? ghostsEl, 'shake', 400);
+      flash(ghostsEl, 'shake', 400);
       return;
     }
     mode.cur++;
@@ -187,9 +188,18 @@ export function world(root) {
       setTimeout(() => sparkle(worldEl, r.width * (0.15 + 0.7 * Math.random()), r.height * (0.1 + 0.4 * Math.random()),
         ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff', '#5fc24a'], 16), i * 160);
     }
-    // Play back what she built (mic ignored meanwhile), then offer more.
+    // Play back what she built (mic ignored meanwhile), then offer a new
+    // surprise shape.
     setTimeout(() => hear(), 700);
+    const finished = mode;
+    setTimeout(() => {
+      if (!overlay.isConnected || mode !== finished) return; // she's already moved on
+      overlay.dataset.kind = 'next';
+      overlay.replaceChildren(h('button', { class: 'btn primary huge', onclick: newSurprise }, '🎲 New shape'));
+      overlay.style.display = '';
+    }, 2500);
   }
+  const newSurprise = () => startMode({ kind: 'blueprint', id: 'surprise', notes: surprise(), cur: 0 });
 
   // Hear what's built: her timing for free builds, even beats for blueprints.
   async function hear() {
@@ -235,6 +245,7 @@ export function world(root) {
   function startMode(next) {
     log.endSession({ aborted: true });
     stopHearing();
+    if (overlay.dataset.kind === 'next') { overlay.style.display = 'none'; delete overlay.dataset.kind; }
     mode = next;
     if (next.kind === 'free') cols = [];
     log.startSession('build', { mode: next.kind, blueprint: next.id, song: next.notes ? { notes: next.notes.map((p) => ({ d: 1, p })) } : undefined });
@@ -263,11 +274,10 @@ export function world(root) {
     .map((s) => ({ id: 'song:' + s.id, notes: s.notes.filter((n) => n.p != null).map((n) => n.p).slice(0, 24) }));
   const bpBtns = [
     h('button', { class: 'bp on', 'data-id': 'free', title: 'Free build', onclick: () => startMode({ kind: 'free' }) }, h('span', { class: 'bp-icon' }, '⛏️')),
+    h('button', { class: 'bp surprise', 'data-id': 'surprise', title: 'Surprise!', onclick: newSurprise }, h('span', { class: 'bp-icon' }, '🎲')),
     ...[...BLUEPRINTS, ...songBps].map((bp) => h('button', {
       class: 'bp', 'data-id': bp.id, onclick: () => startMode({ kind: 'blueprint', id: bp.id, notes: bp.notes, cur: 0 }),
     }, mini(bp.notes))),
-    h('button', { class: 'bp', 'data-id': 'surprise', title: 'Surprise!', onclick: () => startMode({ kind: 'blueprint', id: 'surprise', notes: surprise(), cur: 0 }) },
-      h('span', { class: 'bp-icon' }, '🎲')),
   ];
 
   const overlay = h('div', { class: 'overlay', style: 'display:none' });

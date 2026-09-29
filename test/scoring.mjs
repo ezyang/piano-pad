@@ -1,7 +1,7 @@
 // Tests for practice scoring: node test/scoring.mjs
 import assert from 'node:assert/strict';
 import { layout } from '../src/app/music.js';
-import { rhythmReview, scoreGo, scoreLearn, scoreBeat, beatGrade } from '../src/app/scoring.js';
+import { rhythmReview, scoreGo, scoreLearn, scoreBeat, beatGrade, barRhythm } from '../src/app/scoring.js';
 
 // Homework: ta-a ta-a ta ta ti ti ta
 const notes = [2, 2, 1, 1, 0.5, 0.5, 1].map((d) => ({ d, p: 67 }));
@@ -64,5 +64,26 @@ assert.equal(beatGrade(-0.3), 'early');
 assert.equal(beatGrade(0.3), 'late');
 assert.equal(scoreBeat(4, new Map([[0, 'perfect'], [1, 'perfect'], [2, 'perfect'], [3, 'perfect']])).stars, 3);
 assert.equal(scoreBeat(4, new Map()).stars, 0);
+
+// Bar rhythm (the G song): contrasts at her own tempo, generously.
+{
+  const ok = (durs, iois) => barRhythm(durs, iois).ok;
+  const at = (beat, durs) => durs.map((d) => d * beat);
+  // Played as written, at any tempo.
+  for (const beat of [0.4, 0.7, 1.1]) {
+    assert.ok(ok([2, 2], at(beat, [2, 2])));
+    assert.ok(ok([1, 1, 2], at(beat, [1, 1, 2])));
+    assert.ok(ok([0.5, 0.5, 1, 0.5, 0.5, 1], at(beat, [0.5, 0.5, 1, 0.5, 0.5, 1])));
+    assert.ok(ok([1, 1], at(beat, [1, 1])), 'the last bar: its half note is untimed');
+  }
+  // Roughly right is right.
+  assert.ok(ok([1, 1, 2], [0.6, 0.7, 1.0]));
+  assert.ok(ok([0.5, 0.5, 1, 0.5, 0.5, 1], [0.4, 0.45, 0.65, 0.4, 0.4, 0.7]));
+  // Everything the same length: the long and quick notes don't show.
+  assert.equal(barRhythm([1, 1, 2], [0.6, 0.6, 0.6]).why, 'long-too-short');
+  assert.equal(barRhythm([0.5, 0.5, 1, 0.5, 0.5, 1], [0.6, 0.6, 0.6, 0.6, 0.6, 0.6]).why, 'quick-too-slow');
+  // A long hesitation inside a bar.
+  assert.equal(barRhythm([2, 2], [1.0, 2.6]).why, 'uneven-long');
+}
 
 console.log('scoring tests passed');
