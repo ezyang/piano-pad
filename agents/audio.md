@@ -291,3 +291,21 @@ As of 2026-09-26:
   when done. Judge events carry `by: 'detector' | 'grownup'`: grown-up steps
   are candidate missed notes (she may also not have played it), good places
   to point labeling at.
+- **Whole-session labels, first result (labels-3, 2026-09-29).** 25 real
+  presses, 49 no-key moments, no unlit presses. Before: default 23/25 caught
+  with 24 false notes (classic 35). 16 of the 24 were classic onsets firing
+  on noise while a note rang, NSDF re-reading that note (C3 read 3 more
+  times after one strike). The old toneRise (f0 energy, 21 ms window) can't
+  tell D4 from a ringing E4 and misses attacks the onset time precedes.
+  Shipped add3403: minJump 10 = harmonics 2-8 trough-to-peak jump (peak
+  30 ms before .. jumpMs 20 after the onset) for classic-path notes only
+  (below A3, fallback, classic mode). Re-reads jump <= 8, real low notes
+  >= 16. Session false 24 -> 9, cal extras 11 -> 5, grown-up 6 -> 3, no
+  labeled real note lost; classic mode extras 25 -> 11 (+19 ms latency in
+  classic mode only). Not on net notes: her real re-strikes jump 2-9 there.
+  Left on the session: 2 misses (net splits D4 across D5/A4, F4), ~8 new
+  non-piano tonal sounds at C4-C5 accepted (probably her voice; the drift
+  voice filter only runs below C4), 1 duplicate. netAgg 'both' (weak
+  any-key onsets, jump-gated) is an option, off: +1 catch, +4 false.
+  labels-3 is now a DEV set (tuned on it). Astra round 4 asked
+  (scratchpad astra/round4.md).
