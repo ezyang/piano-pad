@@ -43,7 +43,9 @@ export const DEFAULTS = {
   // doubleMs is dropped (nobody restrikes a key that fast). 0 disables.
   confirmRiseDb: 0,
   confirmMs: 25,
-  doubleMs: 0,
+  // 100 (2026-09-29): drops a classic trigger 60 ms after a real C3 in the
+  // labeled Stairs session; nothing real lost anywhere (150 lost one).
+  doubleMs: 100,
   refractoryMs: 60,
   gateDb: 10, // frame must be this far above the tracked noise floor
   lowCutHz: 150, // ignore rumble/hum below this for onset purposes

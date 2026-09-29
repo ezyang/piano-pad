@@ -394,3 +394,160 @@ My prioritized top seven for the next two weeks:
 5. **Improve attack confirmation while retaining NSDF:** separate precursors from acoustic onsets and compare pitch estimators at identical onset times.
 6. **Retrain the tiny baseline, then one compact temporal challenger:** use verified supervision and a small sample-rendering ablation; put larger inference in a worker with WASM.
 7. **Validate product policies live:** octave-permissive guided acceptance, conservative free-play commitment, and separate recall, phantom-event, and latency measurements.
+
+## Round 4 (2026-09-29): a fully labeled session
+
+### Question
+
+New data, and I'd like you to rethink the approach from scratch if the evidence warrants it. Don't anchor on what we built.
+
+## A fully labeled real session
+
+The parent labeled one of her real homework sessions end to end (51 s, iPad mic on the piano, "Stairs": C3 D3 E3 F3 G3 G3 G3 G3 F3 E3 D3 C3 C3 C3, then the same an octave up in C4-G4). Every moment any source (classic DSP, the tiny net, or Kong offline) heard something became a step in time order, plus checks for unlit key presses and quiet stretches. Result: 25 real key presses, 49 moments with no new key, nothing that every source missed. It's clean, slow, single-note playing. The parent believes 100% is achievable on a clip like this, and I agree.
+
+Also important: when the detector falsely advances homework she skips ahead to play what the app now shows, so her exercise logs are not ground truth. Homework policy is now "prefer misses to false advances" (a grown-up tap covers misses).
+
+## Results on it (before today's change)
+
+Default detector (net above A3, classic below, loud classic fallback above A3): 23/25 caught, 24 false notes.
+Classic only: 23/25 caught, 35 false notes.
+
+False-note classes:
+1. Re-reads of a note still ringing (16/24): after a real C3, classic onsets fire 0.3-0.7 s later on noise and NSDF re-reads C3 (up to three times); also G4 read over a ringing G3.
+2. New non-piano tonal sounds the parent labeled "no piano key" (~8/24): F#5, C5, F#4, G#4, E4, E3 at -47..-60 dBFS (real notes here are -34..-45). Kong also fired on some of them. Most likely the child talking or singing (voice filter only runs below C4), but not confirmed yet.
+
+Misses (2): D4 and F4 that only Kong heard. Net scores at the D4 strike: D5 0.77, A4 0.69, C5 0.42, D4 0.29 (bar 0.8). The strike is split across harmonic keys (Kong's training labels often put D5 with D4).
+
+## What I shipped today
+
+The old tone-rise test (energy at f0 in a 21 ms window after vs before the onset) failed in two ways: a 21 ms Hann window can't separate D4 from a ringing E4 (a real D4 after E4 read -4 dB), and the detector's onset time can precede the real attack. New test: the trough-to-peak jump of harmonics 2-8 of the detected pitch, peak searched from 30 ms before to 20 ms after the onset, trough in the 120 ms before. On all labeled data (this session, 61 earlier disputed moments, calibration takes, grown-up runs), re-reads jump <= 8 dB and real low notes >= 16. Gate at 10 dB for classic-path notes only: session false notes 24 -> 9, calibration extras 11 -> 5, grown-up extras 6 -> 3, no labeled real note lost, no latency change in default mode. (Applied to the net's notes it would lose 3 of her real re-strikes that jump 2-9 dB, so it's not applied there.)
+
+Tried and not shipped: letting the net's "any key was struck" score (1 - prod(1 - p_k)) create extra onsets when no single key passes, gated by the jump: catches one miss (wrong letter), adds 4 false notes.
+
+## Remaining on this session: 23/25 caught, 9 false (about 8 non-piano sounds and one duplicate)
+
+## Questions
+
+1. What would you build to get clips like this to 100% (and hold precision on her messier sessions), given: browser/iPad, worklet (or worker+WASM), a TITAN Xp for training, about 25 min of her real audio with Kong pseudo-labels, and now a small set of verified labels? Is the "strike detector + pitch reader" factorization right, or should a single learned model own both?
+2. Non-piano tonal sounds (probably voice) at C4-C5 accepted by the net path: what features or model changes separate a child's voice from a piano strike robustly? The existing drift test (pitch drift over 45 ms > 40 cents) hurt real piano notes above C4 when extended (recall dropped ~7 notes of 84).
+3. The harmonic split: retrain with Kong labels cleaned of ghost harmonics (drop an octave-above note that co-occurs with a stronger lower one)? Or a different target, e.g. a pitch-class or "fundamental of the strike" head? Or read the key with NSDF whenever the net says "a strike happened"?
+4. Evaluation hygiene: this session is now a dev set (I tuned on it). How should the next parent labeling time be spent: another full session (which kind?), or something else?
+
+Keep it concrete and prioritized. Push back where I'm wrong.
+
+
+### Astra
+
+The new session changes the priority: **false piano attacks are now the dominant problem, and the lesson’s feedback loop makes them especially costly.** With repeated letters in the exercise, a false re-read is exactly the event most likely to advance homework incorrectly. Expected-note matching cannot protect you from it.
+
+Your harmonic-jump gate is a useful empirical improvement. Keep it provisionally. But its success does not establish a universal distinction between strikes and ringing notes: your network-path re-strikes already demonstrate that real attacks can have small jumps. The distinction is conditional on which events the classic path proposes.
+
+I would target zero errors on this development clip, but reject “100% should be achievable” as an architectural premise. A clean-looking performance can contain acoustically ambiguous events. Zero errors here is a debugging milestone; reliable performance on new sessions is the product criterion.
+
+### 1. Build a piano-attack verifier first, not a full transcription replacement
+
+Keep the current pitch reader and candidate generators while adding **one shared learned verifier before either path can emit a note**. Its question should be:
+
+> Does this interval contain a new piano strike, and is the proposed pitch supported by that strike?
+
+That directly attacks the nine remaining false events, including those admitted by the network. A generic onset detector answers a different question: speech and mechanical noise have real acoustic onsets too.
+
+Concretely, I would build a small causal temporal CNN with:
+
+- A full-spectrum log-magnitude input covering roughly 250–400 ms of history.
+- Spectral-change features alongside magnitude, so sustained harmonic energy does not dominate.
+- Candidate-pitch-relative features around several harmonics, including their recent trajectories.
+- A binary **new piano strike** output, plus an auxiliary **candidate pitch supported** output.
+
+Start small—hundreds of thousands of parameters are sufficient to test this hypothesis. Parameter count is not the present bottleneck. Use bounded post-attack evidence, initially around 50–80 ms, and measure total notification latency rather than assuming the model’s lookahead equals end-to-end delay.
+
+Propose candidates more permissively than you accept them. Retain current proposals, and add low-threshold peaks from network outputs to recover cases such as D4. Merge nearby proposals into one candidate interval; run NSDF at a few plausible acoustic-attack alignments inside it. Let the verifier reject the resulting hypothesis if it is merely reading the previous note.
+
+This preserves a useful factorization:
+
+**candidate interval → pitch hypotheses → joint attack/pitch verification → committed event**
+
+It is not an irreversible commitment to separate models. A shared learned backbone can eventually own all those outputs. But you currently have evidence that NSDF works reasonably well when positioned correctly, and insufficient evidence that replacing it would help.
+
+For training, the verified false events are valuable hard negatives. They are also few and highly correlated within one session. Sample them heavily, but do not mistake repeated windows around nine events for hundreds of independent examples. Treat unverified Kong labels as weak supervision; verified labels should override them, and teacher absence should not automatically become a trustworthy negative.
+
+### 2. Voice rejection needs temporal timbre, not another pitch rule
+
+First, confirm what those eight sounds actually are. Listen to isolated excerpts with context. If some are piano resonance, TV audio, or handling artifacts, training a narrowly named “voice filter” will solve the wrong problem. Their confirmed label is **no new piano key**, which is already sufficient for the verifier.
+
+Useful evidence includes:
+
+- How quickly harmonic energy appears and how it evolves afterward.
+- Whether several partials undergo a coordinated new excitation.
+- Changes in spectral envelope, including voice-like moving formants.
+- Attack-to-decay behavior and high-frequency transient energy.
+- Whether the proposed note explains the *new* spectral energy rather than the existing sound.
+
+None is a reliable standalone veto. A sung vowel can have stable pitch; a piano attack can show apparent pitch drift. Breathiness, vibrato, and decay shape are cues, not definitions. Your failed drift extension is a good reason to stop hand-tuning a global voice boundary.
+
+Multiresolution features matter here. Short windows help localize attacks; longer windows provide better harmonic separation. For close pitches, a short-window harmonic-energy measurement can still borrow energy from the neighboring ringing note.
+
+I would also use the level difference as a feature, not ignore it: these false events were quieter than real notes in this session. But a hard threshold between −47 and −45 dBFS would simply overfit this performance and reject future soft playing. Include level relative to recent background and recent verified piano strikes, with spectral evidence carrying the decision.
+
+Train on speech over ringing piano as well as speech alone. The former is the dangerous case: the voice provides the onset while the piano provides a convincing pitch.
+
+### 3. Do not globally delete octave labels
+
+The D4 score pattern suggests harmonic confusion, but it does not by itself prove the proposed label-cleaning rule is correct.
+
+**Do not drop every upper-octave note that co-occurs with a stronger lower note.** Real octave dyads exist, model confidence is not physical loudness, and this rule would teach the future polyphonic detector to erase legitimate notes.
+
+Instead:
+
+1. Inspect the teacher labels and student targets around the verified D4 and F4 misses.
+2. Find a small batch of similar octave-coincident teacher events in the training recordings.
+3. Verify enough examples to establish whether this is systematic label contamination.
+4. Correct verified cases; mark unresolved upper notes as uncertain or exclude their loss rather than confidently labeling them absent.
+
+For deliberately recorded monophonic examples, the known struck key provides much stronger supervision, provided the recording is checked for mistakes.
+
+A **separate piano-strike head** is worthwhile. Train it directly from strike labels. Your `1 - prod(1 - p_k)` construction is not a trustworthy “any strike” probability: the key scores are correlated, generally uncalibrated, and a collection of modest scores can produce a large result. The failed experiment is evidence against that aggregation and gating combination, not against learning a strike head.
+
+An auxiliary pitch-class head could help octave-permissive homework. It will not reject voice, and it will not identify an attack by itself. Nor does octave collapse resolve the entire D4 example: A4 and C5 are different pitch classes.
+
+“Run NSDF whenever a strike head fires” is therefore a reasonable candidate-generation strategy, **provided the strike head recognizes piano strikes and the final verifier checks the pitch against new excitation**. Otherwise you recreate the classic failure with a learned onset trigger.
+
+### 4. Tighten two claims about the new gate
+
+The measured improvement is strong enough to retain the gate while gathering independent evidence. Two details need scrutiny:
+
+- Searching a trough across 120 ms and a peak near the event can associate a noise trigger with an earlier real attack. Test closely spaced notes and repeat intervals around that search-window length.
+- Searching through 20 ms after the onset uses future evidence. “No additional latency” is valid if the existing decision already waits long enough; verify that explicitly in the live implementation.
+
+Also, selecting the lowest trough and highest peak tends to inflate a jump statistic. Its threshold may change with window length, noise, and gain processing. Preserve the exact feature definition in evaluation; do not treat 10 dB as a physically meaningful boundary.
+
+Keep duplicate suppression separate from strike verification. Multiple candidates referring to one acoustic attack should share one committed event, but a genuinely new weak re-strike must remain eligible.
+
+### 5. Spend the next labeling time on one untouched matched session
+
+I would choose **another naturally occurring, slow homework session with both low and high notes and consecutive repeated letters**, recorded on a different day in the normal setup. Choose it before inspecting detector outputs. It is the most direct test of whether the improvement generalizes to the claimed easy operating condition.
+
+Label the full timeline, with an initial listening pass independent of model proposals, then use the proposals to check omissions. Your current process is much better than labeling disagreements alone, but “nothing every source missed” remains a finding of that review, not something the detector union can establish by itself.
+
+If possible, record a synchronized keyboard view for this short evaluation session. It helps distinguish a physical press from a new audible attack and avoids asking the parent to infer every event from sound. Decide explicitly how inaudible presses are scored: no audio detector can reliably recover a press that produces no observable sound.
+
+Keep that session untouched until thresholds and training choices are frozen. Spend remaining time verifying short **speech/singing-over-decay and weak-repeat excerpts** from other sessions for training. Do not select a supposedly representative test session because it contains the errors you want to fix.
+
+Evaluate two layers separately:
+
+- Acoustic events: caught strikes, false events per minute, pitch errors, duplicates, and delay.
+- Homework behavior: false advances and missed valid advances under the octave-permissive policy.
+
+Replay policy against annotated events, but do not claim to reconstruct the child’s counterfactual performance: different advancements would have changed what she played next.
+
+### Priority order
+
+1. **Verify PCM/live replay parity** before trusting small improvements measured through AAC replay.
+2. **Keep the classic harmonic-jump gate provisionally**, with explicit close-repeat and timing checks.
+3. **Confirm the remaining false-event sources and audit D4/F4 targets**, rather than assuming voice and ghost labels.
+4. **Freeze a new matched natural session** as an untouched acceptance test.
+5. **Train a compact shared piano-attack/pitch verifier**, using verified negatives and bounded temporal context.
+6. **Add permissive proposals and a directly supervised strike head** to recover misses; retain NSDF initially.
+7. **Deploy only if false advances fall on independent audio without unacceptable misses**, then test messier sessions.
+
+The main course change is to stop treating every onset source as independently authorized to emit notes. Both paths should supply hypotheses to one acceptance decision trained specifically on **new piano strikes versus everything else**.

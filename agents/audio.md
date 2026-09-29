@@ -309,3 +309,19 @@ As of 2026-09-26:
   any-key onsets, jump-gated) is an option, off: +1 catch, +4 false.
   labels-3 is now a DEV set (tuned on it). Astra round 4 asked
   (scratchpad astra/round4.md).
+- **Astra round 4 (2026-09-29, design-review-2026-09-28.md).** Main course
+  change: stop letting each onset source emit notes on its own. All sources
+  propose candidates (permissively, incl. low net peaks); one learned
+  verifier decides "new piano strike, and is the proposed pitch supported by
+  it" (small causal temporal CNN, ~250-400 ms history, spectral change +
+  pitch-relative harmonic trajectories, 50-80 ms post-attack; verified false
+  events as hard negatives, Kong as weak labels). Keep NSDF for pitch. Train
+  a real strike head (not 1-prod(1-p)). Don't blanket-drop Kong's octave
+  labels: audit D4/F4 and similar cases first. Voice: confirm what the
+  sounds are; timbre/temporal features, not another pitch rule; train speech
+  over ringing piano. Next labeling: one UNTOUCHED slow homework session
+  (low+high, repeated letters, different day, picked before looking at
+  outputs), labeled by listening first; freeze it as acceptance. Score
+  acoustic events and homework false advances separately. The jump gate is
+  provisional (10 dB is not physical); doubleMs 100 shipped for the
+  near-duplicate it let through. PCM parity (Astra's #1) is already done.
