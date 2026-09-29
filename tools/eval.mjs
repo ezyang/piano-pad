@@ -4,6 +4,7 @@
 // eval.json (kept with the data, not in git) lists
 //   { "takes": [calibration session .json paths...],
 //     "labels": [label batch dirs (manifest.json + labels.jsonl)...],
+//     "sessions": [whole-session label dirs (label/make-session.mjs)...],
 //     "logs": "logs" (where the labeled sessions' recordings are) }
 // Paths are relative to eval.json.
 // Takes (the parent played exactly what the prompt said): notes matched in
@@ -14,6 +15,12 @@
 // real key presses caught with the right letter, caught with a wrong letter,
 // missed; and non-notes wrongly accepted. Splat / hard / can't-tell answers
 // don't count.
+// Labeled sessions ("sessions": dirs from label/make-session.mjs, where every
+// moment of one session was labeled in order): every key press in the session
+// is known, so every accepted note counts: right, wrong letter, false (no key
+// there), duplicate (second note on one key press), or unreviewed (no labeled
+// moment near it: label it before trusting the numbers). Key presses nothing
+// detected (the "+" answers and the quiet-stretch checks) count as missed.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { PianoDetector } from '../src/detector.js';
@@ -104,8 +111,56 @@ for (const dir of spec.labels ?? []) {
   }
 }
 
+// Labeled sessions: the key presses (one per "yes" moment; same-letter yeses
+// within 0.2 s are one press heard at two lights) and the no-key moments.
+const S = { presses: 0, caught: 0, wrongLetter: 0, missed: 0, unlit: 0, notes: 0, false: 0, dup: 0, unreviewed: 0, neutral: 0 };
+const srows = [];
+for (const dir of spec.sessions ?? []) {
+  const man = JSON.parse(readFileSync(join(at(dir), 'manifest.json'), 'utf8'));
+  const lab = {};
+  for (const line of readFileSync(join(at(dir), 'labels.jsonl'), 'utf8').trim().split('\n').filter(Boolean)) { const r = JSON.parse(line); lab[r.id] = r; }
+  const open = man.filter((c) => !lab[c.id]).length;
+  if (open) srows.push(`  ${dir}: ${open} of ${man.length} steps not labeled yet`);
+  const audio = recordings[man[0].session];
+  if (!audio) { srows.push(`  ${dir}: no recording for ${man[0].session}`); continue; }
+  const moments = man.filter((c) => c.kind === 'cand' && lab[c.id]).map((c) => ({ c, l: lab[c.id] }));
+  const presses = [];
+  for (const m of moments) {
+    if (m.l.strike !== 'yes') continue;
+    const truth = /^\d+$/.test(m.l.note ?? '') ? +m.l.note : null, p = presses.at(-1);
+    if (p && truth != null && p.truth != null && pc(p.truth) === pc(truth) && m.c.t - p.last < 0.2) { p.last = m.c.t; m.press = p; continue; }
+    m.press = { t: m.c.t, last: m.c.t, truth, id: m.c.id, hits: [] }; presses.push(m.press);
+  }
+  for (const m of man) {
+    const l = lab[m.id]; if (!l) continue;
+    if (l.missedBefore) S.unlit++;
+    if (l.strike === 'gap') S.unlit += { one: 1, several: 2 }[l.keys] ?? 0;
+  }
+  for (const n of run(decode(audio, SR))) {
+    S.notes++;
+    let best = null;
+    for (const m of moments) if (Math.abs(n.t - m.c.t) < 0.08 && (!best || Math.abs(n.t - m.c.t) < Math.abs(n.t - best.c.t))) best = m;
+    if (!best) { S.unreviewed++; srows.push(`  ${nm(n.midi)} @${n.t.toFixed(2)}: no labeled moment near it`); continue; }
+    if (best.l.strike === 'no') { S.false++; srows.push(`  ${best.c.id} not a key: heard ${nm(n.midi)}`); continue; }
+    if (!best.press) { S.neutral++; continue; } // splat / hard / can't tell
+    const p = best.press;
+    if (p.hits.length) { S.dup++; srows.push(`  ${p.id} second note on one key press: ${nm(n.midi)}`); } else if (p.truth != null && pc(p.truth) !== pc(n.midi)) srows.push(`  ${p.id} real ${nm(p.truth)}: heard ${nm(n.midi)}`);
+    p.hits.push(n);
+  }
+  for (const p of presses) {
+    S.presses++;
+    if (!p.hits.length) { S.missed++; srows.push(`  ${p.id} real ${p.truth != null ? nm(p.truth) : '?'} @${p.t.toFixed(2)}: missed`); }
+    else if (p.truth == null || pc(p.hits[0].midi) === pc(p.truth)) S.caught++;
+    else S.wrongLetter++;
+  }
+}
+
 const pct = (a, b) => (b ? `${((100 * a) / b).toFixed(0)}%` : '-');
 console.log(`config: ${JSON.stringify({ onsets: opts.onsets, expect: useExpect, ...Object.fromEntries(Object.entries(opts).filter(([k]) => !['templates', 'net', 'onsets', 'octaveDown', 'tuning'].includes(k))) })}`);
 console.log(`takes (${T.takes}): ${T.asked} asked notes, right ${T.right} (${pct(T.right, T.asked)}), missed ${T.missed}, extra ${T.extra}`);
 console.log(`labeled moments: real key presses ${L.real}: caught ${L.caught}, wrong letter ${L.wrongLetter}, missed ${L.missed} · non-notes ${L.non}: wrongly accepted ${L.falseAccept}` + (L.skipped ? ` · not scored ${L.skipped}` : ''));
-if (detail) { console.log(rows.join('\n')); if (lrows.length) console.log(lrows.join('\n')); }
+if (spec.sessions?.length) {
+  const all = S.presses + S.unlit;
+  console.log(`labeled sessions: key presses ${all}: caught ${S.caught} (${pct(S.caught, all)}), wrong letter ${S.wrongLetter}, missed ${S.missed + S.unlit} (${S.unlit} that nothing detected) · notes ${S.notes}: false ${S.false}, duplicate ${S.dup}` + (S.unreviewed ? `, UNREVIEWED ${S.unreviewed}` : '') + (S.neutral ? ` · not scored ${S.neutral}` : ''));
+}
+if (detail) { console.log(rows.join('\n')); if (lrows.length) console.log(lrows.join('\n')); if (srows.length) console.log(srows.join('\n')); }
