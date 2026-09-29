@@ -33,7 +33,7 @@ const SR = 48000;
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const nm = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 const pc = (m) => ((m % 12) + 12) % 12;
-const accepted = (e) => e.type === 'pitch' && e.midi != null && e.clarity > (e.expected ? 0.4 : 0.6) && !e.reject && !e.voice;
+const accepted = (e) => e.type === 'pitch' && e.midi != null && e.clarity > 0.6 && !e.reject && !e.voice; // as the engine
 
 // Run the detector over a recording; `onNote` sees accepted notes as they come.
 function run(x, onNote, setup) {

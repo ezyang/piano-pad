@@ -399,7 +399,9 @@ export class PianoDetector {
       if (this.confirmRiseDb > 0 && this.pos < job.onset + (this.confirmMs / 1000) * this.sr) continue; // not yet
       const expected = !!(this.expect && out.midi != null && this.expect.pcs.has(((out.midi % 12) + 12) % 12));
       let voice;
-      if (!expected && out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
+      // (Expected notes used to skip this check: talking then advanced
+      // homework whenever a vowel read as the expected note. 2026-09-28.)
+      if (out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
         if (this.pos < from + this.voiceSpan) continue; // need the longer look
         voice = this._drift(from, out.f0) > this.voiceCents;
       }
@@ -424,18 +426,18 @@ export class PianoDetector {
       if (!reject && out.midi != null && toneRise < (lowDsp || this.dspRole === 'all' ? this.minToneRise : this.minToneRiseNet)) reject = 'no-rise';
       const win = (this.tplRefractoryMs / 1000) * this.sr, pcOut = out.midi != null ? ((out.midi % 12) + 12) % 12 : -1;
       if (!reject && job.via === 'expect' && !expected) reject = 'unexpected'; // the helper only adds expected notes
-      if (!reject && out.midi != null && (job.via === 'expect' || expected) && pcOut === this.lastAcc.pc && Math.abs(job.onset - this.lastAcc.sample) < win) reject = 'dup';
+      if (!reject && out.midi != null && job.via === 'expect' && pcOut === this.lastAcc.pc && Math.abs(job.onset - this.lastAcc.sample) < win) reject = 'dup';
       if (!reject && out.midi != null && this.dspRole === 'low') {
         const win = (this.tplRefractoryMs / 1000) * this.sr;
         if (fallback) { if (Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; }
-        else if (job.via === 'dsp' && out.midi >= this.lowDspBelow && !expected) reject = 'high'; // the profile's range
+        else if (job.via === 'dsp' && out.midi >= this.lowDspBelow) reject = 'high'; // the profile's range
         else if (job.via !== 'dsp' && out.midi < this.lowDspBelow) reject = 'low'; // dsp's range
         else if (lowDsp && Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; // the network already has it
         else if (lowDsp && this.tpl.lowActivity && this.tpl.lowActivity(job.onset, span) < this.lowNetMin) reject = 'no-net';
       }
       if (!reject && out.midi != null) {
         this.lastNote = { sample: job.onset, midi: out.midi };
-        if (out.clarity > (expected ? 0.4 : 0.6)) this.lastAcc = { sample: job.onset, pc: pcOut };
+        if (out.clarity > 0.6) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
       this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });

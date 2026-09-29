@@ -22,8 +22,8 @@
 //                       detector isn't involved)
 //   configure()         re-apply detectorOptions() after settings change
 //   expect(midis|null)  the note(s) the app is waiting for next (homework
-//                       targets); the detector listens harder for them and
-//                       accepts them more readily. null: nothing in particular
+//                       targets); pitch events are marked `expected` (no
+//                       leniency for now). null: nothing in particular
 //   level, takeLevelStats()   input level (dB)
 // Changes to these need a heads-up to piano-app before they ship.
 import { createDetectorNode } from '../detector-node.js';
@@ -113,8 +113,9 @@ class Engine {
         onsets.set(e.sample, e);
         if (onsets.size > 50) onsets.delete(onsets.keys().next().value);
       }
-      // Readings of an expected note (see expect()) count at lower clarity.
-      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > (e.expected ? 0.4 : 0.6) && !e.reject;
+      // Expected notes get no leniency here (a lower bar let speech advance
+      // homework, 2026-09-28).
+      const accepted = e.type === 'pitch' && e.midi != null && e.clarity > 0.6 && !e.reject;
       // Everything the detector says, for the practice log.
       for (const fn of this.rawListeners) fn({ ...e, time: e.sample / ctx.sampleRate, detectedTime: e.detectedAt / ctx.sampleRate, accepted });
       if (accepted) {
