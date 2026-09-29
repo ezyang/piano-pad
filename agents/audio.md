@@ -283,3 +283,11 @@ As of 2026-09-26:
   are labeled by ear only (labels-1/2/3). replay.mjs's "want" line is a hint,
   not truth. In guided mode a false advance costs more than a miss: it
   changes how she plays. Told pedagogy.
+- **Homework policy from piano-app (39662fd, pedagogy request, parent OK).**
+  No look-ahead, no ghosts, voice-flagged readings dropped; a grown-up
+  two-finger tap covers misses, so the rule is prefer misses to false
+  advances: when tuning anything for expected notes, lean conservative.
+  Pieces still call engine.expect([target]) per target and expect(null)
+  when done. Judge events carry `by: 'detector' | 'grownup'`: grown-up steps
+  are candidate missed notes (she may also not have played it), good places
+  to point labeling at.
