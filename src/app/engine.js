@@ -16,6 +16,7 @@
 //   start(), listen(on) open the audio context / mic (start() only from a tap)
 //   now()               current audio clock (s)
 //   micDevices(), useMic(deviceId|null)   list / pick the microphone (grown-up tools)
+//   startCapture(), stopCapture()         exact detector input + live events (diagnostics)
 //   play(audio, opts), stopAll()
 //   simulate(midi)      a pretend key press: onNote fires right away (the
 //                       detector isn't involved)
@@ -37,6 +38,8 @@ import { getState } from './store.js';
 //   'overlap'           classic, with the experimental overlapping-note pitch
 //   'profile'           experimental: onsets from per-key spectral templates
 // See src/piano-profile.json; without a profile everything is classic.
+const MIC_KEY = 'pianopad.micLabel'; // the grown-up's chosen microphone, by name
+
 export const detectorOptions = () => {
   const d = getState().detector;
   // Default: the network with the loud-classic fallback (parent-labeled
@@ -96,6 +99,9 @@ class Engine {
     const node = await createDetectorNode(ctx, { debug: true, ...detectorOptions() });
     const onsets = new Map();
     node.port.onmessage = ({ data: e }) => {
+      if (e.type === 'pcm') { this.capture?.pcm.push(e.data); return; }
+      if (e.type === 'pcm-end') { this.capture?.done({ start: e.start, expects: e.expects }); return; }
+      if (this.capture && (e.type === 'onset' || e.type === 'pitch')) this.capture.events.push(e);
       if (e.type === 'frames') {
         this.level = e.frames[e.frames.length - 1].db;
         for (const L of [this.levelStats, this.wdStats]) {
@@ -168,6 +174,32 @@ class Engine {
     try { await this._openMic(); this._attachMic(); } catch { /* permission lost; the next listen() asks again */ }
   }
 
+  // Diagnostic capture (grown-up tools): a fresh detector starts and the
+  // exact audio it processes is kept, with its live events (sample indices)
+  // and when expect() took effect, so tools/parity.mjs can replay it and
+  // check the live events are reproduced. stopCapture() resolves to
+  // {sampleRate, start, pcm: Float32Array, events, expects, opts}.
+  startCapture() {
+    if (!this.node) return false;
+    this.capture = { pcm: [], events: [], opts: detectorOptions() };
+    this.node.port.postMessage({ type: 'capture', on: true });
+    return true;
+  }
+
+  stopCapture() {
+    const cap = this.capture;
+    if (!cap || !this.node) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      cap.done = ({ start, expects }) => {
+        this.capture = null;
+        const n = cap.pcm.reduce((a, c) => a + c.length, 0), pcm = new Float32Array(n);
+        let o = 0; for (const c of cap.pcm) { pcm.set(c, o); o += c.length; }
+        resolve({ sampleRate: this.ctx.sampleRate, start, pcm, events: cap.events, expects, opts: cap.opts });
+      };
+      this.node.port.postMessage({ type: 'capture', on: false });
+    });
+  }
+
   // Microphones the browser can see ({deviceId, label}; labels need mic
   // permission first), and switching to one (null: the default). Grown-up
   // tools only; the choice lasts until the page reloads.
@@ -178,7 +210,22 @@ class Engine {
 
   async useMic(deviceId) {
     this.micDeviceId = deviceId || null;
+    // Remember the choice by name (device ids can change between visits).
+    const label = deviceId ? (await this.micDevices()).find((d) => d.deviceId === deviceId)?.label : null;
+    try { if (label) localStorage.setItem(MIC_KEY, label); else localStorage.removeItem(MIC_KEY); } catch {}
     await this.restartMic();
+  }
+
+  // After the mic opens: if a grown-up picked a mic before and it's plugged
+  // in, switch to it (names are only visible once the mic is allowed).
+  async _preferSavedMic() {
+    let want = null;
+    try { want = localStorage.getItem(MIC_KEY); } catch {}
+    if (!want || this.micDeviceId) return;
+    const track = this.stream?.getAudioTracks?.()[0];
+    if (track?.label === want) return;
+    const dev = (await this.micDevices()).find((d) => d.label === want);
+    if (dev) { this.micDeviceId = dev.deviceId; await this.restartMic(); }
   }
 
   now() { return this.ctx ? this.ctx.currentTime : 0; }
@@ -218,7 +265,7 @@ class Engine {
 
   async listen(on) {
     await this.start();
-    if (on && !this.stream) await this._openMic();
+    if (on && !this.stream) { await this._openMic(); await this._preferSavedMic().catch(() => {}); }
     this.listening = on;
     this._attachMic();
     // iOS can interrupt the context when the mic starts.

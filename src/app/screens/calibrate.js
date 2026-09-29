@@ -6,6 +6,7 @@ import { h } from '../dom.js';
 import { engine } from '../engine.js';
 import { noteName } from '../music.js';
 import * as log from '../telemetry.js';
+import { UPLOAD_URL } from '../telemetry.js';
 
 // Each step: what to play (`notes`, in order). Optional `alt`: other notes
 // that also count for each position (e.g. the neighbour key caught by
@@ -82,9 +83,37 @@ export function calibrate(root, set = 'basic') {
   const setBtns = [['basic', 'Basic'], ['messy', 'Messy'], ['placement', 'iPad placement'], ['mic', 'USB mic']].map(([k, label]) =>
     h('button', { class: `btn${k === set ? ' primary' : ''}`, 'data-set': k, onclick: () => switchSet(k) }, label));
   const setsRow = h('div', { class: 'row cal-sets', style: 'flex-wrap:wrap;gap:6px;margin:6px 0' }, ...setBtns);
-  function switchSet(k) {
+  // Diagnostic capture: keep the exact audio the detector processed for each
+  // step, uploaded as <session id>.wav, with the live events in the session
+  // (tools/parity.mjs replays it and checks the live events are reproduced).
+  let capturing = false, captureStatus = '';
+  const capBtn = h('button', { class: 'btn', onclick: () => { capturing = !capturing; capBtn.classList.toggle('primary', capturing); capBtn.textContent = capturing ? '🔬 Saving exact audio (on)' : '🔬 Save exact audio'; go(i); } }, '🔬 Save exact audio');
+  const capEl = h('span', { style: 'font-size:13px;opacity:.75;margin-left:6px' });
+  let sessionId = null;
+  const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // End the current step's session; with a capture, attach its live events
+  // and upload the audio.
+  async function finishStep(extra) {
+    const cap = capturing || engine.capture ? await engine.stopCapture() : null;
+    log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, ...extra, ...(cap ? { capture: captureMeta(cap) } : {}) });
+    if (cap) uploadWav(sessionId, cap);
+  }
+  function captureMeta(cap) {
+    const ev = cap.events.map((e) => [e.type === 'onset' ? 'o' : 'p', e.sample, e.detectedAt, e.midi ?? null, e.clarity != null ? +e.clarity.toFixed(3) : null, e.reject ?? null, e.via ?? null, e.voice ? 1 : 0, e.expected ? 1 : 0]);
+    return { file: `${sessionId}.wav`, sampleRate: cap.sampleRate, start: cap.start, samples: cap.pcm.length, expects: cap.expects, opts: cap.opts, events: ev };
+  }
+  async function uploadWav(id, cap) {
+    const body = wav(cap.pcm, cap.sampleRate);
+    capEl.textContent = 'uploading…';
+    try {
+      const res = await fetch(`${UPLOAD_URL}/audio/${id}.wav`, { method: 'PUT', headers: { 'content-type': 'audio/wav' }, body });
+      capEl.textContent = res.ok ? `saved (${(body.byteLength / 1e6).toFixed(1)} MB)` : `upload failed (${res.status})`;
+    } catch { capEl.textContent = 'upload failed (offline?)'; }
+  }
+
+  async function switchSet(k) {
     if (k === set) return;
-    log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, switched: true });
+    await finishStep({ switched: true });
     set = k; STEPS = SETS[k]; titleEl.textContent = titles[k];
     for (const b of setBtns) b.classList.toggle('primary', b.dataset.set === k);
     history.replaceState(null, '', k === 'basic' ? '#/calibrate' : `#/calibrate/${k}`);
@@ -120,8 +149,8 @@ export function calibrate(root, set = 'basic') {
   const redoBtn = h('button', { class: 'btn big', onclick: () => go(i) }, '↺ Redo');
   const skipBtn = h('button', { class: 'btn big', onclick: () => go(i + 1, true) }, 'Skip');
 
-  function go(k, skipped = false) {
-    if (i >= 0) log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, ...(skipped ? { skipped: true } : {}) });
+  async function go(k, skipped = false) {
+    if (i >= 0) await finishStep(skipped ? { skipped: true } : {});
     if (k >= STEPS.length) {
       say.textContent = 'All done — thank you! The recordings upload automatically when you are on home Wi-Fi.';
       title.textContent = '';
@@ -137,10 +166,12 @@ export function calibrate(root, set = 'basic') {
     say.textContent = s.say;
     expect.textContent = s.notes.length ? `Expecting ${s.notes.length} notes: ${s.notes.map(noteName).join(' ')}` : 'Expecting no notes.';
     heardEl.replaceChildren();
+    sessionId = newId();
     log.startSession('calibration', {
-      calibration: s.id, calSet: set, prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) },
+      id: sessionId, calibration: s.id, calSet: set, prompt: s.say, song: { notes: s.notes.map((p) => ({ d: 1, p })) },
       ...(s.alt ? { alt: s.alt } : {}), ...(s.extrasOk ? { extrasOk: true } : {}),
     });
+    if (capturing) { engine.startCapture(); capEl.textContent = 'recording exact audio'; }
   }
 
   root.append(h('div', { class: 'screen calibrate' },
@@ -149,7 +180,7 @@ export function calibrate(root, set = 'basic') {
     // place: leaving and re-entering the screen would restart the mic, and a
     // newly plugged-in mic can make that restart need a fresh tap.
     setsRow,
-    h('div', { class: 'panel cal-panel' }, micEl, micList, meter, title, say, expect,
+    h('div', { class: 'panel cal-panel' }, micEl, micList, meter, h('div', {}, capBtn, capEl), title, say, expect,
       h('div', { class: 'cal-label' }, 'Heard:'), heardEl,
       h('div', { class: 'row' }, redoBtn, skipBtn, nextBtn))));
 
@@ -167,7 +198,18 @@ export function calibrate(root, set = 'basic') {
   return () => {
     cancelAnimationFrame(meterRaf);
     off?.();
-    log.endSession({ calibration: STEPS[i]?.id, heard: heard.length, aborted: true });
-    engine.listen(false);
+    finishStep({ aborted: true }).then(() => engine.listen(false));
   };
+}
+
+// Mono 32-bit float WAV (exactly the samples the detector saw).
+function wav(pcm, sr) {
+  const buf = new ArrayBuffer(44 + pcm.length * 4), v = new DataView(buf);
+  const str = (o, t) => { for (let k = 0; k < t.length; k++) v.setUint8(o + k, t.charCodeAt(k)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + pcm.length * 4, true); str(8, 'WAVE');
+  str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 3, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 32, true);
+  str(36, 'data'); v.setUint32(40, pcm.length * 4, true);
+  new Float32Array(buf, 44).set(pcm);
+  return buf;
 }

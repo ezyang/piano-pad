@@ -246,3 +246,12 @@ As of 2026-09-26:
   fired) caught ~1 more real note but added 3-8 false ones: the model is
   under-confident on new sessions; fix with better labels (drop Kong's
   ghost harmonics, add verified re-strikes), not decoding. Option kept, off.
+- **Exact replay (2026-09-28).** Calibration screen "🔬 Save exact audio":
+  each step starts a fresh detector, keeps the exact float32 input
+  (<session id>.wav, uploaded; server accepts .wav since piano-app's
+  8456933) and puts the live events (sample indices), options, start frame
+  and expect() timing in result.capture. `node tools/parity.mjs
+  <session.json>` replays it: headless-Chrome test capture reproduced 18/18
+  events exactly. Use it to separate "detector" from "replay" differences.
+  expect() now takes effect at the start of the next block (recorded).
+  The chosen mic is remembered by name (localStorage pianopad.micLabel).
