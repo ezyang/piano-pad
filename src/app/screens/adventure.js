@@ -12,15 +12,14 @@
 // going forward instead of re-striking one key.
 import { h, flash, sparkle } from '../dom.js';
 import { getState } from '../store.js';
-import { createStaff, systemHeight } from '../staff.js';
-import { createBuild } from '../build.js';
+import { createStaff } from '../staff.js';
+import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
-import { fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
 import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
@@ -112,18 +111,35 @@ function map(root) {
   else greet();
 }
 
+// The page for a piece, like her book: pre-staff notation for the C-position
+// pieces, a treble staff for the G song; finger numbers only where printed.
+export function bookPage(song, width, height) {
+  return song.clef === 'grand'
+    ? createBook(song, { width, height })
+    : createStaff(song, { s: Math.max(14, Math.min(22, Math.round(width / 38))), letters: 'book', width, visible: 2 });
+}
+
 // --- a piece, played the whole way ---
+// Feedback grain (⚙︎, st.feedback): 'note' (the next note glows, played ones
+// turn green), 'bar' (the current bar is highlighted and turns done when
+// she's played through it), 'piece' (nothing until the end). Notes still
+// advance one at a time underneath, on the right letter in any octave; no
+// look-ahead and no ghosts, since a missed note is better than a false
+// advance now that a grown-up can step it on: a TWO-FINGER TAP (or → on a
+// computer) advances one step at the current grain. The ✋ only shows how
+// each hand starts, then hides.
 function piece(root, id) {
   const a = adv.current();
   const song = PIECES[id], step = id;
+  const grain = ['note', 'bar', 'piece'].includes(getState().feedback) ? getState().feedback : 'note';
   let session = null, finished = false, gen = 0, hearing = null;
 
-  const sceneBox = h('div', { class: 'scene-box' });
-  const staffBox = h('div', { class: 'staff-box' });
+  const pageBox = h('div', { class: 'staff-box book-box' });
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
   const hand = createHand();
-  hand.show(null);
-  const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, overlay, h('div', { class: 'hand-box' }, hand.el));
+  const setupText = h('div', { class: 'adv-setup-text' });
+  const setupBox = h('div', { class: 'adv-setup', style: 'display:none' }, hand.el, setupText);
+  const stageEl = h('div', { class: 'stage adv-page' }, setupBox, pageBox, overlay);
   const screen = h('div', { class: 'screen play adv-homework' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/adventure', title: 'Map' }, '🗺️'),
@@ -132,17 +148,13 @@ function piece(root, id) {
     testKeyboard());
   root.append(screen);
 
-  let staff, build;
-  function rebuild() {
-    const s = Math.max(12, Math.min(22, Math.round(innerHeight / 52)));
-    const H = systemHeight(s, song.clef, 'fingers');
-    const avail = stageEl.clientHeight - 150 - 10;
-    staff = createStaff(song, { s, letters: 'fingers', width: staffBox.clientWidth - 6, visible: avail >= 2 * H ? 2 : 1 });
-    staffBox.replaceChildren(staff.el);
-    build = createBuild(staff.targets.length, characterUrl(getState().character), 2);
-    sceneBox.replaceChildren(build.el);
-  }
-  rebuild();
+  const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150);
+  pageBox.replaceChildren(page.el);
+  const t = page.targets;
+  // Bars, as runs of target indices k.
+  const barOf = t.map((i) => Math.floor(page.laid[i].start / 4 + 1e-9));
+  const barSpan = (k) => { let k0 = k, k1 = k; while (k0 > 0 && barOf[k0 - 1] === barOf[k]) k0--; while (k1 + 1 < t.length && barOf[k1 + 1] === barOf[k]) k1++; return [k0, k1]; };
+  let barRect = null;
 
   function showStart() {
     overlay.replaceChildren(h('button', { class: 'btn primary huge', onclick: begin }, '▶ Start'));
@@ -163,74 +175,81 @@ function piece(root, id) {
       return;
     }
     if (myGen !== gen) return;
-    adv.startStep(step);
-    const t = staff.targets;
-    session = {
-      cur: 0, tStart: engine.now(),
-      lo: Math.min(...t.map((i) => staff.laid[i].p)), hi: Math.max(...t.map((i) => staff.laid[i].p)),
-      off: engine.onNote(onNote),
-    };
-    log.startSession('homework', { adventure: a.id, step, song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
-    markCurrent();
+    adv.startStep(step, { grain });
+    session = { cur: 0, tStart: engine.now(), lo: Math.min(...t.map((i) => page.laid[i].p)), hi: Math.max(...t.map((i) => page.laid[i].p)), off: engine.onNote(onNote) };
+    log.startSession('homework', { adventure: a.id, step, grain, song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
+    showCurrent();
   }
 
-  const want = (k) => staff.laid[staff.targets[k]].p;
-  function markCurrent() {
-    const i = staff.targets[session.cur];
-    if (i == null) { hand.show(null); engine.expect?.(null); return; }
-    const { p: m, f } = staff.laid[i];
-    engine.expect?.([m]); // lets the detector favour the note she's about to play (piano-audio)
-    hand.show(f ?? fingerFor(m), handFor(m) ?? 'right');
-    staff.mark(i, 'current');
-    staff.show(i);
+  const want = (k) => page.laid[t[k]].p;
+  // Where she is: the set-up hand at the start of each hand, and the note or
+  // bar highlight for the grain.
+  function showCurrent() {
+    const k = session.cur;
+    if (k >= t.length) { engine.expect?.(null); setupBox.style.display = 'none'; return; }
+    engine.expect?.([want(k)]); // lets the detector favour the note she's about to play (piano-audio)
+    const setup = song.setup?.find((x) => x.at === k);
+    if (setup) {
+      hand.show(setup.finger, setup.hand);
+      setupText.textContent = setup.text;
+      setupBox.style.display = '';
+    }
+    if (grain === 'note') { page.mark(t[k], 'current'); page.show(t[k]); }
+    if (grain === 'bar' && (k === 0 || barOf[k] !== barOf[k - 1])) {
+      const [k0, k1] = barSpan(k);
+      barRect = page.span(t[k0], t[k1], 'bar-current');
+      page.show(t[k0]);
+    }
   }
 
-  // The right letter (any octave, forgiving detector octave slips) moves on,
-  // like Learn mode: finishing takes playing it, not mashing. Anything else
-  // is a faint grey ghost, except low notes, where adult speech lands
-  // (~B2-F#3, see piano-audio): those are silently skipped. A speech-like
-  // reading of the expected letter still counts (as the detector does for
-  // expect()ed notes): a miss costs her far more than a rare false accept.
-  function onNote(n) {
-    if (!session || n.time < session.tStart) return;
-    const t = staff.targets;
-    let k = session.cur;
-    if (k >= t.length) return;
-    const ok = sameNote(n.midi, want(k), false);
-    // She's on the next note: the expected one was almost surely played and
-    // missed by the detector.
-    const ahead = !ok && k + 1 < t.length && sameNote(n.midi, want(k + 1), false);
-    if ((n.voice && !ok && !ahead) || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
-    if (ahead) {
-      log.event('judge', { k, want: want(k), got: n.midi, grade: 'assumed' });
-      staff.mark(t[k], 'hit');
-      build.place(k, want(k));
-      session.cur = ++k;
-    }
-    log.event('judge', { k, want: want(k), got: n.midi, grade: ok || ahead ? 'hit' : 'other' });
-    if (!ok && !ahead) {
-      if (n.midi >= 57) staff.ghost(t[k], n.midi);
-      return;
-    }
-    staff.mark(t[k], 'hit');
-    staff.burst(t[k]);
-    build.place(k, want(k));
+  // One note done; by: 'detector' | 'grownup'.
+  function advance(by, got) {
+    const k = session.cur;
+    log.event('judge', { k, want: want(k), ...(got != null ? { got } : {}), grade: 'hit', by });
+    setupBox.style.display = 'none';
+    if (grain === 'note') { page.mark(t[k], 'hit'); page.burst?.(t[k]); }
     session.cur++;
+    if (grain === 'bar' && (session.cur >= t.length || barOf[session.cur] !== barOf[k])) {
+      barRect?.setAttribute('class', 'bar-done');
+      log.event('bar', { bar: barOf[k], by });
+    }
     if (session.cur >= t.length) setTimeout(finish, 600);
-    else markCurrent();
+    else showCurrent();
   }
+
+  function onNote(n) {
+    if (!session || n.time < session.tStart || session.cur >= t.length) return;
+    if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
+    const k = session.cur;
+    if (sameNote(n.midi, want(k), false)) advance('detector', n.midi);
+    else log.event('judge', { k, want: want(k), got: n.midi, grade: 'other' });
+  }
+
+  // The grown-up's step: one note, the rest of the bar, or the whole piece.
+  function grownupStep() {
+    if (!session || session.cur >= t.length) return;
+    const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? barSpan(session.cur)[1] + 1 : t.length;
+    while (session && session.cur < end) advance('grownup');
+  }
+  const onTouch = (e) => { if (e.touches.length === 2) { e.preventDefault(); grownupStep(); } };
+  const onKey = (e) => { if (e.key === 'ArrowRight') grownupStep(); };
+  stageEl.addEventListener('touchstart', onTouch, { passive: false });
+  addEventListener('keydown', onKey);
 
   function finish() {
     if (!session) return;
     session.off();
     session = null;
     finished = true;
-    hand.show(null);
+    setupBox.style.display = 'none';
     engine.expect?.(null);
     engine.listen(false);
     log.endSession({ completed: true });
-    adv.finishStep(step);
-    build.celebrate();
+    adv.finishStep(step, { grain });
+    for (const i of t) page.mark(i, 'hit');
+    engine.play(renderJingle(engine.ctx.sampleRate));
+    const r = pageBox.getBoundingClientRect();
+    for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
     // The G song is heard back in rhythm; then (after Stairs, right away) the
     // map asks who joins the band.
     const toMap = () => { if (screen.isConnected) location.hash = '#/adventure'; };
@@ -258,7 +277,7 @@ function piece(root, id) {
     await engine.start();
     const { audio, lead } = renderBand(song, ['piano'], engine.ctx.sampleRate);
     const { startTime } = engine.play(audio);
-    const beatSec = 60 / song.bpm, laid = layout(song.notes);
+    const beatSec = 60 / song.bpm, laid = page.laid;
     const end = startTime + lead + totalBeats(song.notes) * beatSec + 0.5;
     let last = -1;
     const tick = () => {
@@ -266,12 +285,12 @@ function piece(root, id) {
       const beat = (engine.now() - startTime - lead) / beatSec;
       const idx = laid.findIndex((n) => beat >= n.start && beat < n.start + n.d);
       if (idx >= 0 && idx !== last) {
-        if (last >= 0) staff.mark(last, 'hit');
+        if (last >= 0) page.mark(last, 'hit');
         last = idx;
-        staff.mark(idx, 'current');
-        staff.show(idx);
+        page.mark(idx, 'current');
+        page.show(idx);
       }
-      if (engine.now() > end) { if (last >= 0) staff.mark(last, 'hit'); hearing = null; then(); return; }
+      if (engine.now() > end) { if (last >= 0) page.mark(last, 'hit'); hearing = null; then(); return; }
       hearing = requestAnimationFrame(tick);
     };
     tick();
@@ -280,6 +299,7 @@ function piece(root, id) {
   begin();
   return () => {
     gen++;
+    removeEventListener('keydown', onKey);
     if (hearing) { cancelAnimationFrame(hearing); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
@@ -297,7 +317,7 @@ function party(root) {
   let playing = null, raf = 0, played = false;
 
   const imgs = ids.map((id) => h('img', { class: 'member-sprite', src: spriteOf(id) }));
-  const staffBox = h('div', { class: 'staff-box' });
+  const staffBox = h('div', { class: 'staff-box book-box' });
   const playBtn = h('button', { class: 'btn primary huge', onclick: () => (playing ? stop() : start()) }, '▶');
   const pieceBtns = ['g', 'stairs', 'updown'].map((pid) => h('button', {
     class: 'btn big' + (PIECES[pid] === song ? ' on' : ''), 'data-piece': pid, title: STOPS[pid][1],
@@ -317,9 +337,7 @@ function party(root) {
   let staff;
   function drawStaff() {
     for (const b of pieceBtns) b.classList.toggle('on', PIECES[b.dataset.piece] === song);
-    const s = Math.max(12, Math.min(18, Math.round(innerHeight / 48)));
-    const H = systemHeight(s, song.clef, 'fingers');
-    staff = createStaff(song, { s, letters: 'fingers', width: staffBox.clientWidth - 6, visible: innerHeight > 900 && 2 * H < innerHeight * 0.45 ? 2 : 1 });
+    staff = bookPage(song, staffBox.clientWidth - 12, innerHeight * 0.42);
     staffBox.replaceChildren(staff.el);
   }
   drawStaff();

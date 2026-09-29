@@ -17,8 +17,10 @@ export const handFor = (m) => (m in RH ? 'right' : m in LH ? 'left' : null);
 
 // { text, fallback } for a note under the given mode. `finger` overrides
 // the C-position number (a note's `f`, for pieces outside the position).
+// Mode 'book': only the finger numbers the lesson book prints (`finger`).
 export function labelFor(m, mode = labelMode(), finger = null) {
   if (mode === 'none') return { text: '' };
+  if (mode === 'book') return { text: finger != null ? String(finger) : '' };
   const name = letter(m) + (isSharp(m) ? '♯' : '');
   if (mode === 'fingers') {
     const f = finger ?? fingerFor(m);

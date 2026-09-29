@@ -64,6 +64,11 @@ export function home(root) {
         h('input', { type: 'checkbox', checked: st.recordAudio !== false || null, onchange: (e) => { st.recordAudio = e.target.checked; save(); } }),
         'Record audio with logs (goes only to the home server)'),
       h('button', { class: 'menu-btn', onclick: () => shareLogs() }, `📤 Share practice logs (${sessionCount()})`),
+      h('label', { class: 'check' }, 'Homework feedback: ',
+        h('select', { onchange: (e) => { st.feedback = e.target.value; save(); } },
+          [['note', 'each note'], ['bar', 'each bar'], ['piece', 'only at the end']].map(([v, t]) =>
+            h('option', { value: v, selected: (st.feedback ?? 'note') === v || null }, t)))),
+      h('div', { class: 'hint' }, 'Two-finger tap on a homework page: step it on (a note, a bar, or the piece).'),
       h('label', { class: 'check' }, 'Microphone: ', micSelect),
       h('label', { class: 'check' }, 'Detector: ',
         h('select', { onchange: (e) => { st.detector = e.target.value; save(); engine.configure(); } },

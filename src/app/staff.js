@@ -163,6 +163,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   }
   groups.forEach((g, i) => svgs[systemOf[i]].append(g));
   svgs.forEach((r, k) => r.append(fxs[k]));
+  const bgs = svgs.map((r) => { const g = svg('g', { class: 'bg' }); r.prepend(g); return g; });
 
   const V = Math.max(1, Math.min(visible, systems.length));
   const strip = h('div', { class: 'staff-systems' }, svgs);
@@ -212,6 +213,12 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
         g.append(svg('text', { x, y: y + s * 0.4, 'font-size': s * 1.3 }, { rushed: '»', dragged: '«', early: '‹', late: '›' }[kind]));
       }
       fxs[systemOf[i]].append(g);
+    },
+    // A band behind notes i0..i1 on one line (a bar): cls 'bar-current' | 'bar-done'.
+    span(i0, i1, cls) {
+      const rect = svg('rect', { x: headXs[i0] - s * 1.5, y: s * 0.4, width: headXs[i1] - headXs[i0] + s * 3, height: H - s * 0.8, rx: s * 0.5, class: cls });
+      bgs[systemOf[i0]].append(rect);
+      return rect;
     },
     // Page so note i's line shows, with the next line below when there's room.
     show(i) {
