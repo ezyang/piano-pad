@@ -51,7 +51,9 @@ for (const f of args.filter((a) => a.endsWith('.json'))) {
     while (expects.length && expects[0].frame <= frame) d.setExpect(expects.shift().midis);
     d.process(pcm.subarray(i, i + 128));
   }
-  const live = cap.events;
+  // Events the previous detector emitted before the capture's fresh one
+  // took over aren't part of the capture.
+  const live = cap.events.filter((e) => e[2] >= cap.start);
   const same = (a, b) => a.length === b.length && a.every((v, k) => v === b[k] || (typeof v === 'number' && typeof b[k] === 'number' && Math.abs(v - b[k]) <= 1e-3));
   let match = 0; const diffs = [];
   const n = Math.max(live.length, got.length);

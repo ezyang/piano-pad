@@ -195,7 +195,9 @@ class Engine {
         this.capture = null;
         const n = cap.pcm.reduce((a, c) => a + c.length, 0), pcm = new Float32Array(n);
         let o = 0; for (const c of cap.pcm) { pcm.set(c, o); o += c.length; }
-        resolve({ sampleRate: this.ctx.sampleRate, start, pcm, events: cap.events, expects, opts: cap.opts });
+        // Drop events the previous detector emitted before the fresh one took over.
+        const events = cap.events.filter((e) => e.detectedAt >= start);
+        resolve({ sampleRate: this.ctx.sampleRate, start, pcm, events, expects, opts: cap.opts });
       };
       this.node.port.postMessage({ type: 'capture', on: false });
     });
