@@ -1,7 +1,7 @@
 // Onset recall by loudness and onset timing, against Kong's onsets (the
 // reference transcription), for takes of repeated notes (e.g. the G piece).
 // Kong's velocity stands in for how hard a key was struck.
-//   node tools/repeat-report.mjs <rec.mp4 ...> [--letter G] [--from s] [--to s] [--verified] [--classic]
+//   node tools/repeat-report.mjs <rec.mp4 ...> [--letter G] [--from s] [--to s] [--verified] [--classic] [--opt k=v]
 // Per recording: Kong strikes of the letter, how many the detector caught
 // (same letter within 60 ms), by velocity (soft < 50 <= medium < 70 <= loud),
 // the detector's onset minus Kong's (median, 90th percentile of |error|),
@@ -18,6 +18,8 @@ const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const letter = opt('--letter'), pcWant = letter ? NAMES.indexOf(letter) : null;
 const from = +(opt('--from') ?? 0), to = +(opt('--to') ?? 1e9);
 const files = args.filter((a) => a.endsWith('.mp4'));
+const opts = profileOptions(args);
+args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? (v.startsWith('[') ? JSON.parse(v) : v) : +v; } });
 const SR = 48000, TOL = 0.06;
 const bins = (v) => (v < 50 ? 'soft' : v < 70 ? 'medium' : 'loud');
 const q = (a, p) => (a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(p * a.length))] : NaN);
@@ -30,7 +32,7 @@ for (const f of files) {
   const allKong = JSON.parse(readFileSync(kf, 'utf8')).filter((r) => r.vel >= 20);
   // Kong sometimes lists a strike twice (a key and its octave): one strike per 60 ms.
   const strikes = kong.filter((r, i) => !kong.slice(0, i).some((p) => r.t - p.t < TOL));
-  const x = decode(f, SR), d = new PianoDetector(SR, profileOptions(args)), notes = [];
+  const x = decode(f, SR), d = new PianoDetector(SR, opts), notes = [];
   d.onEvent = (e) => { if (e.type === 'pitch' && e.midi != null && e.clarity > 0.6 && !e.reject && !e.voice && inWin(e.sample / SR)) notes.push({ t: e.sample / SR, midi: e.midi }); };
   for (let i = 0; i < x.length; i += 128) d.process(x.subarray(i, i + 128));
   const used = new Set(), hits = [];

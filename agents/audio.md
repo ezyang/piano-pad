@@ -386,3 +386,19 @@ As of 2026-09-26:
   (rhythm gate on the G piece). UNTOUCHED ACCEPTANCE SETS (never train or
   tune on them): labels-6 = her Stairs Sep 29 (port 8770), labels-5 = her G
   Sep 29 (8771). Next: G5 (targeted takes + retrain the onset net).
+- **Soft notes = the main detection goal (pedagogy, 2026-09-29): 86 of her
+  120 strikes today were soft (Kong vel < 50). G5 is behind it (the G
+  piece moves to G4).** Where lone soft strikes (Kong 35-54, her earlier
+  sessions) go: 52% caught, 14% 'double' (an earlier same-pitch trigger
+  within 100 ms, likely early timing), 18% no candidate, 10% misread, 4%
+  voice flag. "New energy" harmonic-sum pitch was worse than NSDF (drop it).
+  Her 20 fold-B sessions, Kong-graded (soft/medium/loud caught of
+  375/285/263; false per min): standard 102/224/211, 3.8; verified
+  91/222/211, 0.6; verified + netThr 0.6: 99/225/216, 1.0; verified +
+  netThr 0.4: 103/229/221, 1.8.
+  PRE-REGISTERED for the acceptance sets (labels-5/6, her Sep 29 G and
+  Stairs; decide on them once, don't iterate): A = standard, B = verified,
+  C = verified + netThr 0.6. Report soft recall and false notes separately
+  (pedagogy asked). If B or C wins: ask the parent before making it the
+  homework default (pedagogy wants it), coordinate with piano-app, send
+  pedagogy the sha.
