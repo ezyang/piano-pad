@@ -91,7 +91,11 @@ export const DEFAULTS = {
   templates: null,
   net: null, // onsets: 'net' — see NetOnsets
   netThr: 0.8,
-  netAgg: 'max', // 'max': one key's score over netThr; 'any': the chance any key was struck
+  netAgg: 'max', // 'max': one key's score over netThr; 'any': the chance any key was struck;
+  // 'both': 'max', plus weak onsets where only the chance any key was struck
+  // passed netAnyThr (a strike split across a key and its harmonics); weak
+  // onsets' notes must pass the attack-jump test (minJump) like classic ones.
+  netAnyThr: 0.8,
   // With profile-based onsets, still run the dsp onsets and split the range:
   // notes below this (midi) come from dsp, the rest from the profile, which
   // has seen few low notes so far. One strike read by both paths becomes one
@@ -294,8 +298,8 @@ export class PianoDetector {
       if (found && warm && since > (this.tplRefractoryMs / 1000) * this.sr) {
         const onset = found.onset;
         this.lastTplSample = onset;
-        this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux: 0, via: this.onsets, key: found.key });
-        this.jobs.push({ onset, w: 0, key: found.key, via: this.onsets });
+        this.onEvent({ type: 'onset', sample: onset, detectedAt: end, flux: 0, via: this.onsets, key: found.key, ...(found.weak ? { weak: true } : {}) });
+        this.jobs.push({ onset, w: 0, key: found.key, via: this.onsets, weak: found.weak });
       }
     }
     if (this.helper && this.expect && this.helper !== this.tpl && this.frames % this.helperEvery === 0) this.helper.frame(this.buf, this.mask, end);
@@ -433,7 +437,7 @@ export class PianoDetector {
       // note that's still ringing, and that doesn't rise.
       if (!reject && out.midi != null && toneRise < (lowDsp || this.dspRole === 'all' ? this.minToneRise : this.minToneRiseNet)) reject = 'no-rise';
       let jump;
-      if (out.midi != null && out.f0 > 0 && this.minJump > -99 && (lowDsp || fallback || this.dspRole === 'all')) {
+      if (out.midi != null && out.f0 > 0 && this.minJump > -99 && (lowDsp || fallback || job.weak || this.dspRole === 'all')) {
         const need = job.onset + Math.round((this.jumpMs / 1000) * this.sr) + 1024;
         if (this.pos < need) continue; // wait for the window after the onset
         jump = this._attackJump(job.onset, out.f0);
@@ -455,7 +459,7 @@ export class PianoDetector {
         if (out.clarity > 0.6) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(jump !== undefined ? { jump: Math.round(jump) } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), ...(job.weak ? { weak: true } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(jump !== undefined ? { jump: Math.round(jump) } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -846,7 +850,7 @@ class NetOnsets {
     this.spec = new LogSpectrum(net, sr, o.hop);
     this.hop = this.spec.hop;
     const B = this.spec.B;
-    Object.assign(this, { B, ctx: net.ctx, H: net.hidden, keys: net.keys, K: net.keys.length, thr: o.netThr, floorDb: o.tplFloorDb });
+    Object.assign(this, { B, ctx: net.ctx, H: net.hidden, keys: net.keys, K: net.keys.length, thr: o.netThr, anyThr: o.netAnyThr, floorDb: o.tplFloorDb });
     const d = decodeNet(net);
     this.W1 = d.W1; this.s1 = Float64Array.from(net.s1); this.b1 = Float64Array.from(net.b1);
     this.W2 = d.W2; this.s2 = Float64Array.from(net.s2); this.b2 = Float64Array.from(net.b2);
@@ -926,10 +930,13 @@ class NetOnsets {
     let k = 0;
     for (let q = 1; q < K; q++) if (p1[q] > p1[k]) k = q;
     if (m1.loud < this.floorDb) return null;
+    const anyPeak = (thr) => { const a0 = this.any[t % 3], a1 = this.any[(t + 2) % 3], a2 = this.any[(t + 1) % 3]; return a1 >= thr && a1 >= a2 && a1 >= a0; };
     if (this.agg === 'any') {
-      const a0 = this.any[t % 3], a1 = this.any[(t + 2) % 3], a2 = this.any[(t + 1) % 3];
-      if (a1 < this.thr || a1 < a2 || a1 < a0) return null;
-    } else if (p1[k] < this.thr || p1[k] < p2[k] || p1[k] < p0[k]) return null;
+      if (!anyPeak(this.thr)) return null;
+    } else if (p1[k] < this.thr || p1[k] < p2[k] || p1[k] < p0[k]) {
+      if (this.agg === 'both' && anyPeak(this.anyThr)) return { onset: m1.start + N / 2, key: this.keys[k], weak: true };
+      return null;
+    }
     return { onset: m1.start + N / 2, key: this.keys[k] };
   }
 }
