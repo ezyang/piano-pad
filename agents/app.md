@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-09-26:
+As of 2026-09-28:
 - **Today's adventure** leads the home screen. Since 2026-09-27 it's LINEAR
   (parent: "choose your own adventure is bad, we want to do all the
   material"): G song → Stairs → Up and Down → party, each unlocking the next
@@ -50,13 +50,19 @@ As of 2026-09-26:
   the G song and Stairs each gives a "Who joins your band?" pick (Froggy /
   Beep Bot / Buzzy, she missed Buzzy); Up and Down brings Blobby. The party
   plays Up and Down (piece buttons switch), then free Build! / Copy me.
-  Pieces: right letter (any octave) advances; the NEXT note also counts for
-  both (look-ahead, judge grade 'assumed' for the skipped one; one note
-  only, since stepwise wrong notes are neighbours); grey ghost otherwise (none
-  below A3), fingers + ✋ always (pedagogy: this worked; she switched to
-  several fingers right away, so keep it exactly). The G song is played
-  back in rhythm after. The band lives in memory only (`src/app/adventure.js`).
-  Pieces are in `src/app/homework.js` (`PIECES`; `f` = finger override).
+  Pieces (2026-09-28, parent: she'd become dependent on the prompts, "press
+  the lit finger", so the app is now a bridge to the paper book): drawn like
+  her book (`book.js`: pre-staff, letter in the head, RH row above LH,
+  finger numbers only where printed; the G song on a treble staff via
+  staff.js letters:'book'); ✋ only as each hand's set-up ("thumb on C"),
+  then hidden; ⚙︎ "Homework feedback" (st.feedback: note | bar | piece); a
+  grown-up TWO-FINGER TAP (→ on a computer) steps one note/bar/piece. The
+  right letter (any octave) advances; no look-ahead, no ghosts, voice
+  readings dropped (prefer misses to false advances). Logs: session `grain`,
+  judge `by: detector | grownup`, `bar` events. The G song is played back
+  in rhythm after (skippable).
+  The band lives in memory only (`src/app/adventure.js`).
+  Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
   `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.
   Pieces call `engine.expect?.([target])` (proposed to piano-audio for
