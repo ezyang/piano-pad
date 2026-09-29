@@ -107,7 +107,9 @@ export function record(session) {
   upload();
 }
 
-// kind: 'practice' | 'write' | ... info: song and mode details.
+// kind: 'practice' | 'write' | ... info: song and mode details, merged into
+// the session. info.id, if given, replaces the generated id: calibration
+// uses it to name its exact-audio capture (<id>.wav) after the session.
 export function startSession(kind, info) {
   if (current) endSession({ aborted: true });
   if (!loggingEnabled()) return;
