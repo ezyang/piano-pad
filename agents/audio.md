@@ -402,3 +402,9 @@ As of 2026-09-26:
   (pedagogy asked). If B or C wins: ask the parent before making it the
   homework default (pedagogy wants it), coordinate with piano-app, send
   pedagogy the sha.
+- **piano-app e863f52 (2026-09-29):** the G piece is written at G4; any G
+  from G3 to G5 counts. Missed onsets don't fail a rhythm bar when "one note
+  unheard" makes the beat steady: the `bar` event gets why: 'unheard',
+  unheard: k, with iois (ms) logged. Bars marked 'unheard' (and
+  'unheard-end') point at missed notes, soft ones especially: use them to
+  find soft-note misses to label.
