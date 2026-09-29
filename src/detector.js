@@ -129,6 +129,16 @@ export const DEFAULTS = {
   // real strikes >= 16. 10 (2026-09-29): false notes there 24 -> 9,
   // calibration extras 11 -> 5, grown-up runs 6 -> 3, no real note lost.
   minJump: 10,
+  // The verifier: a small learned model (tools/verifier/) that asks of each
+  // candidate note "is there a new piano strike of this pitch here?" from the
+  // spectrum around it (vPreMs before .. vPostMs after the onset). Needs the
+  // network's spectrum (onsets 'net'). verifierRescue: rejection reasons the
+  // verifier may overrule (it can always reject).
+  verifier: null,
+  verifierThr: 0.5,
+  vPreMs: 200,
+  vPostMs: 30,
+  verifierRescue: [],
   jumpMs: 20, // look this long after the onset for the jump's peak
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
@@ -438,6 +448,8 @@ export class PianoDetector {
       // key/action noise just before a strike (or a damper landing) re-read a
       // note that's still ringing, and that doesn't rise.
       if (!reject && out.midi != null && toneRise < (lowDsp || this.dspRole === 'all' ? this.minToneRise : this.minToneRiseNet)) reject = 'no-rise';
+      const needV = (this.verifier || this.onCandidate) && out.midi != null && out.f0 > 0 && this.tpl instanceof NetOnsets;
+      if (needV && this.tpl.hLastEnd < job.onset + Math.round((this.vPostMs / 1000) * this.sr) + this.tpl.spec.N / 2) continue;
       let jump;
       if (out.midi != null && out.f0 > 0 && this.minJump > -99 && (lowDsp || fallback || job.weak || this.dspRole === 'all')) {
         const need = job.onset + Math.round((this.jumpMs / 1000) * this.sr) + 1024;
@@ -456,12 +468,22 @@ export class PianoDetector {
         else if (lowDsp && Math.abs(job.onset - this.lastAcceptedNet) < win) reject = 'dup'; // the network already has it
         else if (lowDsp && this.tpl.lowActivity && this.tpl.lowActivity(job.onset, span) < this.lowNetMin) reject = 'no-net';
       }
+      let vp;
+      if (needV) {
+        const f = this._vfeat(job.onset, out.midi, [(out.midi - 60) / 12, out.clarity, job.via === 'dsp' ? 1 : 0, job.via === 'net' && !job.weak ? 1 : 0, job.weak ? 1 : 0, toneRise / 20, level / 20 + 3]);
+        if (f && this.verifier) {
+          vp = this.verifier.run(f.x, f.s);
+          if (!reject || this.verifierRescue.includes(reject)) reject = vp >= this.verifierThr ? null : 'verifier';
+          if (!reject && voice && this.verifierRescue.includes('voice')) voice = false;
+        }
+        if (f && this.onCandidate) this.onCandidate({ onset: job.onset, midi: out.midi, f0: out.f0, clarity: out.clarity, via: job.via, key: job.key, weak: !!job.weak, reject: reject ?? null, voice: !!voice, level, toneRise, jump, vp, x: f.x, s: f.s });
+      }
       if (!reject && out.midi != null) {
         this.lastNote = { sample: job.onset, midi: out.midi };
         if (out.clarity > 0.6) this.lastAcc = { sample: job.onset, pc: pcOut };
         if (out.clarity > 0.6 && job.via !== 'dsp') this.lastAcceptedNet = job.onset; // as the engine accepts notes
       }
-      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), ...(job.weak ? { weak: true } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(jump !== undefined ? { jump: Math.round(jump) } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
+      this.onEvent({ type: 'pitch', sample: job.onset, detectedAt: this.pos, ...out, ...(voice !== undefined ? { voice } : {}), ...(job.key != null ? { key: job.key } : {}), ...(job.via ? { via: job.via } : {}), ...(job.weak ? { weak: true } : {}), level: Math.round(level), toneRise: Math.round(toneRise), ...(jump !== undefined ? { jump: Math.round(jump) } : {}), ...(vp !== undefined ? { vp: +vp.toFixed(3) } : {}), ...(expected ? { expected } : {}), ...(reject ? { reject } : {}) });
       this.jobs.splice(j--, 1);
     }
   }
@@ -654,6 +676,51 @@ export class PianoDetector {
   }
 
   // Loudness (dBFS, RMS) of buf[from, from + W).
+  // The verifier's input for a candidate note at `onset` read as `midi`:
+  // channels x frames of the network's log-frequency spectrum around the
+  // onset (vPreMs before .. vPostMs after), in dB relative to the running
+  // peak level: harmonics 1-8 of the note, the octave below and the two
+  // neighbouring keys, 36 two-semitone bands, the frame total and the
+  // spectral flux; plus scalars (`s0`, then the reference level).
+  _vfeat(onset, midi, s0) {
+    const net = this.tpl, K = net.hK, B = net.B, N = net.spec.N;
+    const P = Math.round((this.vPreMs / 1000) * this.sr / net.hop), Q = Math.round((this.vPostMs / 1000) * this.sr / net.hop), T = P + Q + 1;
+    let t0 = -1, best = Infinity;
+    for (let t = net.t - 1; t >= Math.max(0, net.t - K); t--) {
+      const d = Math.abs(net.hEnd[t % K] - N / 2 - onset);
+      if (d < best) { best = d; t0 = t; } else break;
+    }
+    if (t0 < 0 || best > net.hop) return null;
+    const C = VCHANNELS, x = new Float32Array(C * T), refDb = 20 * Math.log10(net.hRef[t0 % K] + 1e-9);
+    const b0 = 3 * (midi - 40), cols = [];
+    for (let h = 1; h <= 8; h++) cols.push(Math.round(b0 + 36 * Math.log2(h)));
+    cols.push(b0 - 36, b0 - 3, b0 + 3);
+    const db = new Float32Array(B), prev = new Float32Array(B);
+    const n = (v) => Math.max(-5, Math.min(1, (v - refDb) / 20));
+    for (let i = -1; i < T; i++) {
+      const t = t0 - P + i, ok = t >= 0 && t > net.t - 1 - K && t < net.t;
+      prev.set(db);
+      for (let b = 0; b < B; b++) db[b] = ok ? 20 * Math.log10(net.hV[(t % K) * B + b] + 1e-7) : -140;
+      if (i < 0) continue;
+      let c = 0;
+      for (const bc of cols) {
+        let m = -140;
+        for (let b = bc - 1; b <= bc + 1; b++) if (b >= 0 && b < B && db[b] > m) m = db[b];
+        x[c++ * T + i] = n(m);
+      }
+      for (let k = 0; k < 36; k++) {
+        let m = -140;
+        for (let b = 6 * k; b < 6 * k + 6; b++) if (db[b] > m) m = db[b];
+        x[c++ * T + i] = n(m);
+      }
+      x[c++ * T + i] = ok ? n(20 * Math.log10(net.hTot[t % K] + 1e-9)) : -5;
+      let fl = 0;
+      if (ok && i > 0) for (let b = 0; b < B; b++) { const d = db[b] - prev[b]; if (d > 0) fl += d; }
+      x[c++ * T + i] = Math.min(5, fl / B / 2);
+    }
+    return { x, s: Float32Array.from([...s0, refDb / 20 + 3]) };
+  }
+
   // How much the upper partials (harmonics 2-8 of f) jumped near an onset:
   // the largest rise from a trough before to a peak between 30 ms before and
   // jumpMs after it (the onset time can be off either way). A note that is
@@ -868,6 +935,11 @@ class NetOnsets {
     this.expK = null; // indices of expected keys, see setExpect
     this.expFound = null;
     this.lowHist = Array.from({ length: 16 }, () => ({ center: -Infinity, max: 0 }));
+    // Recent spectra, for the verifier (PianoDetector._vfeat).
+    this.hK = 128;
+    this.hV = new Float32Array(this.hK * B);
+    this.hEnd = new Float64Array(this.hK); this.hRef = new Float64Array(this.hK); this.hTot = new Float64Array(this.hK);
+    this.hLastEnd = -Infinity;
   }
 
   setExpect(midis) {
@@ -892,6 +964,8 @@ class NetOnsets {
     const total = this.spec.frame(buf, mask, end), v = this.spec.v, N = this.spec.N;
     this.ref = Math.max(total, this.ref * 0.995);
     const t = this.t++;
+    const slot = t % this.hK;
+    this.hV.set(v, slot * B); this.hEnd[slot] = end; this.hRef[slot] = this.ref; this.hTot[slot] = total; this.hLastEnd = end;
     // Shift the context window and append log(1 + 1000 v / ref).
     if (t === 0) for (let c = 0; c < ctx - 1; c++) for (let i = 0; i < B; i++) x[c * B + i] = Math.log1p((1000 * v[i]) / (this.ref + 1e-9));
     x.copyWithin(0, B);
@@ -940,6 +1014,49 @@ class NetOnsets {
       return null;
     }
     return { onset: m1.start + N / 2, key: this.keys[k] };
+  }
+}
+
+const VCHANNELS = 8 + 3 + 36 + 2;
+
+// The verifier network (trained by tools/verifier/train.py): three dilated
+// 1-D convolutions over time (valid padding, ReLU), then the flattened
+// result plus the scalars -> a hidden layer (ReLU) -> two logits: [a new
+// piano strike here, a new strike of this pitch]. run() gives the chance of
+// the second. Weights are plain float arrays.
+export class Verifier {
+  constructor(m) {
+    this.m = m;
+    // An ensemble ({ ensemble: [models] }) averages its members' chances.
+    if (m.ensemble) { this.members = m.ensemble.map((x) => new Verifier(x)); return; }
+    this.convs = m.convs.map((c) => ({ ...c, w: Float32Array.from(c.w), b: Float32Array.from(c.b) }));
+    this.W1 = Float32Array.from(m.W1); this.b1 = Float32Array.from(m.b1);
+    this.W2 = Float32Array.from(m.W2); this.b2 = Float32Array.from(m.b2);
+  }
+
+  run(x, s) {
+    if (this.members) return this.members.reduce((a, v) => a + v.run(x, s), 0) / this.members.length;
+    let a = x, C = this.m.C, T = this.m.T;
+    for (const { cin, cout, k, dil, w, b } of this.convs) {
+      const To = T - dil * (k - 1), y = new Float32Array(cout * To);
+      for (let o = 0; o < cout; o++) for (let t = 0; t < To; t++) {
+        let z = b[o];
+        for (let i = 0; i < cin; i++) { const wr = (o * cin + i) * k, ar = i * T + t; for (let j = 0; j < k; j++) z += w[wr + j] * a[ar + j * dil]; }
+        y[o * To + t] = z > 0 ? z : 0;
+      }
+      a = y; C = cout; T = To;
+    }
+    const F = C * T, S = s.length, H = this.b1.length, h = new Float32Array(H);
+    for (let j = 0; j < H; j++) {
+      let z = this.b1[j];
+      const r = j * (F + S);
+      for (let i = 0; i < F; i++) z += this.W1[r + i] * a[i];
+      for (let i = 0; i < S; i++) z += this.W1[r + F + i] * s[i];
+      h[j] = z > 0 ? z : 0;
+    }
+    let z = this.b2[1];
+    for (let j = 0; j < H; j++) z += this.W2[H + j] * h[j];
+    return 1 / (1 + Math.exp(-z));
   }
 }
 

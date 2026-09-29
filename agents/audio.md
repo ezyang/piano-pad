@@ -346,3 +346,20 @@ As of 2026-09-26:
   voice-flagged events in her sessions; include speech over ringing piano.
   (Page lesson: mark the real notes as landmarks and ask about one flash
   at a time; the parent couldn't tell which interval was meant.)
+- **The verifier (branch `verifier`, NOT deployed; parent: "not deploy
+  yet", 2026-09-29).** Astra's "one acceptance decision": a small learned
+  gate on every candidate note (tools/verifier/README.md). Parent confirmed
+  the remaining non-piano false notes were voices (hers, adults', background).
+  Held-out (session folds), 3-seed ensemble, vPostMs 15, thr 0.5, gate only:
+  Stairs session 23/25 caught, false 9 -> 0; cal takes extra 5 -> 2; labeled
+  disputed moments wrongly accepted 7 -> 1, real caught 22 -> 21; grown-up
+  Sep 28 extra 3 -> 2; Sep 29 3 false G4s removed (its 2 "misses" are real
+  G3s the detector already missed, hidden by letter-matching false G4s).
+  Latency: net notes 27 -> 37 ms median (90% unchanged), low unchanged; CPU
+  +0-10%. vPostMs 30/60 not better; letting it rescue rejected candidates
+  or adding permissive proposals made things worse; it must not overrule the
+  voice flag (it did at first: +3 false). Final model trained on all data:
+  ~/Dev/piano-audio-data/verifier/final-post15-ens.json (643 KB JSON;
+  quantize before shipping). To deploy: profile.verifier + vPostMs 15,
+  heads-up to piano-app (latency), parent OK, then check on the untouched
+  acceptance session. Still open: D4/F4 misses need a retrained onset net.

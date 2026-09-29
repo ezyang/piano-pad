@@ -28,7 +28,7 @@ import { decode } from './oracle.mjs';
 import { profileOptions } from './profile.mjs';
 
 const args = process.argv.slice(2);
-const evalFile = args.find((a) => a.endsWith('.json'));
+const evalFile = args.find((a, i) => a.endsWith('.json') && args[i - 1] !== '--verifier');
 if (!evalFile) { console.error('usage: node tools/eval.mjs <eval.json> [--classic|--net] [--expect] [--opt k=v] [--detail]'); process.exit(1); }
 const spec = JSON.parse(readFileSync(evalFile, 'utf8'));
 const base = dirname(evalFile);
