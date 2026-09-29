@@ -21,7 +21,7 @@ ORIGINS = {"https://piano.ezyang.com", "http://localhost:8000"}
 MAX_JSON = 5 * 1024 * 1024
 MAX_AUDIO = 60 * 1024 * 1024
 ID = re.compile(r"^[a-z][a-z0-9]{4,40}$")
-EXT = {"mp4", "m4a", "webm", "ogg"}
+EXT = {"mp4", "m4a", "webm", "ogg", "wav"}  # wav: piano-audio's diagnostic PCM captures
 
 
 def day_dir(started: str | None) -> Path:
