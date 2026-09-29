@@ -65,8 +65,10 @@ As of 2026-09-28:
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
   `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.
-  Pieces call `engine.expect?.([target])` (proposed to piano-audio for
-  rejected correct notes; a no-op until they ship it).
+  Pieces call `engine.expect([target])`; since audio's bf9cddc it only
+  labels readings `expected` (no leniency). Agreed policy with audio: fewer
+  false advances, even at the cost of misses; `by: 'grownup'` steps are
+  labeling candidates, not proof she played the note.
 - Hidden for now (files kept, routes still work): her songs, "New song", the
   editor, play and band screens, the ⚙︎ "Add homework song", and the 💾 save
   buttons in Build!/Copy me.
