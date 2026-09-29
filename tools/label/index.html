@@ -75,6 +75,8 @@
       <button class="yes" data-gap="several">Yes, several</button>
       <button data-gap="unsure">Can't tell</button>
     </div>
+    <div class="grid" id="whatAnswers"></div>
+    <input id="whatNote" class="hidden" placeholder="Anything else? (optional, then tap an answer)" style="font-size:16px;padding:8px;border:2px solid var(--line, #888);border-radius:8px">
     <div class="grid four" id="candAnswers">
       <button class="yes" data-a="yes:other">Other note</button>
       <button class="yes" data-a="yes:two">Two keys</button>
@@ -120,6 +122,7 @@ async function init() {
   for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
   if (!examples.length) $('showEx').remove();
   if (manifest[0]?.kind) { $('sessionIntro').classList.remove('hidden'); $('clipIntro').classList.add('hidden'); }
+  if (manifest[0]?.intro) $('sessionIntro').innerHTML = manifest[0].intro;
   $('exList').replaceChildren(...examples.map((e) => {
     const row = document.createElement('div'); row.className = 'ex';
     const b = document.createElement('button'); b.textContent = '▶ ' + e.title; b.onclick = () => playClip(`examples/${e.id}.wav`, e, 'exLamp', 'exOther');
@@ -144,7 +147,7 @@ $('start').onclick = async () => { await audio(); $('intro').classList.add('hidd
 $('showEx').onclick = async (e) => { e.preventDefault(); await audio(); $('examples').classList.add('show'); };
 $('hideEx').onclick = () => $('examples').classList.remove('show');
 const GAP = { none: 'Stretch: no key presses', one: 'Stretch: one key press', several: 'Stretch: several key presses', unsure: "Stretch: can't tell" };
-const describe = (a) => (a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : a.strike === 'gap' ? GAP[a.keys] : LABEL[a.strike]) + (a.missedBefore ? ' ＋ unlit key before' : '');
+const describe = (a) => (a.strike === 'what' ? a.what + (a.note ? ` (${a.note})` : '') : a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : a.strike === 'gap' ? GAP[a.keys] : LABEL[a.strike]) + (a.missedBefore ? ' ＋ unlit key before' : '');
 let resumeAt = null; // where to continue after revisiting an old clip
 $('showRev').onclick = async (e) => {
   e.preventDefault(); await audio();
@@ -164,13 +167,21 @@ async function show() {
   $('done').classList.add('hidden'); $('task').classList.remove('hidden'); $('task').style.display = 'flex';
   const c = manifest[i];
   // Whole-session labeling: "gap" steps are stretches where nothing was detected.
-  const gap = c.kind === 'gap';
-  $('question').textContent = gap ? 'Any piano key presses in this clip? (no light: nothing was detected here)' : 'A key started at the yellow light? Tap the note';
-  for (const el of ['notes', 'candAnswers']) $(el).classList.toggle('hidden', gap);
+  const gap = c.kind === 'gap', what = c.kind === 'what';
+  $('question').textContent = what ? c.q : gap ? 'Any piano key presses in this clip? (no light: nothing was detected here)' : 'A key started at the yellow light? Tap the note';
+  for (const el of ['notes', 'candAnswers']) $(el).classList.toggle('hidden', gap || what);
   $('gapAnswers').classList.toggle('hidden', !gap);
+  // "What made this sound?" steps: the options come with the step.
+  $('whatAnswers').classList.toggle('hidden', !what); $('whatNote').classList.toggle('hidden', !what);
+  $('whatNote').value = answers[c.id]?.note ?? '';
+  $('whatAnswers').replaceChildren(...(what ? c.options : []).map((o) => {
+    const b = document.createElement('button'); b.textContent = o;
+    b.onclick = () => answer({ strike: 'what', what: o, ...($('whatNote').value.trim() ? { note: $('whatNote').value.trim() } : {}) });
+    return b;
+  }));
   $('missed').classList.toggle('hidden', gap || c.kind !== 'cand');
   missedBefore = false; $('missed').classList.remove('on');
-  $('mark').style.display = gap ? 'none' : '';
+  $('mark').style.display = c.mark == null ? 'none' : '';
   $('notes').replaceChildren(...c.cands.map((m) => {
     const cell = document.createElement('div'); cell.className = 'note';
     const hear = document.createElement('button'); hear.className = 'hear'; hear.textContent = '🔊'; hear.onclick = () => tone(m);
