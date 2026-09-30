@@ -484,3 +484,15 @@ As of 2026-09-26:
   labeled. Verifier: treat label provenance as uncertainty, add alignment
   jitter, audit running-peak normalization; keep 15 ms. Parent: Astra may
   also write code (own worktree/branch; I review and test before merge).
+- **Soft-loss breakdown under the VERIFIED default (her sessions except the
+  acceptance ones, Kong 35-54 lone strikes, n=765):** caught 65%, nothing
+  proposed 15%, misread 9%, voice flag 4%, 'high' 3%, verifier 2%. The 14%
+  'double' seen earlier was the permissive dump config; under the default,
+  'double' losses are ~3 in 60 sessions, caused by a voice-flagged or
+  low-clarity same-pitch note setting lastNote (the engine ignores those
+  notes; small fix: only engine-accepted notes should count for 'double').
+- **Astra is coding (2026-09-29):** worktree ~/Dev/piano-pad-astra, branch
+  astra-onset: retrain the onset net for proposal recall at bounded
+  candidates/s (spec: scratchpad astra/task-onset.md; outputs in
+  ~/Dev/piano-audio-data/astra/, report onset-report.md). I review + run the
+  end-to-end eval before anything ships; labels-5b stays held out.
