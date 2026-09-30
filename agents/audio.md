@@ -436,3 +436,9 @@ As of 2026-09-26:
   Labeling guidance given to the parent: "Two keys" = distinct keys together
   (a real press, any of its notes counts); "Splat" = clump/banging/can't tell
   (not scored); when unsure, Splat.
+- **Labeling lesson (parent, 2026-09-29):** session clips had too long a
+  lead-in and ran into the next note. make-session now: <= 0.7 s lead-in,
+  end just before the next light (0.3-0.8 s tail), '+' = unlit press
+  anywhere in the clip. labels-5b = her G piece in the new layout (port
+  8771; answers carried from labels-5 by moment time; still UNTOUCHED as an
+  acceptance set: don't look at its misses before the config-D test).
