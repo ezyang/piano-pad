@@ -10,7 +10,7 @@
 // stream the detector hears, for the length of a run, kept in IndexedDB
 // until it reaches the home server. Nothing identifies the player beyond song
 // titles.
-import { engine } from './engine.js';
+import { engine, detectorOptions } from './engine.js';
 import { getState } from './store.js';
 import { player, mergePlayer } from './player.js';
 
@@ -74,6 +74,12 @@ function micInfo() {
   } catch { return {}; }
 }
 
+// What the detector was actually told (the same menu choice can mean
+// different things across versions): its scalar options only.
+function plainOptions() {
+  try { return Object.fromEntries(Object.entries(detectorOptions()).filter(([, v]) => v == null || typeof v !== 'object')); } catch { return null; }
+}
+
 // The fields every session starts with.
 export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)) {
   return {
@@ -119,7 +125,7 @@ export function startSession(kind, info) {
     t0: performance.now(),
     ctxT0: ctx?.currentTime ?? 0,
     audio: ctx ? { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency, ...micInfo() } : null,
-    settings: { labels: getState().labels ?? (getState().showLetters === false ? 'none' : 'letters'), strictOctave: getState().strictOctave !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple' },
+    settings: { labels: getState().labels ?? (getState().showLetters === false ? 'none' : 'letters'), strictOctave: getState().strictOctave !== false, testKeyboard: !!getState().testKeyboard, detector: getState().detector ?? 'simple', detectorOptions: plainOptions() },
     ...info,
     events: [],
   };
