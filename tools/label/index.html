@@ -110,14 +110,16 @@ const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const nm = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
 const $ = (id) => document.getElementById(id);
 const FLASH = 0.18;
-let ctx, manifest = [], examples = [], answers = {}, i = 0, clip = null, playing = null;
+let ctx, manifest = [], examples = [], answers = {}, i = 0, clip = null, playing = null, layout = null, stale = false;
 const history = [];
 // When the moment reaches the speaker: the audio clock runs ahead of what you
 // hear by the output latency.
 const heard = (t0) => ctx.currentTime - t0 - (ctx.outputLatency || 0) - (ctx.baseLatency || 0);
 
 async function init() {
-  manifest = await fetch('manifest.json').then((r) => r.json());
+  const mtext = await fetch('manifest.json').then((r) => r.text());
+  layout = new TextEncoder().encode(mtext).length; // the server checks it: see answer()
+  manifest = JSON.parse(mtext);
   examples = await fetch('examples.json').then((r) => (r.ok ? r.json() : []), () => []);
   for (const row of await fetch('labels').then((r) => r.json())) answers[row.id] = row;
   if (!examples.length) $('showEx').remove();
@@ -238,12 +240,18 @@ document.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => {
 
 const LABEL = { no: 'No piano key', mess: 'Splat', unsure: "Can't tell", hard: 'Hard (fine to miss)', gap: 'stretch checked' };
 function answer(a) {
+  if (stale) return;
   const c = manifest[i], row = { id: c.id, ...a, ...(missedBefore ? { missedBefore: true } : {}) };
   // Local order for Undo/Answered: sorts after every server timestamp
   // (digits) and in answer order among answers given on this page.
   row.saved = '~' + String(Date.now()).padStart(15, '0');
   answers[c.id] = row; history.push(i);
-  fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  fetch('label', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...row, layout }) }).then((r) => {
+    if (r.status !== 409) return;
+    stale = true;
+    $('task').classList.add('hidden'); $('done').classList.remove('hidden');
+    $('done').innerHTML = '<p><b>This page is out of date</b> (the clips were rebuilt).</p><p>That answer was not saved. Please reload the page.</p>';
+  });
   $('toast').textContent = `Saved ${c.id}: ${describe(row)}`;
   if (resumeAt != null) { i = answers[manifest[resumeAt]?.id] ? nextOpen(resumeAt) : resumeAt; resumeAt = null; } else i = nextOpen(i);
   progress(); show();
