@@ -31,15 +31,18 @@ import { renderNote } from '../synth.js';
 import { getState } from './store.js';
 
 // Detector options chosen in the grown-ups menu. detector:
-//   'simple' (default), 'net'   onsets from the profile's network (A3 and
-//                       up), classic below A3, and classic readings the
-//                       network missed if they're loud
+//   'simple' (default), 'net', 'verified'
+//                       onsets from the profile's network (A3 and up),
+//                       classic below A3, and classic readings the network
+//                       missed if they're loud; then the profile's verifier,
+//                       a learned last check on each note (fewer false notes
+//                       from voices and ringing notes; ~10 ms later). Default
+//                       since 2026-09-29: on her parent-labeled Stairs it
+//                       caught the same 32/47 presses, false notes 18 -> 3.
+//   'unverified'        the same without the verifier (the older default)
 //   'classic'           the classic detector alone (spectral flux + energy rise)
 //   'overlap'           classic, with the experimental overlapping-note pitch
 //   'profile'           experimental: onsets from per-key spectral templates
-//   'verified'          experimental: 'simple' plus the profile's verifier, a
-//                       learned last check on each note (fewer false notes
-//                       from voices and ringing notes; ~10 ms later)
 // See src/piano-profile.json; without a profile everything is classic.
 const MIC_KEY = 'pianopad.micLabel'; // the grown-up's chosen microphone, by name
 
@@ -48,7 +51,7 @@ export const detectorOptions = () => {
   // Default: the network with the loud-classic fallback (parent-labeled
   // evaluation, 2026-09-27). 'classic' keeps the older detector.
   const onsets = { classic: 'dsp', overlap: 'dsp', profile: 'templates' }[d] ?? 'net';
-  return { overlapAware: d === 'overlap', onsets, useVerifier: d === 'verified' };
+  return { overlapAware: d === 'overlap', onsets, useVerifier: onsets === 'net' && d !== 'unverified' };
 };
 
 class Engine {
