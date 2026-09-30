@@ -442,3 +442,14 @@ As of 2026-09-26:
   anywhere in the clip. labels-5b = her G piece in the new layout (port
   8771; answers carried from labels-5 by moment time; still UNTOUCHED as an
   acceptance set: don't look at its misses before the config-D test).
+- **ACCEPTANCE RESULT 2, labels-5b (her G piece Sep 29, parent-labeled).**
+  21 presses (18 + 1 two-keys + 2 unlit), 66 no-key moments (fooling
+  around), 1 splat. A standard 16/21 caught (2 missed with nothing
+  detected), 10 false; B verified 16/21, 3 false; C 16/21, 4 false. Soft
+  1/4, medium 14/14, loud 1/1 (same A/B). Both sets: 48/68 caught either
+  way, false 28 -> 6; soft 10/28 (36%), medium 32/37 (86%).
+  labels-5b is still untouched at the miss level (only totals looked at):
+  keep it for the ONE test of config D (verifier decides 'high' + weak
+  onsets), developed on dev (labels-6, folds). Eval specs:
+  ~/Dev/piano-audio-data/eval-accept-0929.json (Stairs, now dev) and
+  eval-accept-0929g.json (G).
