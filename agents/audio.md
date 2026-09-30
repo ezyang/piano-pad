@@ -431,6 +431,8 @@ As of 2026-09-26:
   engine: useVerifier for 'simple'/unset/'net'/'verified'; 'unverified' =
   the old standard (grown-ups menu). Told piano-app (before) and pedagogy
   (sha). Watch the next sessions' logs (vp, reject: 'verifier') for trouble.
+  Sessions log settings.detectorOptions (scalar fields of detectorOptions(),
+  piano-app 7de91f7): useVerifier tells which detector ran.
   Labeling guidance given to the parent: "Two keys" = distinct keys together
   (a real press, any of its notes counts); "Splat" = clump/banging/can't tell
   (not scored); when unsure, Splat.
