@@ -460,3 +460,8 @@ As of 2026-09-26:
   unchanged. Rejected on dev: rescuing 'high' directly (-2 right on cal
   takes, +4 extras across sets); -70 dB (+1 caught, +1 false on Sep 28
   Stairs); weak any-key onsets (little gain). Test ONCE on labels-5b.
+  RESULT: D on labels-5b identical to B (16/21, 3 false). Not shipped (no
+  evidence it generalizes). Both new acceptance sets are now used. Parent:
+  "if we are hill climbing, consider collaborating with Astra" -> round 5
+  asked (scratchpad astra/round5.md): soft-note strategy, parent-time use,
+  how to decide ~5-note changes.
