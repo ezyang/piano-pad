@@ -57,7 +57,7 @@
   <header><b>Piano labels</b><span id="progress">…</span><span class="sp"></span><a href="#" id="showRev">Answered</a><a href="#" id="showEx">Examples</a><button class="small" id="undo" disabled>↶ Undo</button></header>
 
   <div id="intro" class="center">
-    <p id="sessionIntro" class="hidden">This walks through <b>one whole session</b> in order, one moment at a time. Each clip starts just before the previous moment (grey light) and the yellow light is the moment being asked about. Tap the note if a key started at the yellow light. If you also hear a key press <b>between the grey and yellow lights with no light of its own</b>, tap the dashed <b>＋</b> button first, then answer. Clips with no light ask whether there were any key presses at all.</p>
+    <p id="sessionIntro" class="hidden">This walks through <b>one whole session</b> in order, one moment at a time. Each clip plays from a little before the <b>yellow light</b> until just before the next one. Tap the note if a key started at the yellow light. If you also hear a key press <b>with no light at all</b> in the clip, tap the dashed <b>＋</b> button first, then answer. Clips with no light ask whether there were any key presses at all. Several keys at once: <b>Two keys</b> if you can hear distinct keys, <b>Splat</b> for a clump or banging (when unsure, Splat).</p>
     <p id="clipIntro">Each clip is 1½ s of a real session. When the <b>big yellow light</b> comes on, did a piano key start? <b>One tap</b> answers and moves on; Undo fixes mistakes. A key press that's there but genuinely hard to hear is <b>Hard: fine to miss</b>. If you hear a key press with <b>no light at all</b> before the yellow one, tap the dashed <b>＋</b> button first, then answer.</p>
     <p class="muted">Small grey light: other moments where something was detected (maybe nothing real); ignore it. Clips are all turned up by the same amount, so loudness still means something. Stop whenever you like.</p>
     <button class="primary" id="start" style="width:100%">Start</button>
@@ -67,7 +67,7 @@
     <div class="stage"><div class="lamp other" id="otherLamp"></div><div class="lamp" id="lamp"></div><button class="small" id="play">▶ Replay</button></div>
     <div class="bar" id="bar"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
     <div class="q" id="question">A key started at the yellow light? Tap the note</div>
-    <button class="toggle" id="missed">＋ Also an unlit key press before the yellow light</button>
+    <button class="toggle" id="missed">＋ Also a key press with no light in this clip</button>
     <div class="grid" id="notes"></div>
     <div class="grid" id="gapAnswers">
       <button class="no" data-gap="none">No key presses</button>
@@ -147,7 +147,7 @@ $('start').onclick = async () => { await audio(); $('intro').classList.add('hidd
 $('showEx').onclick = async (e) => { e.preventDefault(); await audio(); $('examples').classList.add('show'); };
 $('hideEx').onclick = () => $('examples').classList.remove('show');
 const GAP = { none: 'Stretch: no key presses', one: 'Stretch: one key press', several: 'Stretch: several key presses', unsure: "Stretch: can't tell" };
-const describe = (a) => (a.strike === 'what' ? a.what + (a.note ? ` (${a.note})` : '') : a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : a.strike === 'gap' ? GAP[a.keys] : LABEL[a.strike]) + (a.missedBefore ? ' ＋ unlit key before' : '');
+const describe = (a) => (a.strike === 'what' ? a.what + (a.note ? ` (${a.note})` : '') : a.strike === 'yes' ? 'Yes · ' + (/^\d+$/.test(a.note) ? nm(+a.note) : a.note) : a.strike === 'gap' ? GAP[a.keys] : LABEL[a.strike]) + (a.missedBefore ? ' ＋ unlit key press' : '');
 let resumeAt = null; // where to continue after revisiting an old clip
 $('showRev').onclick = async (e) => {
   e.preventDefault(); await audio();

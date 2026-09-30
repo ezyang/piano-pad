@@ -1,11 +1,15 @@
 // Label one whole session: every moment where the classic detector, the
-// network or the reference heard a note becomes a step, in time order. Each
-// step's clip starts just before the previous moment (shown as a grey light),
-// or at most LEAD before its own, so "a key press with no light before the
-// yellow one" covers the audio since the previous moment; longer stretches
-// with nothing detected become "any key presses in this stretch?" steps.
-//   node tools/label/make-session.mjs <out dir> <session .mp4>
+// network or the reference heard a note becomes a step, in time order. A
+// step's clip runs from a little before its moment (at most LEAD, never back
+// into the previous clip unless that leaves less than MINLEAD) to just before
+// the next moment (at least MINTAIL, at most TAIL after its own), so clips
+// barely overlap and "a key press with no light in this clip" covers the
+// audio once; what no clip covers becomes "any key presses here?" steps.
+// (Parent, 2026-09-29: long lead-ins and hearing the next note confused.)
+//   node tools/label/make-session.mjs <out dir> <session .mp4> [--carry <old label dir>]
 // Writes <out>/clips/*.wav and <out>/manifest.json (steps in order, `seq`).
+// --carry copies answers for the same moments (by time) from an earlier
+// layout of the same session.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +18,8 @@ import { decode } from '../oracle.mjs';
 import { profileOptions } from '../profile.mjs';
 
 const [out, file] = process.argv.slice(2);
-const SR = 48000, NEAR = 0.07, LEAD = 2.0, MINLEAD = 0.6, TAIL = 0.8, GAP = 3.0, GAIN_DB = 26;
+const carry = process.argv.includes('--carry') ? process.argv[process.argv.indexOf('--carry') + 1] : null;
+const SR = 48000, NEAR = 0.07, LEAD = 0.7, MINLEAD = 0.3, TAIL = 0.8, MINTAIL = 0.3, CUT = 0.03, GAP = 3.0, GAIN_DB = 26;
 mkdirSync(join(out, 'clips'), { recursive: true });
 const x = decode(file, SR), dur = x.length / SR;
 const detect = (o) => {
@@ -35,7 +40,7 @@ for (const e of all) { const m = moments.at(-1); if (m && e.t - m.t < NEAR) m.ev
 const cut = (from, to, dest) => execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', from.toFixed(3), '-t', (to - from).toFixed(3), '-i', file, '-ac', '1', '-ar', '48000',
   '-af', `volume=${GAIN_DB}dB,alimiter=limit=0.9:attack=2:release=50`, dest]);
 const steps = [];
-let covered = 0, prevT = -Infinity; // audio before `covered` is covered by earlier steps
+let covered = 0; // audio before `covered` is covered by earlier steps
 const addGaps = (until) => {
   while (until - covered > 0.3) {
     const to = Math.min(until, covered + GAP);
@@ -43,12 +48,13 @@ const addGaps = (until) => {
     covered = to;
   }
 };
-for (const m of moments) {
-  const from = Math.max(0, Math.min(m.t - MINLEAD, Math.max(m.t - LEAD, prevT - 0.3)));
+for (const [k, m] of moments.entries()) {
+  const next = moments[k + 1]?.t ?? Infinity;
+  const from = Math.max(0, Math.min(m.t - MINLEAD, Math.max(m.t - LEAD, covered)));
   addGaps(from);
-  const to = Math.min(dur, m.t + TAIL);
+  const to = Math.min(dur, Math.max(m.t + MINTAIL, Math.min(m.t + TAIL, next - CUT)));
   steps.push({ kind: 'cand', from, to, t: m.t, cands: [...new Set(m.ev.map((e) => e.midi))], heard: Object.fromEntries(['c', 'n', 'r'].map((s) => [s, m.ev.filter((e) => e.s === s).map((e) => e.midi)])) });
-  covered = Math.max(covered, m.t + 0.25); prevT = m.t;
+  covered = Math.max(covered, to);
 }
 addGaps(dur);
 
@@ -60,4 +66,15 @@ const manifest = steps.map((st, i) => {
   return { id, seq: i, session, kind: st.kind, from: +st.from.toFixed(3), to: +st.to.toFixed(3), ...(st.kind === 'cand' ? { t: +st.t.toFixed(3), mark: +(st.t - st.from).toFixed(3), cands: st.cands, heard: st.heard } : { mark: null, cands: [] }), others, group: st.kind };
 });
 writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest, null, 1));
+if (carry) {
+  const old = JSON.parse(readFileSync(join(carry, 'manifest.json'), 'utf8')), ans = {};
+  for (const line of readFileSync(join(carry, 'labels.jsonl'), 'utf8').trim().split('\n').filter(Boolean)) { const r = JSON.parse(line); ans[r.id] = r; }
+  const rows = [];
+  for (const st of manifest.filter((x) => x.kind === 'cand')) {
+    const o = old.find((x) => x.kind === 'cand' && Math.abs(x.t - st.t) < 0.005), a = o && ans[o.id];
+    if (a) { const { missedBefore, ...rest } = a; rows.push({ ...rest, id: st.id, carried: o.id }); } // "+" meant something else there
+  }
+  writeFileSync(join(out, 'labels.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : ''));
+  console.log(`carried ${rows.length} answers from ${carry}`);
+}
 console.log(`${session}: ${dur.toFixed(1)} s, ${manifest.filter((s) => s.kind === 'cand').length} moments + ${manifest.filter((s) => s.kind === 'gap').length} stretch checks = ${manifest.length} steps`);
