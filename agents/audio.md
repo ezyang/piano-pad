@@ -516,3 +516,12 @@ As of 2026-09-26:
   verifierRescue low changed nothing. Experiment left uncommitted in
   ~/Dev/piano-pad-astra (patch in astra/). Next (task 3): retrain the
   verifier on new-net candidates, folds proper, same rule.
+- **Astra task 3 (verifier retrained on soft-net candidates): FAILS the
+  rule.** Codex session died before its report; I read the finished runs
+  (astra/{dev,A}-v*.txt; verifier-{A,B,dev} ensembles in astra/). Dev Stairs
+  (current 32/2/3): vsoft8 35/3/3, vsoft9 34/3/2, vdelay8 34/2/3, vdelay9
+  34/1/2. But fold A Stairs Sep 28 (current 23/0/0): vsoft8 23/1/3, vsoft9
+  24/0/3, vdelay9 24/1/3 -> +3 false everywhere. Fold B runs incomplete
+  (moot). Conclusion: the soft-net line doesn't pass yet; the bottleneck is
+  verified soft-note data on HER playing (54 verified soft positives total).
+  Park it; next soft-note step needs more parent-verified soft strikes.
