@@ -551,3 +551,156 @@ Replay policy against annotated events, but do not claim to reconstruct the chil
 7. **Deploy only if false advances fall on independent audio without unacceptable misses**, then test messier sessions.
 
 The main course change is to stop treating every onset source as independently authorized to emit notes. Both paths should supply hypotheses to one acceptance decision trained specifically on **new piano strikes versus everything else**.
+
+
+## Round 5 (2026-09-29): soft notes, and how to decide small changes
+
+### Question
+
+Progress report and a request: the parent asked that we collaborate rather than me hill-climbing alone. Please push back hard.
+
+## What happened since round 4
+
+- Built your verifier: a small dilated 1-D CNN (3 conv layers, 24 channels, ~25k weights, int8) over the network's 216-bin log-spectrum from 200 ms before to 15 ms after each candidate. Input: harmonics 1-8 of the candidate pitch, octave below, neighbouring keys, 36 two-semitone bands, total, flux (dB relative to a running peak) + 8 scalars. Outputs: strike / strike of this pitch. Labels: whole-session parent labels > parent-labeled moments > prompted takes (Kong onsets aligned to the prompt) > Kong (weak, silence = half-weight negative). 3-seed ensemble. Used only as a final gate (it can reject; it may not overrule the voice flag; letting it rescue rejected candidates or adding permissive weak onsets made things worse on held-out folds).
+- 15 ms post-onset context beat 30 and 60 end to end (net notes 27 -> 37 ms median latency).
+- Out-of-fold label audit: the model strongly contradicts none of the parent's ~316 labeled candidates (the 3 flags were my tolerance edges or model errors). A systematic Kong-vs-detector disagreement around A4/A#4 (detector reads ~45 cents flat at the attack on the last two days) is queued for the parent's ears.
+- The parent labeled two NEW sessions end to end (her Sep 29 homework: Stairs and the G piece), chosen by the pedagogy agent's priorities before I looked at outputs; I pre-registered A = standard, B = verified, C = verified + more sensitive net (netThr 0.6).
+  Stairs: 47 presses / 43 no-key moments: A 32 caught, 18 false; B 32, 3 false; C 32, 4 false.
+  G piece: 21 presses / 66 no-key moments: A 16 caught, 10 false; B 16, 3 false; C 16, 4 false.
+  B is now the production default (parent OK'd). Soft presses (Kong velocity < 50): 10/28 caught (36%); medium 32/37 (86%). Pedagogy: 86 of her 120 strikes today were soft; soft is her normal touch; soft recall is the main detection goal (homework still prefers misses to false advances; a grown-up tap covers misses; a rhythm gate on a repeated-note piece now tolerates one unheard note per bar).
+- Where lone soft strikes (Kong 35-54, earlier sessions) go: 52% caught; 14% 'double' (an earlier same-pitch trigger < 100 ms before, likely early timing); 18% nothing proposed; 10% misread; 4% voice flag. A "new energy" harmonic-sum pitch estimator was worse than NSDF everywhere (dropped).
+- On the Stairs misses (which I then looked at, so Stairs is now dev): most were classic readings above A3 rejected because the network didn't fire and they were quieter than the -50 dBFS loud-fallback bar, with verifier scores 0.7-0.98; or only the network's weak any-key score fired.
+- Hill-climb on dev (Stairs + session folds with held-out verifier models): rescuing those 'high' readings directly: Stairs +5 caught but -2 right on calibration takes and +4 extras elsewhere (a rescued early/octave reading pre-empts the network's correct note). Routing them through the existing fallback path (wait 100 ms for the net, dup check) with its loudness bar lowered to -60 dBFS and the verifier as the gate (config D): Stairs 32 -> 36, no change on the fold sets. Pre-registered D, tested once on the untouched G set: identical to B (16/21, 3 false). So no evidence it generalizes; not shipped.
+- "A bit stronger!" cue idea (pedagogy): 52% of missed soft strikes leave a right-letter trace, but a trace is a real strike only ~60% of the time even at the best verifier band; parked unless a reliable residue remains.
+
+## Where I think we are
+
+Precision is in good shape. Soft-note recall is the problem, and I'm now out of cheap acceptance data (both new labeled sets have been used) and making small rule changes with ~5-note effects, which is exactly the hill-climbing you warned against.
+
+## Questions
+
+1. What would you do next for soft-note recall, concretely? Candidates I see: (a) retrain the onset network with soft strikes emphasized (and Kong ghost cleanup); (b) turn the verifier's strike head into the onset detector itself (run it continuously on frames, not just on candidates); (c) targeted recordings of soft playing (the parent imitating her touch? her own soft playing prompted?); (d) fix the 'double'/early-trigger timing issue; (e) something else.
+2. How should I spend parent time now that both acceptance sets are used? Label another full session as the next untouched test (the parent is willing but not infinitely)? Something cheaper?
+3. Is there a principled way to decide small changes like config D with this little data, or should I stop evaluating changes that can only move ~5 notes and batch changes into bigger, pre-registered releases?
+4. Anything in the verifier design you'd change before it becomes the foundation for more (e.g. how it's trained, the label hierarchy, the 15 ms context)?
+
+
+### Astra
+
+The verifier produced a real improvement: across the two new sessions, false events fell from 28 to 6 without losing caught notes. Keep B as the baseline.
+
+But I would push back on **“precision is in good shape.”** If caught and false events are disjoint event counts, that is 48/(48+6), or about 89% event precision. Whether that is acceptable depends on how many of those six events advance homework. Measure that directly—especially on repeated letters. Precision is substantially better; it is not a solved constraint.
+
+The bigger conclusion is that **soft playing is your main operating condition, not a corner case**. Optimize for her normal touch, rather than treating adult calibration performance as the baseline and recovering occasional quiet notes.
+
+### 1. My next investment: event timing first, then a soft-trained proposal network
+
+I would prioritize **(d), then (a) supported by a small amount of (c)**. I would not immediately turn the candidate verifier into a continuous onset detector.
+
+First, inspect the “double” category. Fourteen percent is large enough to matter, and it could represent three different problems:
+
+- A valid detection assigned slightly early, outside your matching tolerance.
+- A precursor that emits the right pitch and suppresses the subsequent acoustic strike.
+- A real preceding strike followed by a genuinely missed repeat.
+
+Those require different fixes. For a small set of examples, plot the acoustic onset, all candidate times, emitted events, and suppression reasons together. Do not classify them solely by a same-pitch event within 100 ms.
+
+If an early event already advanced homework correctly, calling the later event a miss misstates the product outcome, though its rhythm timestamp is still wrong. If the early event was spurious, that is a precision problem masquerading as recall loss.
+
+I would replace “first accepted candidate wins” behavior with a **pending-event arbitration stage** where the evidence justifies it. Nearby proposals can update the pitch and acoustic-onset estimate of one pending event before commitment. Keep this short and measured; do not introduce a universal 100 ms delay or merge every pair inside 100 ms. Real repeats must remain distinguishable.
+
+Next, retrain the existing onset network for **high proposal recall at a bounded candidate rate**, leaving the verifier to control committed events. That is a better-defined task than asking the onset network to achieve production precision itself.
+
+Concretely:
+
+- Oversample verified soft attacks, including those the current network never proposes.
+- Preserve weak re-strikes and speech-over-decay negatives in training.
+- Audit target alignment and onset-target width.
+- Measure proposal recall within a specified timing window **before** pitch reading, voice rejection, deduplication, and verification.
+- Report candidates per second alongside proposal recall.
+
+Start with the existing architecture to isolate the data change. If it plateaus, try a modest temporal CNN with longer history. Do not simultaneously change architecture, targets, and decoding and then infer which helped.
+
+Use gain reduction as augmentation, but do not equate it with soft touch. A softly struck piano has different attack spectra and mechanical-to-tonal ratios. Likewise, Kong velocity is a useful descriptive proxy, **not a calibrated measurement of her playing strength**. Your “soft recall” estimate may also exclude or mischaracterize notes that Kong struggles with. Supplement it with local acoustic measurements and a few parent judgments.
+
+I would collect the child’s natural soft playing preferentially. Parent imitation is useful for controlled experiments, but it is not a substitute. Short, low-pressure repeats of familiar phrases are better than asking her to manufacture dozens of isolated “soft” strikes.
+
+### 2. Why I would not simply run the verifier continuously
+
+Your verifier was trained on a selected distribution: detector candidates, a supplied pitch, and relatively meaningful temporal alignment. Running it everywhere changes all three.
+
+Between candidates, it will encounter vastly more negative windows. It also needs a pitch hypothesis before it can construct much of its input. Its apparent candidate-level discrimination does not establish frame-level onset precision.
+
+A continuous strike model is a reasonable experiment, but train it as one:
+
+- Provide full-timeline negatives, including ringing notes and speech.
+- Supply explicit acoustic-onset targets.
+- Separate pitch-independent strike proposal from pitch-conditioned verification.
+- Evaluate event decoding, not just frame classification.
+
+I would reuse the feature code and perhaps learned weights, not assume the existing strike head can be repurposed by changing its invocation frequency.
+
+Also, “rescue made things worse” does not establish that the verifier cannot support rescue. It establishes that the tested **verifier-plus-arbitration system** could not. Your early/octave pre-emption failures are direct evidence that arbitration confounded that experiment.
+
+### 3. Spend parent time on discovery first, acceptance later
+
+Do not immediately purchase another full-session test and consume it on the next threshold.
+
+For the next roughly 20 minutes of parent effort, I would allocate:
+
+| Time | Task |
+|---|---|
+| 5 min | Adjudicate a compact batch of ambiguous early/double cases, plus the A4/A♯4 issue if it affects current lessons. |
+| 5 min | Record short familiar phrases in her normal soft touch, with repeats and low/high transitions; record exact PCM. |
+| 10 min | After the next candidate is frozen, label short contiguous excerpts selected in advance from at least two later natural sessions. |
+
+Have the engineer resolve obvious timing cases first. Parent time should answer uncertainties that require ears or knowledge of the performance.
+
+For acceptance, use fixed-duration excerpts, selected independently of detector output, and label them completely. Include the quiet gaps. They need not be full sessions if the detector is replayed with its preceding context intact. Sampling across days gives more information about robustness than another single long clip from one sitting.
+
+Keep a small portion of natural-practice annotation random even while targeting soft strikes for training. Otherwise you will lose visibility into new false-event modes.
+
+The G result remains valid evidence about D: it showed no benefit on that sample. Once inspected, G becomes development data for future choices. That does not invalidate the historical comparison.
+
+### 4. Small changes can be evaluated principledly—but your uncertainty is large
+
+Do not batch unrelated changes merely to make the effect larger. That obscures causality. Batch a coherent hypothesis into a release, with component ablations on development data and one frozen acceptance comparison.
+
+For D specifically, the evidence is:
+
+- A development-set gain.
+- No observed gain on the independent G test.
+- No observed regression there.
+
+That is **insufficient evidence of benefit**, not evidence that it cannot generalize. Also check how many eligible D-style rescue opportunities existed in G. A session with none tests safety but says little about efficacy.
+
+For each change, maintain paired event accounting:
+
+- Correct strikes newly caught.
+- Previously caught strikes lost.
+- New false events.
+- False events removed.
+- Actual false advancements.
+- Added notification delay.
+
+Choose the decision rule before inspecting the next test. Since false advancement now matters most, use it as a constraint, then optimize recall within that constraint. Avoid pooling everything into an F1 score.
+
+With only a few sessions, formal significance tests will not create information you lack. Notes within a session are correlated; hundreds of candidate windows are not hundreds of independent trials. Report raw paired changes and session-specific results. “No new false events observed” is not proof of unchanged false-event risk.
+
+I would leave D unshipped for now, but retain it as a diagnostic: **some correct evidence exists behind an amplitude gate, and current scheduling determines whether it helps or hurts.**
+
+### 5. Changes I would make to the verifier’s foundation
+
+**Treat label provenance as uncertainty, not just a priority order.** A prompted take establishes intended pitch better than exact onset. A Kong-derived onset can still align the window incorrectly. Unverified teacher silence is particularly dangerous as a negative label when your goal is recovering teacher-missed soft strikes. Downweighting it by half may not be enough if those negatives vastly outnumber verified positives. Audit sampling and total loss contribution; ignore uncertain regions where appropriate.
+
+**Separate the two targets carefully.** A real strike with an incorrect candidate pitch should be positive for “strike” and negative for “strike of this pitch.” Mechanical noise over a ringing correct pitch should be negative for both. These examples teach exactly the distinctions you need.
+
+**Add realistic alignment jitter during training.** Candidate time is uncertain. Train on several offsets around verified acoustic onsets, while preserving the intended temporal meaning of the outputs. Otherwise the verifier can become accurate only for the proposal timing of the current detector.
+
+**Audit running-peak normalization.** A loud preceding event can change the representation of a subsequent soft strike. That may be useful context, or an unwanted dependency on gain and distant history. Compare it against a representation that retains spectral shape, local background-relative level, and an explicit level scalar. Make normalization state identical in training and replay.
+
+**Keep 15 ms for now.** It won end to end. But “15 ms after candidate” is not necessarily 15 ms after acoustic onset, and FFT alignment adds context too. Document the actual sample support. Longer context losing could reflect unnecessary delay, timing errors, or training behavior—not an inherent absence of useful later evidence.
+
+Finally, the out-of-fold audit is reassuring but limited. A model’s failure to strongly contradict labels is not independent confirmation that those labels are right. Its most useful role there is prioritizing review.
+
+My next release would have one coherent objective: **recover verified soft attacks without letting early candidates steal later correct events**. Fix event accounting and arbitration, retrain the proposal network on representative soft strikes, and leave the successful verifier largely stable. That is a more informative experiment than another amplitude-threshold rescue or a wholesale detector replacement.

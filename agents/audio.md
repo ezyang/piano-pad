@@ -465,3 +465,22 @@ As of 2026-09-26:
   "if we are hill climbing, consider collaborating with Astra" -> round 5
   asked (scratchpad astra/round5.md): soft-note strategy, parent-time use,
   how to decide ~5-note changes.
+- **A4/A#4 which-note (labels-4, parent by ear):** 11/11 clear cases sided
+  with Kong (detector a semitone low: G#4 for A4 x5, A4 for A#4 x6); 3 two
+  keys, 1 hard, 1 no. Tuning table tests (Kong as reference) are mixed
+  (+7 A#4 on Sep 29, -3..-11 A4 on Sep 26). Parent: "this may be a labeling
+  problem": ear/Kong judge pitch, the app needs the KEY; if the A4 string is
+  sharp, all three would call an A4 key "A#4". Added calibration set 'Key
+  check' (known keys G#4 A4 A#4 B4, soft A/A#, walk): decide tuning on it.
+- **Astra round 5 (design-review file):** timing/arbitration first (the 14%
+  'double': early trigger stealing the strike? -> a pending-event stage
+  that lets nearby proposals update one event before commit); then retrain
+  the onset net for PROPOSAL recall at a bounded candidates/s (oversample
+  verified soft attacks; measure before pitch/voice/dedup/verifier); child's
+  natural soft playing over parent imitation; paired event accounting per
+  change (newly caught / lost / new false / removed false / false
+  advancements / delay), decision rule fixed before the test; next
+  acceptance = pre-selected fixed-length excerpts across several days, fully
+  labeled. Verifier: treat label provenance as uncertainty, add alignment
+  jitter, audit running-peak normalization; keep 15 ms. Parent: Astra may
+  also write code (own worktree/branch; I review and test before merge).

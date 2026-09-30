@@ -70,9 +70,21 @@ const MIC = [
   { id: 'u-stand-2', say: `Back on the stand beside the piano, once more: ${PASSAGE}`, notes: PLACEMENT_NOTES },
 ];
 
-const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT, mic: MIC };
+// Which key is it? Known keys around A4, where the detector and the reference
+// transcriber disagree by a semitone (2026-09-29): the prompt, not the ear,
+// is the answer.
+const KEYS = [
+  { id: 'k-gs', say: 'Play G♯ (the black key just left of A, above middle C) 4 times, medium, one per second.', notes: [68, 68, 68, 68] },
+  { id: 'k-a', say: 'Play A (above middle C) 4 times, medium, one per second.', notes: [69, 69, 69, 69] },
+  { id: 'k-as', say: 'Play A♯ / B♭ (the black key between A and B, above middle C) 4 times, medium, one per second.', notes: [70, 70, 70, 70] },
+  { id: 'k-b', say: 'Play B (above middle C) 4 times, medium, one per second.', notes: [71, 71, 71, 71] },
+  { id: 'k-soft', say: 'Play A, then A♯, then A, then A♯, SOFTLY (like she does), one per second.', notes: [69, 70, 69, 70] },
+  { id: 'k-walk', say: 'Play G G♯ A A♯ B slowly, medium.', notes: [67, 68, 69, 70, 71] },
+];
 
-// #/calibrate (the basic set), or #/calibrate/<messy|placement|mic>.
+const SETS = { basic: BASIC, messy: MESSY, placement: PLACEMENT, mic: MIC, keys: KEYS };
+
+// #/calibrate (the basic set), or #/calibrate/<messy|placement|mic|keys>.
 export function calibrate(root, set = 'basic') {
   if (!SETS[set]) set = 'basic';
   let STEPS = SETS[set];
@@ -83,7 +95,7 @@ export function calibrate(root, set = 'basic') {
   const heardEl = h('div', { class: 'cal-heard' });
   const titles = { basic: '🎯 Calibrate the ears', messy: '🎯 Calibrate: messy playing', placement: '🎯 Calibrate: where the iPad sits', mic: '🎯 Calibrate: USB mic placement' };
   const titleEl = h('div', { class: 'song-title' }, titles[set]);
-  const setBtns = [['basic', 'Basic'], ['messy', 'Messy'], ['placement', 'iPad placement'], ['mic', 'USB mic']].map(([k, label]) =>
+  const setBtns = [['basic', 'Basic'], ['messy', 'Messy'], ['placement', 'iPad placement'], ['mic', 'USB mic'], ['keys', 'Key check']].map(([k, label]) =>
     h('button', { class: `btn${k === set ? ' primary' : ''}`, 'data-set': k, onclick: () => switchSet(k) }, label));
   const setsRow = h('div', { class: 'row cal-sets', style: 'flex-wrap:wrap;gap:6px;margin:6px 0' }, ...setBtns);
   // Diagnostic capture: keep the exact audio the detector processed for each

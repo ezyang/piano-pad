@@ -34,7 +34,7 @@ const spec = JSON.parse(readFileSync(evalFile, 'utf8'));
 const base = dirname(evalFile);
 const at = (p) => (p.startsWith('/') ? p : join(base, p));
 const opts = profileOptions(args);
-args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? (v.startsWith('[') ? JSON.parse(v) : v) : +v; } });
+args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? (/^[[{]/.test(v) ? JSON.parse(v) : v) : +v; } });
 const useExpect = args.includes('--expect'), detail = args.includes('--detail');
 const SR = 48000;
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];

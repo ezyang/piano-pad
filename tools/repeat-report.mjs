@@ -19,7 +19,7 @@ const letter = opt('--letter'), pcWant = letter ? NAMES.indexOf(letter) : null;
 const from = +(opt('--from') ?? 0), to = +(opt('--to') ?? 1e9);
 const files = args.filter((a) => a.endsWith('.mp4'));
 const opts = profileOptions(args);
-args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? (v.startsWith('[') ? JSON.parse(v) : v) : +v; } });
+args.forEach((a, i) => { if (a === '--opt') { const [k, v] = args[i + 1].split('='); opts[k] = isNaN(+v) ? (/^[[{]/.test(v) ? JSON.parse(v) : v) : +v; } });
 const SR = 48000, TOL = 0.06;
 const bins = (v) => (v < 50 ? 'soft' : v < 70 ? 'medium' : 'loud');
 const q = (a, p) => (a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(p * a.length))] : NaN);
