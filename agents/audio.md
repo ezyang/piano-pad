@@ -453,3 +453,10 @@ As of 2026-09-26:
   onsets), developed on dev (labels-6, folds). Eval specs:
   ~/Dev/piano-audio-data/eval-accept-0929.json (Stairs, now dev) and
   eval-accept-0929g.json (G).
+- **Config D, chosen on DEV before its test (2026-09-29):** verified +
+  dspFallbackMinDb -60 (quiet classic readings above A3 go through the
+  fallback path: wait 100 ms for the net, dup check, then the verifier).
+  Dev: Stairs Sep 29 caught 32 -> 36/47, false 3 -> 3; fold-held-out sets
+  unchanged. Rejected on dev: rescuing 'high' directly (-2 right on cal
+  takes, +4 extras across sets); -70 dB (+1 caught, +1 false on Sep 28
+  Stairs); weak any-key onsets (little gain). Test ONCE on labels-5b.
