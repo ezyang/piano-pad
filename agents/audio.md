@@ -506,3 +506,13 @@ As of 2026-09-26:
   (NSDF pitch, low routing, dedup, a verifier trained on old-net candidates)
   lose the new proposals. Next: integration diagnosis (task 2 for Astra).
   tools: --net <file> in profile.mjs/eval.mjs.
+- **Astra task 2, integration (astra/integration-report.md): no config met
+  the pre-set rule.** Best: soft nets @0.9 + netPitchDelayMs 10 (read the
+  net's pitch 10 ms later): dev 32/2/3 -> 34/0/3 caught/wrong/false, but cal
+  takes 73 -> 72 and grown-up Sep 28 67 -> 66. Where new proposals die: NSDF
+  pitch/clarity at net onsets; a verifier trained on OLD-net candidates
+  (accepts some wrong readings, rejects some right ones); low routing;
+  voice. acceptedStateOnly ('double' from engine-accepted notes only) and
+  verifierRescue low changed nothing. Experiment left uncommitted in
+  ~/Dev/piano-pad-astra (patch in astra/). Next (task 3): retrain the
+  verifier on new-net candidates, folds proper, same rule.
