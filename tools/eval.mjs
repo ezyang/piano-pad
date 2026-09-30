@@ -121,9 +121,16 @@ for (const dir of spec.sessions ?? []) {
   for (const line of readFileSync(join(at(dir), 'labels.jsonl'), 'utf8').trim().split('\n').filter(Boolean)) { const r = JSON.parse(line); lab[r.id] = r; }
   const open = man.filter((c) => !lab[c.id]).length;
   if (open) srows.push(`  ${dir}: ${open} of ${man.length} steps not labeled yet`);
-  const audio = recordings[man[0].session];
-  if (!audio) { srows.push(`  ${dir}: no recording for ${man[0].session}`); continue; }
-  const moments = man.filter((c) => c.kind === 'cand' && lab[c.id]).map((c) => ({ c, l: lab[c.id] }));
+  // One set can hold several sessions or excerpts (steps with `win`: only
+  // that window of the recording was labeled).
+  const groups = {};
+  for (const c of man) (groups[c.session + (c.win ? '@' + c.win.join('-') : '')] ??= []).push(c);
+  for (const steps of Object.values(groups)) {
+  const session = steps[0].session, win = steps[0].win ?? [-Infinity, Infinity];
+  if (!steps.every((c) => lab[c.id])) continue; // score finished excerpts only
+  const audio = recordings[session];
+  if (!audio) { srows.push(`  ${dir}: no recording for ${session}`); continue; }
+  const moments = steps.filter((c) => c.kind === 'cand' && lab[c.id]).map((c) => ({ c, l: lab[c.id] }));
   const presses = [];
   for (const m of moments) {
     if (m.l.strike !== 'yes') continue;
@@ -131,12 +138,12 @@ for (const dir of spec.sessions ?? []) {
     if (p && truth != null && p.truth != null && pc(p.truth) === pc(truth) && m.c.t - p.last < 0.2) { p.last = m.c.t; m.press = p; continue; }
     m.press = { t: m.c.t, last: m.c.t, truth, id: m.c.id, hits: [] }; presses.push(m.press);
   }
-  for (const m of man) {
+  for (const m of steps) {
     const l = lab[m.id]; if (!l) continue;
     if (l.missedBefore) S.unlit++;
     if (l.strike === 'gap') S.unlit += { one: 1, several: 2 }[l.keys] ?? 0;
   }
-  for (const n of run(decode(audio, SR))) {
+  for (const n of run(decode(audio, SR)).filter((n) => n.t >= win[0] && n.t < win[1])) {
     S.notes++;
     let best = null;
     for (const m of moments) if (Math.abs(n.t - m.c.t) < 0.08 && (!best || Math.abs(n.t - m.c.t) < Math.abs(n.t - best.c.t))) best = m;
@@ -152,6 +159,7 @@ for (const dir of spec.sessions ?? []) {
     if (!p.hits.length) { S.missed++; srows.push(`  ${p.id} real ${p.truth != null ? nm(p.truth) : '?'} @${p.t.toFixed(2)}: missed`); }
     else if (p.truth == null || pc(p.hits[0].midi) === pc(p.truth)) S.caught++;
     else S.wrongLetter++;
+  }
   }
 }
 

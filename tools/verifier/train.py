@@ -6,7 +6,8 @@
 
 <data dir> is ~/Dev/piano-audio-data: verifier/cands/ (tools/verifier/dump.mjs),
 logs/ (sessions, recordings, Kong .kong.json), labels-*/ (parent labels).
---hold: recording ids (one per line) to leave out of training.
+--hold: recording ids (one per line) to leave out of training (for folds).
+<data dir>/heldout.txt: recordings never used at all (acceptance/dev/test).
 
 Targets, strongest source first:
   - whole-session parent labels (label/make-session.mjs): every key press
@@ -26,6 +27,9 @@ TOL = 0.06  # s: a candidate this close to a strike is "at" it
 args = sys.argv[1:]
 DATA, OUT = args[0], args[1]
 hold = set(open(args[args.index('--hold') + 1]).read().split()) if '--hold' in args else set()
+# Recordings kept for evaluation only (acceptance/dev/test), never trained on.
+_ho = os.path.join(DATA, 'heldout.txt')
+HELDOUT = {l.strip() for l in open(_ho) if l.strip() and not l.startswith('#')} if os.path.exists(_ho) else set()
 CANDS = args[args.index('--cands') + 1] if '--cands' in args else os.path.join(DATA, 'verifier', 'cands')
 EPOCHS = int(args[args.index('--epochs') + 1]) if '--epochs' in args else 40
 SEED = int(args[args.index('--seed') + 1]) if '--seed' in args else 0
@@ -51,17 +55,23 @@ for d in sorted(glob.glob(os.path.join(DATA, 'labels-*'))):
     lab = answers(d)
     if not man or not lab:
         continue
-    if man[0].get('kind') in ('cand', 'gap'):  # a whole session
-        sess = man[0]['session']; strikes, ignore = [], []
+    if man[0].get('kind') in ('cand', 'gap'):  # whole sessions, or excerpts (steps with `win`)
+        groups = {}
         for c in man:
-            l = lab.get(c['id'])
-            if not l or c['kind'] != 'cand':
-                continue
-            if l['strike'] == 'yes':
-                strikes.append((c['t'], pc(l['note']) if str(l.get('note', '')).isdigit() else None))
-            elif l['strike'] in ('hard', 'mess', 'unsure'):
-                ignore.append(c['t'])
-        full[sess] = (strikes, ignore)
+            groups.setdefault((c['session'], tuple(c.get('win') or (-1e9, 1e9))), []).append(c)
+        for (sess, win), steps in groups.items():
+            if not all(c['id'] in lab for c in steps):
+                continue  # only finished excerpts: elsewhere a missing answer isn't a "no"
+            strikes, ignore = [], []
+            for c in steps:
+                l = lab[c['id']]
+                if c['kind'] != 'cand':
+                    continue
+                if l['strike'] == 'yes':
+                    strikes.append((c['t'], pc(l['note']) if str(l.get('note', '')).isdigit() else None))
+                elif l['strike'] in ('hard', 'mess', 'unsure'):
+                    ignore.append(c['t'])
+            full.setdefault(sess, []).append((win, strikes, ignore))
     elif 't' in man[0]:  # disputed moments
         for c in man:
             l = lab.get(c['id'])
@@ -114,18 +124,21 @@ def label(sid, cands):
     s = sessions.get(sid, {})
     ks = kong.get(sid, [])
     near = lambda t, xs: [x for x in xs if abs(x[0] - t) < TOL]
-    if sid in full:
-        strikes, ignore = full[sid]
-        out = []
-        for c in cands:
+    def by_full(c):
+        for win, strikes, ignore in full.get(sid, []):
+            if not (win[0] <= c['t'] < win[1]):
+                continue
             if any(abs(t - c['t']) < TOL for t in ignore):
-                out.append((0, 0, 0.0, 'full')); continue
+                return (0, 0, 0.0, 'full')
             ns = near(c['t'], strikes)
-            out.append((int(bool(ns)), int(any(p is None or p == pc(c['midi']) for _, p in ns)), 0.0 if any(p is None for _, p in ns) else 3.0, 'full'))
-        return out
+            return (int(bool(ns)), int(any(p is None or p == pc(c['midi']) for _, p in ns)), 0.0 if any(p is None for _, p in ns) else 3.0, 'full')
+        return None
     pr = prompted(s)
     out = []
     for c in cands:
+        f = by_full(c)
+        if f:
+            out.append(f); continue
         mom = [m for m in moments.get(sid, []) if abs(m[0] - c['t']) < 0.08]
         if mom:
             _, a, p = mom[0]
@@ -152,7 +165,7 @@ def label(sid, cands):
 X, S, Y, W, G, SRC, META = [], [], [], [], [], [], []
 for j in sorted(glob.glob(os.path.join(CANDS, '*.json'))):
     d = json.load(open(j)); sid = d['id']
-    if not d['cands']:
+    if not d['cands'] or sid in HELDOUT:
         continue
     raw = np.fromfile(j[:-5] + '.f32', dtype=np.float32)
     C, Sn = d['cands'][0]['C'], d['cands'][0]['S']

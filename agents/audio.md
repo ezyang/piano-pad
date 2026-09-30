@@ -525,3 +525,13 @@ As of 2026-09-26:
   (moot). Conclusion: the soft-net line doesn't pass yet; the bottleneck is
   verified soft-note data on HER playing (54 verified soft positives total).
   Park it; next soft-note step needs more parent-verified soft strikes.
+- **labels-7 (port 8773): 5 excerpts of her playing, 20 s each, drawn by a
+  seeded random draw (at least 4 Kong notes in the window) BEFORE looking at
+  outputs:** e1 Sep 26 practice pmuik88gh0vda 10.3-30.3; e2 Sep 27
+  homework pmujyilg65kdg 71.8-91.8; e3 Sep 27 build pmujxouffdcsn 23.8-43.8;
+  e4 Sep 29 build pmun7yim96p2k 10.2-30.2; e5 Sep 29 homework pmulxov0tm5f2
+  27.7-47.7. PRE-ASSIGNED: e2, e4 = TEST (their sessions never trained on);
+  e1, e3, e5 = training. 223 steps, test excerpts first.
+  ~/Dev/piano-audio-data/heldout.txt lists recordings train.py never uses
+  (G acceptance, Stairs dev, test excerpts). eval.mjs and train.py handle
+  excerpt sets (steps with `win`; only finished excerpts count).
