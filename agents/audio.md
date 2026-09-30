@@ -535,3 +535,8 @@ As of 2026-09-26:
   ~/Dev/piano-audio-data/heldout.txt lists recordings train.py never uses
   (G acceptance, Stairs dev, test excerpts). eval.mjs and train.py handle
   excerpt sets (steps with `win`; only finished excerpts count).
+- **Astra task 4 (expected-note + verifier; soft-strike augmentation),
+  spec scratchpad astra/task-4.md.** Codex hit its usage limit; a detached
+  script (~/Dev/piano-audio-data/astra/run-task4.sh) starts it at 02:00 EDT
+  Sep 30. Result: astra/task4-report.md (5-line summary on top). Parent is
+  low on Claude usage: lean on Astra, keep my part to review + relay.
