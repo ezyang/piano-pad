@@ -1,9 +1,10 @@
 // Today's adventure: a short practice with a beginning and an end, the same
-// path every day so she does all the material (the parent's call):
-//   G song → Stairs → Up and Down → party
-// Each step unlocks the next. Finishing the G song and then Stairs each
-// lets her pick a band member (Froggy, Beep Bot or Buzzy); Up and Down
-// brings the headliner (Blobby), and the party waits for it. "Finished"
+// path every day so she does all the material (the parent's call). This
+// week's homework, easiest melody first:
+//   Zebra → Train → Ode → party
+// Each step unlocks the next. Finishing Zebra and then Train each lets her
+// pick a band member (Froggy, Beep Bot or Buzzy); Ode brings the headliner
+// (Blobby), and the party waits for it. "Finished"
 // means she got to the end, never how well she played. Build! and Copy me
 // are free play, outside the adventure.
 //
@@ -13,9 +14,10 @@
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
 import * as log from './telemetry.js';
 
-export const STEPS = ['g', 'stairs', 'updown', 'party'];
-export const PICKING = ['g', 'stairs']; // finishing these earns a pick
-export const HEADLINER = 'slime'; // Up and Down brings Blobby
+export const STEPS = ['zebra', 'train', 'ode', 'party'];
+export const PICKING = ['zebra', 'train']; // finishing these earns a pick
+export const HEADLINER = 'slime'; // the last piece brings Blobby
+const HEADLINING = 'ode';
 export const PICKS = ['frog', 'bot', 'bee'];
 const STALE_MS = 60 * 60 * 1000;
 
@@ -66,7 +68,7 @@ export function finishStep(step, info = {}) {
   if (a.active === step) a.active = null;
   const first = !a.done.has(step);
   a.done.add(step);
-  if (first && step === 'updown' && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
+  if (first && step === HEADLINING && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
   event('finish', { step, ...info });
 }
 

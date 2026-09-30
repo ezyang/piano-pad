@@ -24,8 +24,12 @@ export function resolveClef(song) {
 }
 
 // Vertical metrics for one system. `letters` is the label mode under notes:
-// 'letters' | 'fingers' | 'none' (or a boolean for letters/none).
-const labelMode = (letters) => (letters === true ? 'letters' : letters === false ? 'none' : letters);
+// 'letters' | 'fingers' | 'book' | 'rhythm' | 'none' (or a boolean for
+// letters/none), or a list of them for several rows (e.g. rhythm words
+// with letters below).
+const labelMode = (letters) => (letters === true ? 'letters' : letters === false ? 'none' : Array.isArray(letters) ? letters[0] ?? 'none' : letters);
+const labelRows = (letters) => (Array.isArray(letters) ? letters : [labelMode(letters)]).filter((m) => m !== 'none');
+const ROW = 1.7; // label row pitch, in staff spaces
 
 function metrics(s, clef, letters) {
   const top = s * 3.2; // room for ledger lines above
@@ -38,16 +42,21 @@ function metrics(s, clef, letters) {
   }
   const last = staves[staves.length - 1].bottom;
   const letterY = last + s * 3.4;
-  return { staves, letterY, height: labelMode(letters) !== 'none' ? letterY + s * 1.1 : last + s * 3 };
+  const rows = labelRows(letters).length;
+  return { staves, letterY, height: rows ? letterY + s * 1.1 + (rows - 1) * s * ROW : last + s * 3 };
 }
 export const systemHeight = (s, clef, letters) => metrics(s, clef, letters).height;
 
-export function createStaff(song, { s = 20, width = 1000, letters = 'letters', visible = 2 } = {}) {
-  const mode = labelMode(letters);
-  const label = (g, m, x, y, finger, beats) => {
-    const { text, fallback } = labelFor(m, mode, finger, beats);
-    if (text) g.append(svg('text', { x, y, class: 'letter' + (mode === 'fingers' && !fallback ? ' finger' : '') + (fallback ? ' fallback' : '') }, text));
-  };
+// Book extras: song.sharps (a key signature: letters, e.g. ['F']),
+// song.repeat (an end-repeat sign), and `fingersAbove` (finger numbers above
+// the staff, as a book prints them: each note's `f`, or fingersAbove(i)
+// when it's a function of the note index).
+export function createStaff(song, { s = 20, width = 1000, letters = 'letters', visible = 2, fingersAbove = false } = {}) {
+  const mode = labelMode(letters), rows = labelRows(letters);
+  const label = (g, m, x, y, finger, beats) => rows.forEach((md, r) => {
+    const { text, fallback } = labelFor(m, md, finger, beats);
+    if (text) g.append(svg('text', { x, y: y + r * s * ROW, class: 'letter' + (md === 'fingers' && !fallback ? ' finger' : '') + (fallback ? ' fallback' : '') + (md === 'rhythm' ? ' word' : '') }, text));
+  });
   const clef = resolveClef(song);
   const laid = layout(song.notes);
   const { staves, letterY, height: H } = metrics(s, clef, letters);
@@ -58,7 +67,8 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   const unit = s * 3.2;
   const space = (d) => unit * d ** 0.6;
   const barGap = s * 0.9;
-  const clefW = s * 4.4;
+  const sharps = song.sharps ?? [];
+  const clefW = s * 4.4 + sharps.length * s * 1.1;
   const bars = [];
   laid.forEach((n, i) => {
     const b = Math.floor(n.start / 4);
@@ -97,6 +107,12 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
       root.append(st.clef === 'treble'
         ? svg('text', { x: s * 0.3, y: st.bottom - s, class: 'clef-glyph', 'font-size': s * 4 }, '\u{1D11E}')
         : svg('text', { x: s * 0.3, y: st.bottom - 0.4 * s, class: 'clef-glyph', 'font-size': s * 4 }, '\u{1D122}'));
+      // Key signature: F♯ on the top line (treble) / its line (bass), and so on.
+      const KEY = { treble: { F: 77, C: 72, G: 79 }, bass: { F: 53, C: 48, G: 55 } };
+      sharps.forEach((l, k) => {
+        const p = KEY[st.clef][l];
+        if (p != null) root.append(svg('text', { x: s * 4.2 + k * s * 1.1, y: st.bottom - (step(p) - REF[st.clef]) * (s / 2) + s * 0.5, class: 'acc', 'font-size': s * 1.7 }, '♯'));
+      });
     }
     const y0 = staves[0].bottom - 4 * s, y1 = staves[staves.length - 1].bottom;
     root.append(svg('line', { x1: 1, x2: 1, y1: y0, y2: y1, class: 'bl thin' }));
@@ -104,6 +120,8 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
       root.append(svg('line', { x1: bx, x2: bx, y1: y0, y2: y1, class: 'bl' }));
       if (lastSys && k === barXs.length - 1) {
         root.append(svg('line', { x1: bx + s * 0.35, x2: bx + s * 0.35, y1: y0, y2: y1, class: 'bl', 'stroke-width': s * 0.3 }));
+        // End repeat: two dots before the double bar, on each staff.
+        if (song.repeat) for (const st of staves) for (const dy of [1.5, 2.5]) root.append(svg('circle', { cx: bx - s * 0.55, cy: st.bottom - dy * s, r: s * 0.22, class: 'dot' }));
       }
     });
     return root;
@@ -150,6 +168,8 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     if (n.d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
     if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
     label(g, n.p, hx, letterY, n.f, n.d);
+    const f = typeof fingersAbove === 'function' ? fingersAbove(i) : fingersAbove ? n.f : null;
+    if (f != null) g.append(svg('text', { x: hx, y: Math.min(staffOf(n.p).bottom - 5.4 * s, y - s * 4.2), class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
   });
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];

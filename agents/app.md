@@ -42,41 +42,35 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-09-28:
-- **Today's adventure** leads the home screen. Since 2026-09-27 it's LINEAR
-  (parent: "choose your own adventure is bad, we want to do all the
-  material"): G song → Stairs → Up and Down → party, each unlocking the next
-  (`#/adventure/piece/<g|stairs|updown>`, `#/adventure/party`). Finishing
-  the G song and Stairs each gives a "Who joins your band?" pick (Froggy /
-  Beep Bot / Buzzy, she missed Buzzy); Up and Down brings Blobby. The party
-  plays Up and Down (piece buttons switch), then free Build! / Copy me.
-  Pieces (2026-09-28, parent: she'd become dependent on the prompts, "press
-  the lit finger", so the app is now a bridge to the paper book): drawn like
-  her book (`book.js`: pre-staff, letter in the head, RH row above LH,
-  finger numbers only where printed; the G song on a treble staff via
-  staff.js letters:'book'); ✋ only as each hand's set-up ("thumb on C"),
-  then hidden; ⚙︎ "Homework feedback" (st.feedback: note | bar | piece); a
-  grown-up TWO-FINGER TAP (→ on a computer) steps one note/bar/piece. The
-  right letter (any octave) advances; no look-ahead, no ghosts, voice
-  readings dropped (prefer misses to false advances). Logs: session `grain`,
-  judge `by: detector | grownup`, `bar` events. The G song is played back
-  in rhythm after (skippable).
-  ⚙︎ "Homework labels" (st.bookLabels: book | letters | first; book.js):
-  scaffolding comes off; 'first' = only each hand's first note labelled.
-  The G song is a RHYTHM piece (2026-09-29, her rhythm was "hopeless"):
-  bar by bar, gated by scoring.js `barRhythm` (her own tempo; ta-a ≥ 1.4×
-  ta, ti ≤ 0.8× ta, same lengths within 2×; a bar is judged when the next
-  bar's first note times its last); Piano Safari words under the notes;
-  an off bar → the band plays it with the words lit, she tries again. Drawn
-  at G4 (the book's G5 is for the teacher's duet, and the detector barely
-  hears G5); any G counts. A missed onset (one interval spanning two notes,
-  scoring.js `missedNote`) is checked first and passes the bar ('unheard'),
-  keeping the next bar in step; the last bar one note short passes after 3 s
-  of quiet ('unheard-end'). Logs: `bar` events with `iois` (ms), `ok`,
-  `why`, `unheard`, `by`; `model` events.
-- Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
-  the first block's letter as the one clue, no "next" column, no staff
-  letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.
+As of 2026-09-30:
+- **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
+  your own adventure is bad, we want to do all the material"), this week's
+  homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
+  each unlocking the next (`#/adventure/piece/<id>`, `#/adventure/party`).
+  Finishing Zebra and Train each gives a "Who joins your band?" pick
+  (Froggy / Beep Bot / Buzzy); Ode brings Blobby. The party plays Ode first;
+  buttons switch to any piece (the earlier G / Stairs / Up and Down too),
+  then free Build! / Copy me. New homework = new PIECES + adventure.js STEPS.
+  Pieces (parent: she'd become dependent on prompts, so the app is a bridge
+  to the paper book): drawn like her book, pre-staff (`book.js`: letter in
+  the head, RH row above LH, whole notes counted "(2 - 3 - 4)") or a real
+  staff (staff.js: `sharps` key signature, `repeat` sign = played twice,
+  finger numbers above as printed, label rows); ✋ only as the set-up banner
+  (one or two hands); ⚙︎ "Homework feedback" (st.feedback: note | bar |
+  piece) for melody pieces; ⚙︎ "Homework labels" (st.bookLabels: book |
+  letters | first); a grown-up TWO-FINGER TAP (→ on a computer) steps it on.
+  The right letter (any octave) advances; no look-ahead, no ghosts, voice
+  readings dropped (prefer misses to false advances).
+  RHYTHM pieces (`rhythm`; Zebra is also `pitched`) go bar by bar, gated by
+  scoring.js `barRhythm` at her own tempo (ta-a ≥ 1.4× ta, ti ≤ 0.8× ta, same
+  lengths within 2×), judged as the next bar's first note times the last;
+  pitched: a wrong letter fails the bar ('wrong-note'). An off bar → the band
+  plays it with the rhythm words lit, she tries again. A missed note passes
+  as 'unheard' (next note is the one after it, or `missedNote` timing); the
+  last bar one short passes after 3 s ('unheard-end'). Logs (kind
+  `homework`): `grain`, `labels`, `rhythm`, `pitched`, `repeat`; judge
+  `by: detector | grownup`; `bar` events (`iois` ms, `ok`, `why`,
+  `unheard`, `by`); `model` events.
   The band lives in memory only (`src/app/adventure.js`).
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
@@ -85,6 +79,9 @@ As of 2026-09-28:
   labels readings `expected` (no leniency). Agreed policy with audio: fewer
   false advances, even at the cost of misses; `by: 'grownup'` steps are
   labeling candidates, not proof she played the note.
+- Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
+  the first block's letter as the one clue, no "next" column, no staff
+  letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.
 - Hidden for now (files kept, routes still work): her songs, "New song", the
   editor, play and band screens, the ⚙︎ "Add homework song", and the 💾 save
   buttons in Build!/Copy me.
@@ -95,10 +92,10 @@ As of 2026-09-28:
   `player: 'kid' | 'grownup' | 'mixed'` (every session from this version
   on; absent = older). In memory only: off on reload or after an hour with
   no taps/notes; a badge shows while on (tap to turn off). `player.js`.
-- ⚙︎ detector select → `st.detector`: simple (standard = audio's onset
-  network with a loud-classic fallback, chosen on the parent's labels,
-  2026-09-27), classic (the fallback if it misbehaves), overlap, profile
-  ('net' is an alias of simple). Only the root app passes it; old /v/
+- ⚙︎ detector select → `st.detector` (audio owns the options and labels;
+  since 2026-09-29 standard includes audio's learned check, 'unverified'
+  is the older standard). Logs carry `settings.detectorOptions`, what the
+  detector was actually told. Only the root app passes it; old /v/
   versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
   (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)` (goes

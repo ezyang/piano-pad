@@ -18,7 +18,7 @@ export function home(root) {
   const done = (step) => !!a?.done.has(step);
   const advCard = h('a', { class: 'card adv-card', href: '#/adventure' },
     h('div', { class: 'card-title' }, 'Today’s adventure'),
-    h('div', { class: 'adv-mini' }, [['g', '🎵'], ['stairs', '🪜'], ['updown', '⛰️'], ['party', '🎉']].map(([step, icon]) =>
+    h('div', { class: 'adv-mini' }, [['zebra', '🦓'], ['train', '🚂'], ['ode', '🎶'], ['party', '🎉']].map(([step, icon]) =>
       h('span', {}, done(step) ? '✅' : icon))),
     h('div', { class: 'mini-band' }, (a?.band ?? ['piano']).map((id) => h('img', { class: 'mini-sprite', src: id === 'piano' ? me : bandSprite(BAND.find((m) => m.id === id)) }))));
 
@@ -70,7 +70,7 @@ export function home(root) {
             h('option', { value: v, selected: (st.feedback ?? 'note') === v || null }, t)))),
       h('label', { class: 'check' }, 'Homework labels: ',
         h('select', { onchange: (e) => { st.bookLabels = e.target.value; save(); } },
-          [['book', 'as in the book'], ['letters', 'letters, no finger numbers'], ['first', 'first note only']].map(([v, t]) =>
+          [['book', 'as in the book'], ['letters', 'letters (under staff notes), fewer finger numbers'], ['first', 'first note only']].map(([v, t]) =>
             h('option', { value: v, selected: (st.bookLabels ?? 'book') === v || null }, t)))),
       h('div', { class: 'hint' }, 'Two-finger tap on a homework page: step it on (a note, a bar, or the piece).'),
       h('label', { class: 'check' }, 'Microphone: ', micSelect),

@@ -21,6 +21,55 @@ const LEFT = { hand: 'left', finger: 5, text: 'Left hand: pinky on C' };
 const RIGHT = { hand: 'right', finger: 1, text: 'Right hand: thumb on C' };
 
 export const PIECES = {
+  // --- this week (lesson of 2026-09-30) ---
+  // Hands take turns near middle C: the right hand plays G A B (finger 2 on
+  // G), the left hand D E (finger 3 on D, between the two black keys). A
+  // real treble staff with one sharp (no F appears); repeated (played twice).
+  // Rhythm-gated like the G song, and the pitch must be right too.
+  zebra: {
+    id: 'zebra',
+    title: 'Homework: Zebra',
+    by: 'teacher', bpm: 80, clef: 'treble', sharps: ['F'], repeat: true, rhythm: true, pitched: true,
+    notes: fingers([
+      ...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67), // m1 RH
+      ...n(1, 62, 64), ...n(2, 62), // m2 LH
+      ...n(0.5, 69, 69, 69, 69), ...n(1, 69, 69), // m3 RH
+      ...n(1, 62, 64), ...n(2, 62), // m4 LH
+      ...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67), // m5 = m1
+      ...n(1, 62, 64), ...n(2, 62), // m6 = m4
+      ...n(2, 71), ...n(1, 69, 69), // m7 RH
+      ...n(4, 67), // m8 RH
+    ], { 0: 2, 6: 3, 7: 2, 8: 3, 9: 2, 15: 3, 18: 2, 24: 3, 27: 4, 28: 3, 30: 2 }),
+    setup: [{ at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 2 }], text: 'Left hand: finger 3 on D. Right hand: finger 2 on G.' }],
+  },
+  // C position, right hand first. The whole notes are counted "(2 - 3 - 4)".
+  train: {
+    id: 'train',
+    title: 'Homework: Train',
+    by: 'teacher', bpm: 80, clef: 'grand',
+    notes: [
+      ...fingers([...n(1, R.C, R.D, R.C, R.D), ...n(1, R.E, R.D, R.E, R.D), ...n(1, R.C, R.D, R.E, R.F), ...n(4, R.G)],
+        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
+      ...fingers([...n(1, L.G, L.F, L.G, L.F), ...n(1, L.E, L.F, L.E, L.F), ...n(1, L.G, L.F, L.E, L.D), ...n(4, L.C)],
+        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
+    ],
+    setup: [{ at: 0, ...RIGHT }, { at: 13, ...LEFT }],
+  },
+  // C position, left hand first.
+  ode: {
+    id: 'ode',
+    title: 'Homework: Ode',
+    by: 'teacher', bpm: 80, clef: 'grand',
+    notes: [
+      ...fingers([...n(1, L.E, L.E, L.F, L.G), ...n(1, L.G, L.F, L.E, L.D), ...n(1, L.C, L.C, L.D, L.E), ...n(1, L.E, L.D), ...n(2, L.D)],
+        { 0: 3, 3: 1, 8: 5, 12: 3, 13: 4 }),
+      ...fingers([...n(1, R.E, R.E, R.F, R.G), ...n(1, R.G, R.F, R.E, R.D), ...n(1, R.C, R.C, R.D, R.E), ...n(1, R.D, R.C), ...n(2, R.C)],
+        { 0: 3, 3: 5, 8: 1 }),
+    ],
+    setup: [{ at: 0, ...LEFT }, { at: 15, ...RIGHT }],
+  },
+
+  // --- earlier homework (the party can still play these) ---
   // Right hand, then left hand.
   updown: {
     id: 'updown',

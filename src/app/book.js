@@ -81,7 +81,9 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     const { x, top } = pos[i], hy = y(n.p, top), up = rh(n.p), open = n.d >= 2;
     g.append(svg('circle', { cx: x, cy: hy, r: r * 1.45, class: 'halo' }));
     const sx = up ? x + r * 0.92 : x - r * 0.92;
-    g.append(svg('line', { x1: sx, x2: sx, y1: hy, y2: up ? hy - stem : hy + stem, class: 'stem' }));
+    if (n.d < 4) g.append(svg('line', { x1: sx, x2: sx, y1: hy, y2: up ? hy - stem : hy + stem, class: 'stem' }));
+    // A whole note is counted through on the page: "(2 - 3 - 4)".
+    if (n.d === 4) g.append(svg('text', { x: x + beatW * 1.9, y: hy + r * 0.4, class: 'count', 'font-size': r * 1.05 }, '(2 - 3 - 4)'));
     g.append(svg('ellipse', { cx: x, cy: hy, rx: r * 1.05, ry: r * 0.9, class: 'head' + (open ? ' open' : '') }));
     const first = firsts.has(i);
     if (labels !== 'first' || first) g.append(svg('text', { x, y: hy + r * 0.42, class: 'ltr' + (open ? ' open' : ''), 'font-size': r * 1.15 }, letter(n.p)));
