@@ -427,3 +427,10 @@ As of 2026-09-26:
   the misses). Next: config D = verified + let the verifier decide 'high'
   and weak onsets; tune on dev/folds, test ONCE on labels-5 (her G, still
   untouched). Asked the parent to OK verified as the homework default.
+- **Verified is the DEFAULT (17fac1b, 2026-09-29, parent: "happy to test").**
+  engine: useVerifier for 'simple'/unset/'net'/'verified'; 'unverified' =
+  the old standard (grown-ups menu). Told piano-app (before) and pedagogy
+  (sha). Watch the next sessions' logs (vp, reject: 'verifier') for trouble.
+  Labeling guidance given to the parent: "Two keys" = distinct keys together
+  (a real press, any of its notes counts); "Splat" = clump/banging/can't tell
+  (not scored); when unsure, Splat.
