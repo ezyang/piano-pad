@@ -417,3 +417,13 @@ As of 2026-09-26:
   time at vp >= 0.3, 10% at 0.1-0.3, 2% below. Told pedagogy: decide after
   the parent-labeled acceptance sets; if needed, give piano-app a rule on
   onRaw events (expected letter + vp band), no contract change.
+- **ACCEPTANCE RESULT, labels-6 (her Stairs Sep 29, parent-labeled, 2026-09-29).**
+  47 presses / 43 no-key moments. A standard: 32 caught, 2 wrong, 13 missed,
+  18 false. B verified: 32/2/13, 3 false. C verified + netThr 0.6: 32/2/13,
+  4 false. -> B wins (pre-registered). Soft (Kong vel < 50) 9/24 caught,
+  medium 18/23. Misses: 'high' classic readings of quiet notes with vp
+  0.69-0.98 (4 soft D4s, a G5), weak any-key onsets with vp 0.76-0.997 (7),
+  misreads (4), voice (1), low clarity (1). labels-6 is now DEV (I looked at
+  the misses). Next: config D = verified + let the verifier decide 'high'
+  and weak onsets; tune on dev/folds, test ONCE on labels-5 (her G, still
+  untouched). Asked the parent to OK verified as the homework default.
