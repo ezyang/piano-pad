@@ -496,3 +496,13 @@ As of 2026-09-26:
   candidates/s (spec: scratchpad astra/task-onset.md; outputs in
   ~/Dev/piano-audio-data/astra/, report onset-report.md). I review + run the
   end-to-end eval before anything ships; labels-5b stays held out.
+- **Astra's retrained onset net (branch astra-onset e8074a0/cb3e8a2; nets in
+  ~/Dev/piano-audio-data/astra/soft-{A,B,all}.json; report onset-report.md).**
+  Raw proposal recall (before pitch/voice/dedup/verifier) up a lot: right
+  letter at 0.8, dev Stairs 22 -> 36/46, fold B 39% -> 60%, ~1.5-2.3
+  proposals/s. END TO END (fold-held-out nets + verifiers) the gain mostly
+  vanishes: Stairs dev 32 -> 34 caught (+2 wrong, +1 false) at 0.8, 33 at
+  0.9; fold sets +-1 note, cal takes +3 extras at 0.8. The downstream stages
+  (NSDF pitch, low routing, dedup, a verifier trained on old-net candidates)
+  lose the new proposals. Next: integration diagnosis (task 2 for Astra).
+  tools: --net <file> in profile.mjs/eval.mjs.

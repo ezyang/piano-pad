@@ -8,15 +8,17 @@
 //   --verified         turn on the profile's verifier (the grown-ups menu's
 //                      'verified' detector)
 //   --verifier <m.json> turn on this verifier model (tools/verifier/train.py)
+//   --net <net.json>   this onset network instead of the profile's
 import { readFileSync } from 'node:fs';
 import { decodeNet, decodeVerifier } from '../src/detector.js';
 
 export const profile = JSON.parse(readFileSync(new URL('../src/piano-profile.json', import.meta.url), 'utf8'));
-const net = profile.net && decodeNet(profile.net);
+const defaultNet = profile.net && decodeNet(profile.net);
 
 export function profileOptions(args) {
   if (args.includes('--no-profile')) return {};
-  const onsets = args.includes('--profile-onsets') ? 'templates' : args.includes('--classic') || !net ? 'dsp' : 'net';
+  const onsets = args.includes('--profile-onsets') ? 'templates' : args.includes('--classic') || !defaultNet ? 'dsp' : 'net';
+  const ni = args.indexOf('--net'), net = ni >= 0 ? decodeNet(JSON.parse(readFileSync(args[ni + 1], 'utf8'))) : defaultNet;
   const vi = args.indexOf('--verifier'), vm = vi >= 0 ? JSON.parse(readFileSync(args[vi + 1], 'utf8')) : args.includes('--verified') ? profile.verifier : null;
   return { octaveDown: profile.octaveDown, tuning: profile.tuning ?? {}, templates: profile.templates, net, onsets, ...(vm && onsets === 'net' ? { verifier: decodeVerifier(vm) } : {}) };
 }
