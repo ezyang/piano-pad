@@ -540,3 +540,16 @@ As of 2026-09-26:
   script (~/Dev/piano-audio-data/astra/run-task4.sh) starts it at 02:00 EDT
   Sep 30. Result: astra/task4-report.md (5-line summary on top). Parent is
   low on Claude usage: lean on Astra, keep my part to review + relay.
+- **Oct 3: Astra task 4 = no** (expected-note assistance: no dev catches;
+  augmentation: ties dev, +2 fold-A false). astra/task4-report.md.
+- **LIVE-ONLY SEMITONE ERRORS (Oct 1 Zebra homework):** firm G4s read live
+  as G#4 (f0 411-416 Hz, net and dsp agree) 5x, mostly the first strikes
+  after a pause; replay of the recording reads G4 (Kong G4 v66-75). Across
+  sessions, firm lone notes read +-1 semitone live: Sep 26 0.2%, Sep 27 2%,
+  Sep 29 4%, Oct 1 4% (replay doesn't show it; cf. Sep 29 grown-up D3->D#3).
+  Live-vs-recording time offsets also wander (unclear; noisy matching).
+  Suspect the live input path (iOS audio session/route changes when the app
+  plays sounds?). Asked piano-app. Decisive test: parent's Key check WITH
+  "Save exact audio" (exact live PCM vs the AAC recording on known keys).
+  Most of Zebra's 62 'other' judgments were her playing other notes or
+  mashing; the G#4 misreads were real detector errors on the right note.
