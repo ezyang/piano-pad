@@ -143,6 +143,7 @@ export const DEFAULTS = {
   vPreMs: 200,
   vPostMs: 15, // the model's own vPostMs wins
   verifierRescue: [],
+  heavyPerBlock: 1, // see process(): Oct 1 replay, max block 5.5 -> 2.2 ms, +6 ms median latency
   jumpMs: 20, // look this long after the onset for the jump's peak
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
   lowNetSpanMs: 15,
@@ -246,6 +247,11 @@ export class PianoDetector {
       this.pos++;
       if (++this.sinceHop === hop) {
         this.sinceHop = 0;
+        // Heavy per-note steps (voice drift, attack jump, each verifier model)
+        // done so far this hop: at most heavyPerBlock, so one audio block
+        // never carries several. Late blocks on the iPad can lose input (Oct 1:
+        // notes read a semitone sharp, the live clock fell behind the recording).
+        this.heavy = 0;
         this._frame();
         if (this.jobs.length) this._runJobs();
       }
@@ -430,21 +436,26 @@ export class PianoDetector {
       if (this.confirmRiseDb > 0 && this.pos < job.onset + (this.confirmMs / 1000) * this.sr) continue; // not yet
       const expected = !!(this.expect && out.midi != null && this.expect.pcs.has(((out.midi % 12) + 12) % 12));
       let voice;
+      const C = (job.c ??= {}); // results kept while the job waits for its turn
       // (Expected notes used to skip this check: talking then advanced
       // homework whenever a vowel read as the expected note. 2026-09-28.)
       if (out.midi != null && out.midi < this.voiceBelow && out.f0 > 0) {
         if (this.pos < from + this.voiceSpan) continue; // need the longer look
-        voice = this._drift(from, out.f0) > this.voiceCents;
+        if (C.voice === undefined) {
+          if (this.heavy >= this.heavyPerBlock) continue;
+          C.voice = this._drift(from, out.f0) > this.voiceCents; this.heavy++;
+        }
+        voice = C.voice;
       }
       const lowDsp = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi < this.lowDspBelow;
       // A confident classic reading above lowDspBelow is a fallback for strikes
       // the network misses (her repeated D4s): wait for the network, then
       // keep it if the network registered nothing for this strike.
-      const level = this._rms(job.onset, Math.round(0.04 * this.sr));
+      const level = (C.level ??= this._rms(job.onset, Math.round(0.04 * this.sr)));
       // How much the detected pitch got louder at this onset (a new tone vs a
       // note still ringing from before).
       const W0 = this.pitchWindows[0];
-      const toneRise = out.midi != null && out.f0 > 0 ? this._rawLevel(from, W0, out.f0) - this._rawLevel(job.onset - 32 - W0, W0, out.f0) : 0;
+      const toneRise = (C.toneRise ??= out.midi != null && out.f0 > 0 ? this._rawLevel(from, W0, out.f0) - this._rawLevel(job.onset - 32 - W0, W0, out.f0) : 0);
       const fallback = this.dspRole === 'low' && job.via === 'dsp' && out.midi != null && out.midi >= this.lowDspBelow &&
         out.clarity >= this.dspFallbackClarity && level >= this.dspFallbackMinDb;
       if (fallback && this.pos < job.onset + (this.dspFallbackWaitMs / 1000) * this.sr) continue;
@@ -461,7 +472,11 @@ export class PianoDetector {
       if (out.midi != null && out.f0 > 0 && this.minJump > -99 && (lowDsp || fallback || job.weak || this.dspRole === 'all')) {
         const need = job.onset + Math.round((this.jumpMs / 1000) * this.sr) + 1024;
         if (this.pos < need) continue; // wait for the window after the onset
-        jump = this._attackJump(job.onset, out.f0);
+        if (C.jump === undefined) {
+          if (this.heavy >= this.heavyPerBlock) continue;
+          C.jump = this._attackJump(job.onset, out.f0); this.heavy++;
+        }
+        jump = C.jump;
         if (!reject && jump < this.minJump) reject = 'no-jump';
       }
       const win = (this.tplRefractoryMs / 1000) * this.sr, pcOut = out.midi != null ? ((out.midi % 12) + 12) % 12 : -1;
@@ -477,9 +492,14 @@ export class PianoDetector {
       }
       let vp;
       if (needV) {
-        const f = this._vfeat(job.onset, out.midi, [(out.midi - 60) / 12, out.clarity, job.via === 'dsp' ? 1 : 0, job.via === 'net' && !job.weak ? 1 : 0, job.weak ? 1 : 0, toneRise / 20, level / 20 + 3]);
+        const f = (C.f ??= this._vfeat(job.onset, out.midi, [(out.midi - 60) / 12, out.clarity, job.via === 'dsp' ? 1 : 0, job.via === 'net' && !job.weak ? 1 : 0, job.weak ? 1 : 0, toneRise / 20, level / 20 + 3]));
         if (f && this.verifier) {
-          vp = this.verifier.run(f.x, f.s);
+          // One model of the ensemble per heavy step.
+          const ms = this.verifier.members ?? [this.verifier];
+          C.vk ??= 0; C.vs ??= 0;
+          while (C.vk < ms.length && this.heavy < this.heavyPerBlock) { C.vs += ms[C.vk++].run(f.x, f.s); this.heavy++; }
+          if (C.vk < ms.length) continue;
+          vp = C.vs / ms.length;
           if (!reject || this.verifierRescue.includes(reject)) reject = vp >= this.verifierThr ? null : 'verifier';
           if (!reject && voice && this.verifierRescue.includes('voice')) voice = false;
         }
