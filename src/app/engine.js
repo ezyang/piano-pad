@@ -109,6 +109,7 @@ class Engine {
       if (e.type === 'pcm-end') { this.capture?.done({ start: e.start, expects: e.expects }); return; }
       if (this.capture && (e.type === 'onset' || e.type === 'pitch')) this.capture.events.push(e);
       if (e.type === 'frames') {
+        if (e.skips !== undefined) this.skips = e.skips;
         this.level = e.frames[e.frames.length - 1].db;
         for (const L of [this.levelStats, this.wdStats]) {
           for (const f of e.frames) { L.min = Math.min(L.min, f.db); L.max = Math.max(L.max, f.db); L.sum += f.db; L.n++; }
@@ -130,6 +131,7 @@ class Engine {
       }
     };
     this.ctx = ctx;
+    this.t0 = { wall: performance.now() / 1000, ctx: ctx.currentTime };
     this.node = node;
     if (this.expected) node.port.postMessage({ type: 'expect', midis: this.expected });
     this._attachMic();
@@ -267,9 +269,14 @@ class Engine {
   takeLevelStats() {
     const L = this.levelStats;
     this.levelStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
-    this.wdStats = { min: Infinity, max: -Infinity, sum: 0, n: 0 };
-    setInterval(() => this._watchdog(), 1000);
-    return L.n ? { min: +L.min.toFixed(1), max: +L.max.toFixed(1), mean: +(L.sum / L.n).toFixed(1) } : null;
+    // (This used to start another watchdog interval on every call, piling up
+    // one per second of practice; the constructor's single one is enough.)
+    if (!L.n) return null;
+    // Audio health: how far the audio clock is behind the wall clock since
+    // the context started (ms; grows if the device drops audio), and render
+    // quanta the worklet saw skipped (both diagnose lost input, Oct 2026).
+    const lag = this.ctx && this.t0 ? Math.round(1000 * ((performance.now() / 1000 - this.t0.wall) - (this.ctx.currentTime - this.t0.ctx))) : undefined;
+    return { min: +L.min.toFixed(1), max: +L.max.toFixed(1), mean: +(L.sum / L.n).toFixed(1), ...(lag !== undefined ? { lag } : {}), ...(this.skips ? { skips: this.skips } : {}) };
   }
 
   async listen(on) {

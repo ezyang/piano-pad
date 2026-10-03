@@ -39,6 +39,9 @@ class DetectorProcessor extends AudioWorkletProcessor {
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];
     const x = ch || this.zero;
+    // Render quanta skipped (the clock jumped more than one block): lost input.
+    if (this.lastFrame !== undefined && currentFrame - this.lastFrame !== x.length) this.skips = (this.skips ?? 0) + 1;
+    this.lastFrame = currentFrame;
     if (this.pendingExpect !== undefined) {
       this.expect = this.pendingExpect;
       this.pendingExpect = undefined;
@@ -54,7 +57,7 @@ class DetectorProcessor extends AudioWorkletProcessor {
         if (e.type !== 'frame') return this.port.postMessage(e);
         this.frames.push(e);
         if (this.frames.length >= 16) {
-          this.port.postMessage({ type: 'frames', frames: this.frames });
+          this.port.postMessage({ type: 'frames', frames: this.frames, skips: this.skips ?? 0 });
           this.frames = [];
         }
       };
