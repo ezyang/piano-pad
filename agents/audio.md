@@ -553,3 +553,15 @@ As of 2026-09-26:
   "Save exact audio" (exact live PCM vs the AAC recording on known keys).
   Most of Zebra's 62 'other' judgments were her playing other notes or
   mashing; the G#4 misreads were real detector errors on the right note.
+- **Oct 3 fixes for the live-only errors (deployed):** 6e08a73 heavyPerBlock
+  1 (voice drift, attack jump, each verifier ensemble member: one per hop,
+  cached on the job): Oct 1 replay max block 5.5 -> 2.2 ms, 0 blocks over
+  2.67 ms, +6 ms median latency, identical eval results. 470a705 engine:
+  takeLevelStats() leaked a new 1 s watchdog setInterval on EVERY call (one
+  per second of logged practice, for the app's lifetime); fixed. Level
+  events now log `lag` (audio clock behind wall clock since context start,
+  ms; should stay flat) and `skips` (render quanta skipped). CHECK the next
+  sessions' level events: growing lag / skips > 0 would confirm lost input;
+  then also re-check the live-vs-Kong semitone error rate (was 2-4%).
+  piano-app: model() playback is not the cause (most sharp readings come
+  long after a model).
