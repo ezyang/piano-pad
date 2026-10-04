@@ -1,12 +1,16 @@
 // Homework pieces, baked into the app (storage is disposable, so they live
 // in code; a new piece is a deploy). Titles are neutral: no book titles or
 // lyrics in this public repo. Notes are {d: beats, p: midi, f?: finger},
-// with `f` exactly where the book prints a finger number. `setup` is how
+// with `f` exactly where the book prints a finger number,
+// hand?: 'R' | 'L' (stems and fingers drawn the book's way). `setup` is how
 // each hand starts (shown before that hand plays): from note index `at`,
 // which hand, which finger goes where.
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
+// Which hand plays (on a staff: right hand stems up, left hand stems down).
+const rh = (notes) => notes.map((x) => ({ ...x, hand: 'R' }));
+const lh = (notes) => notes.map((x) => ({ ...x, hand: 'L' }));
 
 // C five-finger position. The ✋ follows the notes: C3..G3 is the left hand
 // (pinky on C3), C4..G4 the right (thumb on middle C).
@@ -31,14 +35,14 @@ export const PIECES = {
     title: 'Homework: Zebra',
     by: 'teacher', bpm: 80, clef: 'treble', sharps: ['F'], repeat: true, rhythm: true, pitched: true,
     notes: fingers([
-      ...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67), // m1 RH
-      ...n(1, 62, 64), ...n(2, 62), // m2 LH
-      ...n(0.5, 69, 69, 69, 69), ...n(1, 69, 69), // m3 RH
-      ...n(1, 62, 64), ...n(2, 62), // m4 LH
-      ...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67), // m5 = m1
-      ...n(1, 62, 64), ...n(2, 62), // m6 = m4
-      ...n(2, 71), ...n(1, 69, 69), // m7 RH
-      ...n(4, 67), // m8 RH
+      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m1
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m2
+      ...rh([...n(0.5, 69, 69, 69, 69), ...n(1, 69, 69)]), // m3
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m4
+      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m5 = m1
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m6 = m4
+      ...rh([...n(2, 71), ...n(1, 69, 69)]), // m7
+      ...rh(n(4, 67)), // m8
     ], { 0: 2, 6: 3, 7: 2, 8: 3, 9: 2, 15: 3, 18: 2, 24: 3, 27: 4, 28: 3, 30: 2 }),
     setup: [{ at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 2 }], text: 'Left hand: finger 3 on D. Right hand: finger 2 on G.' }],
   },

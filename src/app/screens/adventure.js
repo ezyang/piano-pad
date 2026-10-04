@@ -6,7 +6,7 @@
 //                           then free Build! or Copy me
 import { h, flash, sparkle } from '../dom.js';
 import { getState } from '../store.js';
-import { createStaff, systemHeight } from '../staff.js';
+import { createStaff, systemHeight, roomBelow } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
 import { barRhythm, missedNote } from '../scoring.js';
@@ -125,7 +125,7 @@ export function bookPage(song, width, height, labels = 'book') {
   const letters = rows.length ? rows : 'none';
   return createStaff(song, {
     // The whole page at once when it fits, like the book.
-    s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters))),
+    s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters, roomBelow(song)))),
     letters,
     fingersAbove: labels === 'book' ? true : (i) => (firsts.has(i) ? song.notes[i].f ?? null : null),
   });
