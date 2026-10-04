@@ -565,3 +565,13 @@ As of 2026-09-26:
   then also re-check the live-vs-Kong semitone error rate (was 2-4%).
   piano-app: model() playback is not the cause (most sharp readings come
   long after a model).
+- **Oct 4 LH check (Train + Ode homework, parent: "missed a lot of lower LH
+  notes").** Kong vs live, her firm LH strikes (vel >= 40): Train 13/16, Ode
+  22/27. Of the 8 misses, 5 were heard at the RIGHT pitch (vp 0.5-0.99) but
+  flagged `voice` and ignored by the judge (E3/F3/G3/D3 sit in the adult-voice
+  band), 3 rejected (low/verifier). Low notes in Zebra were mashing (B2+C3+B3
+  clusters at 71-78 s), and the early vel 20-30 "A2/A#2" in Ode are probably
+  speech. Candidate fix: let a strong verifier score (or an expected note in
+  guided play) override the voice flag; must re-check labels-3what voices
+  first. Health: Zebra #1 lag drifted 493 -> 1421 ms (~6 ms/s, steady) with
+  no skips logged; Train/Ode lag flat, skips 1 (startup).
