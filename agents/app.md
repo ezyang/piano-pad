@@ -55,7 +55,8 @@ As of 2026-09-30:
   to the paper book): drawn like her book, pre-staff (`book.js`: letter in
   the head, RH row above LH, whole notes counted "(2 - 3 - 4)") or a real
   staff (staff.js: `sharps` key signature, `repeat` sign = played twice,
-  finger numbers above as printed, label rows; notes with `hand: 'R'|'L'`
+  finger numbers above as printed, label rows; `twice` = played twice with
+  no sign drawn: Train and Ode since 2026-10-04, parent via pedagogy; notes with `hand: 'R'|'L'`
   get the book's stems: RH up + fingers above, LH down + fingers below the
   stem, else stems by pitch; Zebra has hands, 2026-10-04, pedagogy); ✋ only as the set-up banner
   (one or two hands); ⚙︎ "Homework feedback" (st.feedback: note | bar |

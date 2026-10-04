@@ -180,7 +180,7 @@ function piece(root, id) {
   // The notes in the order she plays them: { i: note on the page, p, d, bar, pass }.
   const pageBars = Math.ceil(totalBeats(song.notes) / 4);
   const seq = [];
-  for (let pass = 0; pass < (song.repeat ? 2 : 1); pass++) {
+  for (let pass = 0; pass < (song.repeat || song.twice ? 2 : 1); pass++) {
     for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / 4 + 1e-9) }); }
   }
   const N = seq.length;
@@ -214,7 +214,7 @@ function piece(root, id) {
     adv.startStep(step, { grain, labels });
     const ps = seq.map((x) => x.p);
     session = { cur: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(onNote) };
-    log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(song.repeat ? { repeat: true } : {}),
+    log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(song.repeat || song.twice ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}),
       song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
     showCurrent();
   }

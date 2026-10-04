@@ -4,7 +4,8 @@
 // with `f` exactly where the book prints a finger number,
 // hand?: 'R' | 'L' (stems and fingers drawn the book's way). `setup` is how
 // each hand starts (shown before that hand plays): from note index `at`,
-// which hand, which finger goes where.
+// which hand, which finger goes where. `repeat`: a printed repeat sign;
+// `twice`: played twice anyway (no sign; repetition is the practice).
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -50,7 +51,7 @@ export const PIECES = {
   train: {
     id: 'train',
     title: 'Homework: Train',
-    by: 'teacher', bpm: 80, clef: 'grand',
+    twice: true, by: 'teacher', bpm: 80, clef: 'grand',
     notes: [
       ...fingers([...n(1, R.C, R.D, R.C, R.D), ...n(1, R.E, R.D, R.E, R.D), ...n(1, R.C, R.D, R.E, R.F), ...n(4, R.G)],
         { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
@@ -63,7 +64,7 @@ export const PIECES = {
   ode: {
     id: 'ode',
     title: 'Homework: Ode',
-    by: 'teacher', bpm: 80, clef: 'grand',
+    twice: true, by: 'teacher', bpm: 80, clef: 'grand',
     notes: [
       ...fingers([...n(1, L.E, L.E, L.F, L.G), ...n(1, L.G, L.F, L.E, L.D), ...n(1, L.C, L.C, L.D, L.E), ...n(1, L.E, L.D), ...n(2, L.D)],
         { 0: 3, 3: 1, 8: 5, 12: 3, 13: 4 }),
