@@ -143,6 +143,11 @@ export const DEFAULTS = {
   vPreMs: 200,
   vPostMs: 15, // the model's own vPostMs wins
   verifierRescue: [],
+  // A loud low note the verifier is sure of isn't a voice, even if its pitch
+  // wandered (her left hand under background talk, Oct 4). Speech in her
+  // recordings stays below -47 dB. voiceLoudDb 99: off.
+  voiceLoudDb: -46,
+  voiceLoudVp: 0.8,
   heavyPerBlock: 1, // see process(): Oct 1 replay, max block 5.5 -> 2.2 ms, +6 ms median latency
   jumpMs: 20, // look this long after the onset for the jump's peak
   lowNetMin: 0, // was 0.2; OFF (2026-09-27): it rejected her real D3 re-strikes (see charter)
@@ -502,6 +507,7 @@ export class PianoDetector {
           vp = C.vs / ms.length;
           if (!reject || this.verifierRescue.includes(reject)) reject = vp >= this.verifierThr ? null : 'verifier';
           if (!reject && voice && this.verifierRescue.includes('voice')) voice = false;
+          if (voice && level >= this.voiceLoudDb && vp >= this.voiceLoudVp) voice = false;
         }
         if (f && this.onCandidate) this.onCandidate({ onset: job.onset, midi: out.midi, f0: out.f0, clarity: out.clarity, via: job.via, key: job.key, weak: !!job.weak, reject: reject ?? null, voice: !!voice, level, toneRise, jump, vp, x: f.x, s: f.s });
       }
