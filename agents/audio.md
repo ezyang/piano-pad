@@ -575,3 +575,11 @@ As of 2026-09-26:
   guided play) override the voice flag; must re-check labels-3what voices
   first. Health: Zebra #1 lag drifted 493 -> 1421 ms (~6 ms/s, steady) with
   no skips logged; Train/Ode lag flat, skips 1 (startup).
+- **Shipped 153e893 (Oct 4): voiceLoudDb -46 / voiceLoudVp 0.8.** Parent:
+  people WERE talking during the LH passages. A voice-flagged low note with
+  level >= -46 dB and vp >= 0.8 is a note. Firm low strikes 439 -> 488/1087,
+  no-Kong notes 47 -> 47; frozen eval same or better everywhere. Margin is
+  thin (speech max -47 dB in replays): if loud nearby talk starts showing up
+  as low notes, raise voiceLoudDb. Replay of the live-missed LH notes: 3 of 5
+  now pass; the other 2 weren't voice-flagged in replay at all (live vs
+  replay again, cf. the semitone errors and Zebra #1's lag drift).
