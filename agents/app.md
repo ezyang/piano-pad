@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-09-30:
+As of 2026-10-04:
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
@@ -55,11 +55,14 @@ As of 2026-09-30:
   to the paper book): drawn like her book, pre-staff (`book.js`: letter in
   the head, RH row above LH, whole notes counted "(2 - 3 - 4)") or a real
   staff (staff.js: `sharps` key signature, `repeat` sign = played twice,
-  finger numbers above as printed, label rows; `twice` = played twice with
-  no sign drawn: Train and Ode since 2026-10-04, parent via pedagogy; notes with `hand: 'R'|'L'`
+  finger numbers above as printed, label rows); `twice` = played twice with
+  no sign drawn (Train and Ode since 2026-10-04, parent via pedagogy; logs
+  `repeat: true, twice: true`). Staff notes with `hand: 'R'|'L'`
   get the book's stems: RH up + fingers above, LH down + fingers below the
-  stem, else stems by pitch; Zebra has hands, 2026-10-04, pedagogy); ✋ only as the set-up banner
-  (one or two hands); ⚙︎ "Homework feedback" (st.feedback: note | bar |
+  stem, else stems by pitch (Zebra has hands, 2026-10-04, pedagogy). In
+  the letters/first label settings each hand's first note shows its finger
+  (by `hand` when the notes have it, else the `setup` entries).
+  ✋ only as the set-up banner (one or two hands, first pass only); ⚙︎ "Homework feedback" (st.feedback: note | bar |
   piece) for melody pieces; ⚙︎ "Homework labels" (st.bookLabels: book |
   letters | first); a grown-up TWO-FINGER TAP (→ on a computer) steps it on,
   a TWO-FINGER SWIPE RIGHT (←) steps back (2026-10-04, parent asked): to
@@ -106,6 +109,14 @@ As of 2026-09-30:
 - Testing without the Chrome extension: headless Chrome + a small CDP script
   (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)` (goes
   straight to onNote listeners, bypassing the detector, since 9d268ae).
+  Chrome flags: `--headless=new --remote-debugging-port=9333
+  --use-fake-ui-for-media-stream --use-fake-device-for-media-stream
+  --use-file-for-fake-audio-capture=<silent.wav>`. Scratchpads don't
+  survive sessions, so expect to rewrite the ~20-line runner. Adventure
+  progress is in memory: unlock a piece in-page with
+  `import('./src/app/adventure.js')` → `current().done.add('zebra')`, then
+  set `location.hash` (a reload loses it). Grown-up step/back:
+  dispatch keydown ArrowRight/ArrowLeft.
 - Version permalinks (2026-09-26): every commit is served at `/v/<sha>/`,
   `/v/<date>/`, list at `/v/`; the ⚙︎ menu shows the version and links there.
   The parent may deliberately send her back to an old version (removing
