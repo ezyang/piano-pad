@@ -119,7 +119,9 @@ function map(root) {
 // only each hand's first note labelled.
 export function bookPage(song, width, height, labels = 'book') {
   if (song.clef === 'grand') return createBook(song, { width, height, labels });
-  const firsts = new Set((song.setup ?? []).map((x) => x.at));
+  // Each hand's first note: by the notes' `hand` when they have one, else the set-ups.
+  const handed = song.notes.some((x) => x.hand);
+  const firsts = new Set(handed ? ['R', 'L'].map((hd) => song.notes.findIndex((x) => x.hand === hd)).filter((i) => i >= 0) : (song.setup ?? []).map((x) => x.at));
   const rows = [...(song.rhythm ? ['rhythm'] : []), ...(labels === 'letters' ? ['letters'] : [])];
   const size = Math.max(14, Math.min(22, Math.round(width / 38)));
   const letters = rows.length ? rows : 'none';
