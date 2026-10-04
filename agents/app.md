@@ -58,7 +58,10 @@ As of 2026-09-30:
   finger numbers above as printed, label rows); ✋ only as the set-up banner
   (one or two hands); ⚙︎ "Homework feedback" (st.feedback: note | bar |
   piece) for melody pieces; ⚙︎ "Homework labels" (st.bookLabels: book |
-  letters | first); a grown-up TWO-FINGER TAP (→ on a computer) steps it on.
+  letters | first); a grown-up TWO-FINGER TAP (→ on a computer) steps it on,
+  a TWO-FINGER SWIPE RIGHT (←) steps back (2026-10-04, parent asked): to
+  the start of a half-played bar, else one step back at the grain; the
+  page is redrawn; logs a `back` event { from, to, by: 'grownup' }.
   The right letter (any octave) advances; no look-ahead, no ghosts, voice
   readings dropped (prefer misses to false advances).
   RHYTHM pieces (`rhythm`; Zebra is also `pitched`) go bar by bar, gated by

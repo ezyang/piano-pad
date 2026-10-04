@@ -386,9 +386,55 @@ function piece(root, id) {
     const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? bars[barIndexOf[session.cur]].at(-1) + 1 : N;
     while (session && session.cur < end) advance('grownup');
   }
-  const onTouch = (e) => { if (e.touches.length === 2) { e.preventDefault(); grownupStep(); } };
-  const onKey = (e) => { if (e.key === 'ArrowRight') grownupStep(); };
+  // ...and back: to the start of the bar she's partway through, else the
+  // step before (one note / the bar before / the top at the piece grain).
+  // The page is redrawn up to there.
+  function grownupBack() {
+    if (!session || session.cur >= N) return;
+    const k = session.cur, bi = barIndexOf[k];
+    let to;
+    if (rhythm) {
+      if (modelRaf) { cancelAnimationFrame(modelRaf); modelRaf = 0; engine.stopAll(); quietUntil = 0; }
+      clearTimeout(endTimer);
+      to = entries.length ? bars[bi][0] : bars[Math.max(0, bi - 1)][0];
+      entries = [];
+      wrong = false;
+    } else to = grain === 'note' ? Math.max(0, k - 1) : grain === 'bar' ? (k > bars[bi][0] ? bars[bi][0] : bars[Math.max(0, bi - 1)][0]) : 0;
+    log.event('back', { from: k, to, by: 'grownup' });
+    hideSetup();
+    if (barRect) barRect.remove();
+    barRect = null;
+    for (const r of doneRects) r.remove();
+    doneRects = [];
+    for (const i of page.targets) page.mark(i, '');
+    const pass = seq[to].pass;
+    passLabel.textContent = pass ? '2nd time' : '';
+    if (grain === 'note') for (let j = 0; j < to; j++) { if (seq[j].pass === pass) page.mark(seq[j].i, 'hit'); }
+    else if (grain === 'bar') {
+      for (let b = 0; b < barIndexOf[to]; b++) {
+        const ks = bars[b];
+        if (seq[ks[0]].pass === pass) doneRects.push(page.span(seq[ks[0]].i, seq[ks.at(-1)].i, 'bar-done'));
+      }
+    }
+    session.cur = to;
+    showCurrent();
+  }
+  // Two-finger tap: on; two-finger swipe right: back.
+  let swipe = null;
+  const xs = (e) => [...e.touches].reduce((s, t) => s + t.clientX, 0) / e.touches.length;
+  const onTouch = (e) => { if (e.touches.length === 2) { e.preventDefault(); swipe = { x0: xs(e), x: xs(e) }; } };
+  const onMove = (e) => { if (swipe && e.touches.length === 2) swipe.x = xs(e); };
+  const onEnd = () => {
+    if (!swipe) return;
+    const dx = swipe.x - swipe.x0;
+    swipe = null;
+    if (dx > 60) grownupBack(); else if (dx > -60) grownupStep();
+  };
+  const onKey = (e) => { if (e.key === 'ArrowRight') grownupStep(); else if (e.key === 'ArrowLeft') grownupBack(); };
   stageEl.addEventListener('touchstart', onTouch, { passive: false });
+  stageEl.addEventListener('touchmove', onMove);
+  stageEl.addEventListener('touchend', onEnd);
+  stageEl.addEventListener('touchcancel', () => { swipe = null; });
   addEventListener('keydown', onKey);
 
   function finish() {
