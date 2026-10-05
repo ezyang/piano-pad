@@ -12,7 +12,7 @@ import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
 import { barRhythm, missedNote } from '../scoring.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
-import { renderBand, renderJingle } from '../instruments.js';
+import { renderBand, renderJingle, renderYay } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
@@ -160,6 +160,14 @@ export function bookPage(song, width, height, labels = 'book') {
 //   she plays is the one after it (a different letter), or the timing shows
 //   one interval spanning two notes (scoring.js missedNote), the bar passes
 //   as 'unheard'.
+// A piece played twice: when the first time through ends, a short
+// celebration ("Yay! One more time!": her character cheers, the first of two
+// stars fills, a little ta-da) for BETWEEN_MS or until she taps, then the
+// second time. Notes are ignored meanwhile; the stars (⭐☆) stay in the
+// header. Smaller than the end-of-piece celebration on purpose. For rhythm
+// pieces the first time's last bar is judged like the piece's last bar (it
+// doesn't wait for the second time's first note).
+const BETWEEN_MS = 2600;
 function piece(root, id) {
   const a = adv.current();
   const song = PIECES[id], step = id, st = getState();
@@ -208,6 +216,11 @@ function piece(root, id) {
   bars.forEach((ks, b) => { for (const k of ks) barIndexOf[k] = b; });
   const want = (k) => seq[k].p;
   let barRect = null, doneRects = [];
+  const twice = seq.at(-1).pass > 0;
+  const passEnd = (k) => k + 1 >= N || seq[k + 1].pass !== seq[k].pass; // k: the last note of a time through
+  // The header: ☆☆ the first time, ⭐☆ 2nd time, ⭐⭐ when done (n: stars earned).
+  const setStars = (n, text = '') => passLabel.replaceChildren(...(twice ? [h('span', { class: 'adv-pass-stars' }, '⭐'.repeat(n) + '☆'.repeat(2 - n)), text] : []));
+  setStars(0);
 
   function showStart() {
     overlay.replaceChildren(h('button', { class: 'btn primary huge', onclick: begin }, '▶ Start'));
@@ -251,7 +264,10 @@ function piece(root, id) {
     const k = session.cur;
     if (k >= N) { engine.expect?.(null); hideSetup(); return; }
     engine.expect?.([want(k)]); // labels the detector's readings of the expected note (piano-audio)
-    if (k > 0 && seq[k].pass !== seq[k - 1].pass) secondTime();
+    if (k > 0 && seq[k].pass !== seq[k - 1].pass) {
+      if (!session.between) { celebrateBetween(); return; }
+      secondTime();
+    }
     showSetup(k);
     if (grain === 'note') { page.mark(seq[k].i, 'current'); page.show(seq[k].i); }
     if (grain === 'bar' && (k === 0 || seq[k].bar !== seq[k - 1].bar)) {
@@ -265,8 +281,45 @@ function piece(root, id) {
     for (const r of doneRects) r.remove();
     doneRects = [];
     for (const i of page.targets) page.mark(i, '');
-    passLabel.textContent = '2nd time';
+    setStars(1, '2nd time');
     flash(passLabel, 'pop', 400);
+  }
+  // The first time through is done: celebrate a little, then the second.
+  // session.between: unset → 'on' (showing) → 'done'.
+  let betweenBox = null, betweenTimer = 0;
+  function celebrateBetween() {
+    session.between = 'on';
+    engine.expect?.(null);
+    hideSetup();
+    log.event('between', { pass: 1, of: 2 });
+    const sprite = memberImg(a, 'piano', 'adv-between-sprite');
+    const star = h('span', { class: 'adv-between-star' }, '⭐');
+    betweenBox = h('div', { class: 'adv-between', onclick: () => endBetween() },
+      sprite,
+      h('div', { class: 'adv-between-stars' }, star, h('span', { class: 'adv-between-todo' }, '☆')),
+      h('div', { class: 'adv-between-text' }, 'Yay! One more time!'));
+    stageEl.append(betweenBox);
+    setStars(1);
+    flash(sprite, 'cheer', 1500);
+    hop();
+    if (engine.ctx) engine.play(renderYay(engine.ctx.sampleRate));
+    setTimeout(() => {
+      if (!betweenBox) return;
+      const r = star.getBoundingClientRect(), b = betweenBox.getBoundingClientRect();
+      sparkle(betweenBox, r.left - b.left + r.width / 2, r.top - b.top + r.height / 2, ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff'], 14);
+    }, 250);
+    betweenTimer = setTimeout(endBetween, BETWEEN_MS);
+  }
+  function clearBetween() {
+    clearTimeout(betweenTimer);
+    betweenBox?.remove();
+    betweenBox = null;
+  }
+  function endBetween() {
+    if (!session || session.between !== 'on') return;
+    clearBetween();
+    session.between = 'done';
+    showCurrent();
   }
   function barDone() {
     hop();
@@ -292,6 +345,7 @@ function piece(root, id) {
 
   function onNote(n) {
     if (!session || n.time < session.tStart || session.cur >= N) return;
+    if (session.between === 'on') { log.event('judge', { got: n.midi, grade: 'ignored', why: 'between' }); return; }
     if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     if (rhythm) return onRhythmNote(n);
     const k = session.cur;
@@ -321,7 +375,7 @@ function piece(root, id) {
     judgeIfReady();
   }
   function judgeIfReady() {
-    const bi = barIndexOf[session.cur], ks = bars[bi], m = ks.length, last = bi === bars.length - 1;
+    const bi = barIndexOf[session.cur], ks = bars[bi], m = ks.length, last = passEnd(ks.at(-1)); // the end of a time through
     clearTimeout(endTimer);
     if (last && entries.length === m - 1 && !wrong) {
       // One short at the very end: likely a note not heard; don't leave her waiting.
@@ -362,6 +416,7 @@ function piece(root, id) {
     wrong = false;
     if (bi + 1 >= bars.length) { session.cur = N; setTimeout(finish, 600); return; }
     session.cur = bars[bi + 1][0];
+    if (seq[session.cur].pass !== seq[session.cur - 1].pass) entries = []; // a fresh start after the celebration
     showCurrent();
     if (entries.length) judgeIfReady();
   }
@@ -398,6 +453,7 @@ function piece(root, id) {
   // the bar / the whole piece at the grain.
   function grownupStep() {
     if (!session || session.cur >= N) return;
+    if (session.between === 'on') { endBetween(); return; }
     hideSetup();
     if (rhythm) {
       if (modelRaf) { cancelAnimationFrame(modelRaf); modelRaf = 0; engine.stopAll(); quietUntil = 0; }
@@ -405,7 +461,7 @@ function piece(root, id) {
       passBar([]);
       return;
     }
-    const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? bars[barIndexOf[session.cur]].at(-1) + 1 : N;
+    const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? bars[barIndexOf[session.cur]].at(-1) + 1 : seq.findIndex((x, k) => k >= session.cur && passEnd(k)) + 1;
     while (session && session.cur < end) advance('grownup');
   }
   // ...and back: to the start of the bar she's partway through, else the
@@ -414,6 +470,7 @@ function piece(root, id) {
   function grownupBack() {
     if (!session || session.cur >= N) return;
     const k = session.cur, bi = barIndexOf[k];
+    if (session.between === 'on') { clearBetween(); session.between = null; }
     let to;
     if (rhythm) {
       if (modelRaf) { cancelAnimationFrame(modelRaf); modelRaf = 0; engine.stopAll(); quietUntil = 0; }
@@ -430,7 +487,8 @@ function piece(root, id) {
     doneRects = [];
     for (const i of page.targets) page.mark(i, '');
     const pass = seq[to].pass;
-    passLabel.textContent = pass ? '2nd time' : '';
+    if (!pass) session.between = null; // back into the first time: celebrate its end again
+    setStars(pass, pass ? '2nd time' : '');
     if (grain === 'note') for (let j = 0; j < to; j++) { if (seq[j].pass === pass) page.mark(seq[j].i, 'hit'); }
     else if (grain === 'bar') {
       for (let b = 0; b < barIndexOf[to]; b++) {
@@ -470,6 +528,7 @@ function piece(root, id) {
     log.endSession({ completed: true });
     adv.finishStep(step, { grain, labels });
     for (const i of page.targets) page.mark(i, 'hit');
+    if (twice) { setStars(2); flash(passLabel, 'pop', 400); }
     engine.play(renderJingle(engine.ctx.sampleRate));
     const r = pageBox.getBoundingClientRect();
     for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
@@ -506,6 +565,7 @@ function piece(root, id) {
     gen++;
     removeEventListener('keydown', onKey);
     clearTimeout(endTimer);
+    clearBetween();
     if (modelRaf) { cancelAnimationFrame(modelRaf); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);

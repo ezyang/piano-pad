@@ -462,7 +462,8 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .staff .letter.word { font-size: 13px; }
 .staff .finger-above { fill: #3b3226; }
 .adv-setup-hands { display: flex; gap: 10px; }
-.adv-pass { font: 16px var(--pixel); color: var(--gold); text-shadow: 2px 2px 0 #000; margin-left: 16px; }
+.adv-pass { font: 16px var(--pixel); color: var(--gold); text-shadow: 2px 2px 0 #000; margin-left: 16px; display: flex; align-items: center; gap: 10px; }
+.adv-pass-stars { font-size: 30px; letter-spacing: 2px; }
 
 /* ---------- Costume time (costume.js) ---------- */
 .adv-stop-wrap { position: relative; }
@@ -494,6 +495,17 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .btn.costume-done { min-width: 160px; font: 64px/1 system-ui, sans-serif; padding: 16px 40px; }
 .costume-palette { grid-template-columns: repeat(9, 56px); }
 @media (max-width: 600px) { .costume-palette { grid-template-columns: repeat(6, 52px); } }
+
+/* ---------- Between the two times through a piece (adventure.js) ---------- */
+.adv-between { position: absolute; left: 50%; top: 42%; translate: -50% -50%; z-index: 12; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 70px 34px 18px; background: #241a44; border: 4px solid var(--gold); color: #fff; text-shadow: 3px 3px 0 #000;
+  animation: pop 0.35s ease-out; cursor: pointer; }
+.adv-between-sprite { height: 110px; width: auto; image-rendering: pixelated; }
+.adv-between-stars { display: flex; gap: 14px; font-size: 64px; line-height: 1; }
+.adv-between-star { display: inline-block; animation: adv-star-in 0.6s ease-out; }
+.adv-between-todo { opacity: 0.6; }
+@keyframes adv-star-in { 0% { transform: scale(0.2) rotate(-90deg); opacity: 0; } 70% { transform: scale(1.3) rotate(10deg); opacity: 1; } 100% { transform: none; } }
+.adv-between-text { font: clamp(18px, 3.4vw, 28px) var(--pixel); white-space: nowrap; }
 /* Party: the play button answers on touch-down and shows it's playing;
    the band glows while it performs, notes float up. */
 .adv-party .band-stage { position: relative; }

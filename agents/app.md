@@ -80,6 +80,19 @@ As of 2026-10-05:
   `homework`): `grain`, `labels`, `rhythm`, `pitched`, `repeat`; judge
   `by: detector | grownup`; `bar` events (`iois` ms, `ok`, `why`,
   `unheard`, `by`); `model` events.
+  BETWEEN THE TWO TIMES (2026-10-05, parent via pedagogy: going straight
+  into "2nd time" felt harsh): a piece played twice (`repeat`/`twice`)
+  pauses after the first time for a small celebration (smaller than the
+  end): a gold-framed panel over the page with her character in her
+  costume so far cheering, the first of two stars filling (⭐☆), a
+  two-note ta-da (`renderYay`), "Yay! One more time!"; 2.6 s
+  (`BETWEEN_MS`) or her tap, then the second time. Notes are ignored
+  meanwhile (judge `why: 'between'`); a grown-up step skips it, a back
+  cancels it (it plays again when the first time ends again). Header
+  stars: ☆☆ → ⭐☆ "2nd time" → ⭐⭐ at the end. Rhythm pieces judge the
+  first time's last bar like the piece's last bar (no waiting for the
+  next note). At the piece grain a grown-up step goes to the end of the
+  current time through. Logs a `between` event { pass: 1, of: 2 }.
   The band lives in memory only (`src/app/adventure.js`).
   COSTUME TIME (2026-10-05, pedagogy + parent: the drawing she loves as the
   reward for homework, `src/app/costume.js`): after each piece's finish

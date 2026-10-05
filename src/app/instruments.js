@@ -137,6 +137,14 @@ export function renderJingle(sr) {
   return out;
 }
 
+// A smaller "ta-da" (two notes) for halfway moments, e.g. the first time
+// through a piece played twice; the jingle stays the bigger one.
+export function renderYay(sr) {
+  const out = new Float32Array(Math.round(0.8 * sr));
+  [76, 84].forEach((m, i) => addTone(out, Math.round(i * 0.14 * sr), sr, 0.45, midiToHz(m), 0.1, 0.25, 'square'));
+  return out;
+}
+
 // Woodblock-ish count-in tick; accented ticks are higher.
 export function renderTick(sr, accent = false) {
   const out = new Float32Array(Math.round(0.06 * sr));
