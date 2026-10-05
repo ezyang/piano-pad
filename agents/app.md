@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-04:
+As of 2026-10-05:
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
@@ -81,6 +81,29 @@ As of 2026-10-04:
   `by: detector | grownup`; `bar` events (`iois` ms, `ok`, `why`,
   `unheard`, `by`); `model` events.
   The band lives in memory only (`src/app/adventure.js`).
+  COSTUME TIME (2026-10-05, pedagogy + parent: the drawing she loves as the
+  reward for homework, `src/app/costume.js`): after each piece's finish
+  (jingle, her cheer) an overlay lets her draw one costume part in the
+  editor's style: 🦓 → hat 🎩, 🚂 → something to hold 🎈, 🎶 → cape 🦸
+  (`PART_OF`). One layer per part on an 18x20 outfit canvas (her 10x14
+  character at 3,4), painted only in the part's zone; the cape goes BEHIND
+  her (her pixels can't be painted). Big ✓ → on (map/pick, or Blobby's
+  welcome → party). Then she wears it on the map lineup, the homework page,
+  the party and the home card (`outfitImg`: cropped, centred, CSS `scale`
+  keeps her pixels the size of the plain sprite). The promise up front
+  (parent): a dashed slot under each map stop (ghost outline, gold-framed
+  with her drawing once done), and unearned parts as faint ghost outlines
+  on her sprite (map lineup, homework page). Homework page: her sprite on
+  a grass block BELOW the page with "🦓 ➜ [slot]"; she hops when a bar
+  passes (bar grain, rhythm pieces, and at bar ends in the note grain;
+  never per note, never on the staff; nothing in the piece grain) and
+  cheers at the end. Costumes are memory-only in the adventure
+  (`a.costume`), like the band; `pianopad.character` is never written.
+  Logs (adventure session): step events with `step: 'costume'`: start
+  { part, after }, finish { part, after, ms, pixels, strokes, before? }
+  (before = pixels already there on a replayed piece), quit (same fields)
+  if she leaves mid-drawing; the session also carries `costume: { part:
+  pixels }`.
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
   `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.

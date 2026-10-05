@@ -18,9 +18,15 @@ import * as log from '../telemetry.js';
 import { createHand } from '../hand.js';
 import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
+import { PART_OF, outfitImg, setOutfit, slot, costumeTime } from '../costume.js';
 
 const member = (id) => BAND.find((m) => m.id === id);
 const spriteOf = (id) => (id === 'piano' ? characterUrl(getState().character) : bandSprite(member(id)));
+// A band member's sprite; hers wears the adventure's costume (with the
+// parts still to earn as dashed ghosts, if `ghosts`).
+const memberImg = (a, id, cls = 'member-sprite', ghosts = false) => (id === 'piano'
+  ? outfitImg(getState().character, a.costume, { ghosts }, cls)
+  : h('img', { class: cls, src: spriteOf(id) }));
 
 const STOPS = {
   zebra: ['🦓', 'Zebra'], train: ['🚂', 'Train'], ode: ['🎶', 'Ode'], party: ['🎉', 'Party!'],
@@ -56,7 +62,7 @@ function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
   const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
-    id ? h('img', { class: 'member-sprite' + (here ? '' : ' locked'), src: spriteOf(id) }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    id ? memberImg(a, id, 'member-sprite' + (here ? '' : ' locked'), big) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
     h('div', { class: 'member-name' }, here ? member(id).name : id === adv.HEADLINER ? '⭐' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
@@ -87,7 +93,8 @@ function map(root) {
       },
     }, h('div', { class: 'adv-icon' }, locked ? '🔒' : icon), h('div', { class: 'adv-label' }, label),
       done ? h('div', { class: 'adv-check' }, '✅') : null);
-    return el;
+    // The costume part this piece earns, under it: a ghost until she draws it.
+    return PART_OF[step] ? h('div', { class: 'adv-stop-wrap' }, el, slot(a.costume, PART_OF[step], 'adv-stop-slot')) : el;
   };
 
   const screen = h('div', { class: 'screen adventure' },
@@ -158,7 +165,7 @@ function piece(root, id) {
   const rhythm = !!song.rhythm;
   const grain = rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(st.feedback) ? st.feedback : 'note';
   const labels = ['book', 'letters', 'first'].includes(st.bookLabels) ? st.bookLabels : 'book';
-  let session = null, finished = false, gen = 0;
+  let session = null, finished = false, gen = 0, drawing = null;
 
   const pageBox = h('div', { class: 'staff-box book-box' });
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
@@ -166,7 +173,16 @@ function piece(root, id) {
   const setupText = h('div', { class: 'adv-setup-text' });
   const setupBox = h('div', { class: 'adv-setup', style: 'display:none' }, setupHands, setupText);
   const passLabel = h('span', { class: 'adv-pass' });
-  const stageEl = h('div', { class: 'stage adv-page' }, setupBox, pageBox, overlay);
+  // Her character comes along, off the page (below it), wearing what she's
+  // earned so far, with the costume part this piece earns beside her:
+  // "🦓 ➜ 🎩". She reacts only at the bar/piece grain, never per note.
+  const part = PART_OF[step];
+  const buddy = memberImg(a, 'piano', 'adv-buddy-sprite', true);
+  const promise = part ? h('div', { class: 'adv-promise' }, h('span', { class: 'adv-promise-icon' }, STOPS[step][0]), h('span', { class: 'adv-promise-arrow' }, '➜'), slot(a.costume, part)) : null;
+  const buddyRow = h('div', { class: 'adv-buddy' },
+    h('div', { class: 'adv-buddy-stand' }, buddy, h('div', { class: 'adv-buddy-block', style: `background-image:url(${texture('grass')})` })), promise);
+  const hop = () => flash(buddy, 'hop', 350);
+  const stageEl = h('div', { class: 'stage adv-page' }, setupBox, pageBox, buddyRow, overlay);
   const screen = h('div', { class: 'screen play adv-homework' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/adventure', title: 'Map' }, '🗺️'),
@@ -175,7 +191,7 @@ function piece(root, id) {
     testKeyboard());
   root.append(screen);
 
-  const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150, labels);
+  const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150 - buddyRow.offsetHeight, labels);
   pageBox.replaceChildren(page.el);
   // The notes in the order she plays them: { i: note on the page, p, d, bar, pass }.
   const pageBars = Math.ceil(totalBeats(song.notes) / 4);
@@ -252,6 +268,7 @@ function piece(root, id) {
     flash(passLabel, 'pop', 400);
   }
   function barDone() {
+    hop();
     if (!barRect) return;
     barRect.setAttribute('class', 'bar-done');
     doneRects.push(barRect);
@@ -265,7 +282,9 @@ function piece(root, id) {
     hideSetup();
     if (grain === 'note') page.mark(seq[k].i, 'hit');
     session.cur++;
-    if (grain === 'bar' && (session.cur >= N || seq[session.cur].bar !== seq[k].bar)) { barDone(); log.event('bar', { bar: seq[k].bar, by }); }
+    const barEnd = session.cur >= N || seq[session.cur].bar !== seq[k].bar;
+    if (grain === 'bar' && barEnd) { barDone(); log.event('bar', { bar: seq[k].bar, by }); }
+    else if (grain === 'note' && barEnd && session.cur < N) hop(); // a bar, not a note
     if (session.cur >= N) setTimeout(finish, 600);
     else showCurrent();
   }
@@ -453,14 +472,31 @@ function piece(root, id) {
     engine.play(renderJingle(engine.ctx.sampleRate));
     const r = pageBox.getBoundingClientRect();
     for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
-    // The headliner's piece opens the party; the others go back to the map,
-    // which asks who joins the band.
-    const joined = a.joined;
-    a.joined = null;
-    if (!joined) { setTimeout(() => { if (screen.isConnected) location.hash = '#/adventure'; }, 1800); return; }
+    flash(buddy, 'cheer', 1500);
+    // Then costume time (her drawing, the reward), then on: the headliner's
+    // piece opens the party; the others go back to the map, which asks who
+    // joins the band. (a.joined waits, so leaving early still welcomes them
+    // on the map.)
+    const next = () => {
+      if (!screen.isConnected) return;
+      const joined = a.joined;
+      if (!joined) { location.hash = '#/adventure'; return; }
+      a.joined = null;
+      welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
+    };
+    if (!part) { setTimeout(next, a.joined ? 900 : 1800); return; }
     setTimeout(() => {
-      if (screen.isConnected) welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
-    }, 900);
+      if (!screen.isConnected) return;
+      adv.startCostume(part, step);
+      drawing = costumeTime(stageEl, getState().character, a.costume, part, (stats) => {
+        drawing = null;
+        adv.endCostume('finish', stats);
+        setOutfit(buddy, getState().character, a.costume, { ghosts: true });
+        promise?.lastChild.replaceWith(slot(a.costume, part, 'filled-now'));
+        flash(buddy, 'cheer', 1500);
+        setTimeout(next, 1200);
+      });
+    }, 1600);
   }
 
   begin();
@@ -471,6 +507,7 @@ function piece(root, id) {
     if (modelRaf) { cancelAnimationFrame(modelRaf); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
+    if (drawing) { adv.endCostume('quit', drawing.stats()); drawing = null; }
     engine.expect?.(null);
     engine.listen(false);
   };
@@ -484,7 +521,7 @@ function party(root) {
   const ids = a.band;
   let playing = null, raf = 0, played = false;
 
-  const imgs = ids.map((id) => h('img', { class: 'member-sprite', src: spriteOf(id) }));
+  const imgs = ids.map((id) => memberImg(a, id)); // she performs in her outfit
   const staffBox = h('div', { class: 'staff-box book-box' });
   const playBtn = h('button', { class: 'btn primary huge', onclick: () => (playing ? stop() : start()) }, '▶');
   const pieceBtns = PARTY.map((pid) => h('button', {
@@ -502,6 +539,8 @@ function party(root) {
     h('div', { class: 'row center' }, pieceBtns, playBtn),
     h('div', { class: 'row center' }, h('a', { class: 'btn big', href: '#/world' }, '⛏️ Build!'), h('a', { class: 'btn big', href: '#/echo' }, '🐸 Copy me!')),
     staffBox));
+  // Her outfit can stand taller than her (a hat): make room above the band.
+  requestAnimationFrame(() => { const sc = +imgs[0].style.scale || 1; if (sc > 1) { scene.style.flexShrink = '0'; scene.style.paddingTop = `${10 + imgs[0].offsetHeight * (sc - 1)}px`; } });
   let staff;
   function drawStaff() {
     for (const b of pieceBtns) b.classList.toggle('on', PIECES[b.dataset.piece] === song);

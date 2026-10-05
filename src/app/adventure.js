@@ -8,7 +8,10 @@
 // means she got to the end, never how well she played. Build! and Copy me
 // are free play, outside the adventure.
 //
-// Nothing is saved: the adventure and its band live in memory, and a new one
+// After each homework piece she draws a costume part for her character
+// (costume time, see costume.js), worn for the rest of the adventure.
+//
+// Nothing is saved: the adventure, its band and costume live in memory, and a new one
 // starts after a reload or an hour away. Its log is one session of kind
 // 'adventure' (step start / finish / quit and pick events), rewritten as it
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
@@ -36,6 +39,8 @@ export function current() {
       band: ['piano'],
       active: null, // step in progress
       joined: null, // band member to welcome on the map
+      costume: {}, // part → layer she drew (costume.js); memory only, like the band
+      drawing: null, // costume time in progress: { part, after }
     };
     adv.log = { ...log.sessionHeader('adventure', adv.id), events: [] };
     event('open');
@@ -48,6 +53,7 @@ function event(what, data = {}) {
   adv.log.events.push([Date.now() - adv.t0, 'step', { what, ...data }]);
   adv.log.done = [...adv.done];
   adv.log.band = adv.band;
+  adv.log.costume = Object.fromEntries(Object.entries(adv.costume).map(([p, layer]) => [p, layer.filter((v) => v >= 0).length]));
   log.record(adv.log);
 }
 
@@ -83,6 +89,25 @@ export function pick(id) {
   a.band.splice(1 + picked(a).length, 0, id); // lineup: her, her picks, the headliner
   a.joined = id;
   event('pick', { member: id });
+}
+
+// Costume time (costume.js): after a homework piece she draws one costume
+// part. Logged as step events with step 'costume' (it isn't one of STEPS and
+// never goes in `done`): start { part, after }, then finish { part, after,
+// ms, pixels, strokes, before? } on ✓, or quit with the same fields if she
+// leaves. pixels: the part's pixels now; before: what it had at the start
+// (a replayed piece); strokes: drags that changed something.
+export function startCostume(part, after) {
+  const a = current();
+  a.drawing = { part, after };
+  event('start', { step: 'costume', part, after });
+}
+export function endCostume(how, stats) {
+  if (!adv?.drawing) return;
+  const { part, after } = adv.drawing;
+  adv.drawing = null;
+  adv.touched = Date.now();
+  event(how === 'finish' ? 'finish' : 'quit', { step: 'costume', part, after, ...stats });
 }
 
 // Anything else worth a line in the adventure's log (e.g. a skip).
