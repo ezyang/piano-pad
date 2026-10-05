@@ -104,6 +104,25 @@ As of 2026-10-05:
   (before = pixels already there on a replayed piece), quit (same fields)
   if she leaves mid-drawing; the session also carries `costume: { part:
   pixels }`.
+  PARTY PLAY BUTTON (2026-10-05, pedagogy + parent: kids, a 2-year-old
+  sibling too, thought nothing happened and mashed it; the room missed the
+  sound). The delay was the band's whole-piece render, synchronous on the
+  main thread (~2-3 s on a laptop for Ode with 4 members, the piano/bass
+  partials in synth.js), so not even the pressed state could paint. Now:
+  `band-render.js` renders in a module worker (`band-worker.js`; falls back
+  to the main thread) and caches by song+band+sr; the party asks for its
+  first piece at Blobby's welcome (`warmParty`) and for the rest one at a
+  time on open, so a replay starts its sound in ~30 ms. The button reacts
+  on pointerdown (`.pressed`), turns gold 🔊 with a glow, the band glows
+  and bounces (sparkles, floating ♪) at once, in time once the sound runs.
+  Every tap while playing (▶ and the piece buttons) is IGNORED (no stop,
+  no restart; the button pops) until the piece ends and ▶ comes back.
+  Party level: renderBand `{ boost: 6 }` dB through a clean look-ahead peak
+  limiter (`limit`, -1 dBFS) instead of tanh: Ode band RMS about -14 → -10
+  dB. Other renders keep the tanh. Logs (adventure session, step events,
+  step 'party'): `play` { piece, by: 'tap' | 'auto' }, `played` { piece, by,
+  how: 'end' | 'left', soundMs (tap → sound), ignored (count), taps? [[ms
+  after the play, 'play' | piece key]] }.
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
   `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.

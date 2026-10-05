@@ -55,8 +55,10 @@ function drums(out, sr, beats, beat, t0, rng) {
 const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92 };
 
 // members: array of instrument names. Returns {audio, lead} where lead is
-// the time (s) before the first beat.
-export function renderBand(song, members, sr) {
+// the time (s) before the first beat. opts.boost (dB): louder, through a
+// look-ahead peak limiter instead of the tanh (for the party, which has to
+// carry over a talking room on iPad speakers).
+export function renderBand(song, members, sr, { boost = 0 } = {}) {
   const beat = 60 / song.bpm;
   const lead = 0.3;
   const beats = Math.ceil(totalBeats(song.notes) / 4) * 4 || 4;
@@ -81,8 +83,28 @@ export function renderBand(song, members, sr) {
   }
   // Fixed levels (not normalized per mix, which made a solo instrument as
   // loud as the whole band), then a soft limiter for the full band.
-  for (let i = 0; i < out.length; i++) out[i] = Math.tanh(out[i]);
+  if (boost) limit(out, 10 ** (boost / 20), sr);
+  else for (let i = 0; i < out.length; i++) out[i] = Math.tanh(out[i]);
   return { audio: out, lead };
+}
+
+// Gain then a clean peak limiter (no waveshaping): the gain dips ~5 ms
+// ahead of a peak and recovers over ~80 ms, never letting a sample past
+// `ceil` (-1 dBFS).
+export function limit(x, gain, sr, ceil = 0.89) {
+  const n = x.length, env = new Float32Array(n);
+  const kA = Math.exp(-1 / (0.002 * sr)), kR = Math.exp(-1 / (0.08 * sr));
+  let e = 1;
+  for (let i = n - 1; i >= 0; i--) {
+    const a = Math.abs(x[i]) * gain;
+    e = Math.min(a > ceil ? ceil / a : 1, 1 - (1 - e) * kA);
+    env[i] = e;
+  }
+  e = 1;
+  for (let i = 0; i < n; i++) {
+    e = Math.min(env[i], 1 - (1 - e) * kR);
+    x[i] *= gain * e;
+  }
 }
 
 // A phrase in one voice at its written pitch (for call and response):

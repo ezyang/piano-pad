@@ -13,6 +13,7 @@ import { barRhythm, missedNote } from '../scoring.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle } from '../instruments.js';
+import { bandAudio } from '../band-render.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { createHand } from '../hand.js';
@@ -483,6 +484,7 @@ function piece(root, id) {
       if (!joined) { location.hash = '#/adventure'; return; }
       a.joined = null;
       welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
+      warmParty(a); // render the party's first piece while she looks at the welcome
     };
     if (!part) { setTimeout(next, a.joined ? 900 : 1800); return; }
     setTimeout(() => {
@@ -515,6 +517,19 @@ function piece(root, id) {
 
 // --- party: her band plays a piece with her (this week's last piece
 // first; the piece buttons pick another) ---
+// Kid-proof (small siblings mash it): the button reacts on touch-down, the
+// band starts performing at once (the audio follows when it's rendered, see
+// band-render.js), and every tap while it plays is ignored (counted in the
+// log) until the piece ends and ▶ comes back. Played louder than elsewhere
+// (BOOST) so it carries over a talking room.
+// Log (adventure session): step events with step 'party':
+//   play   { piece, by: 'tap' | 'auto' }            a play starting
+//   played { piece, by, how: 'end' | 'left', soundMs, ignored, taps? }
+//     soundMs: tap → sound starting (null if it never did), ignored: taps
+//     while it played, taps: their [ms after the play, 'play' | piece id]
+const BOOST = 6; // dB, through a clean limiter (instruments.js)
+const partyAudio = (a, song) => bandAudio(song, a.band.map((id) => member(id).instrument), engine.ctx.sampleRate, { boost: BOOST });
+function warmParty(a) { if (engine.ctx) partyAudio(a, PIECES[adv.STEPS.at(-2)]); }
 function party(root) {
   const a = adv.current();
   let song = PIECES[adv.STEPS.at(-2)];
@@ -523,14 +538,14 @@ function party(root) {
 
   const imgs = ids.map((id) => memberImg(a, id)); // she performs in her outfit
   const staffBox = h('div', { class: 'staff-box book-box' });
-  const playBtn = h('button', { class: 'btn primary huge', onclick: () => (playing ? stop() : start()) }, '▶');
+  const playBtn = h('button', { class: 'btn primary huge party-play' }, '▶');
   const pieceBtns = PARTY.map((pid) => h('button', {
     class: 'btn big' + (PIECES[pid] === song ? ' on' : ''), 'data-piece': pid, title: STOPS[pid][1],
-    onclick: () => { if (playing) stop(); song = PIECES[pid]; drawStaff(); start(); },
   }, STOPS[pid][0]));
-  const scene = h('div', { class: 'band-stage' }, ids.map((id, i) => h('div', { class: 'member' },
+  const members = ids.map((id, i) => h('div', { class: 'member' },
     imgs[i], h('div', { class: 'member-name' }, member(id).name),
-    h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
+    h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` })));
+  const scene = h('div', { class: 'band-stage' }, members);
   root.append(h('div', { class: 'screen band adv-party' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/adventure', title: 'Map' }, '🗺️'),
@@ -549,50 +564,115 @@ function party(root) {
   }
   drawStaff();
 
-  async function start() {
+  // React on touch-down, not on click (which waits for the finger to lift);
+  // a keyboard's Enter/Space still arrives as a click with detail 0.
+  const press = (btn, what) => {
+    btn.addEventListener('pointerdown', (e) => { if (e.button === 0) { btn.classList.add('pressed'); tap(what); } });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) btn.addEventListener(ev, () => btn.classList.remove('pressed'));
+    btn.addEventListener('click', (e) => { if (e.detail === 0) tap(what); });
+  };
+  press(playBtn, 'play');
+  pieceBtns.forEach((b) => press(b, b.dataset.piece));
+
+  function tap(what) {
+    if (playing) {
+      if (playing.ignored.length < 200) playing.ignored.push([Math.round(performance.now() - playing.at), what]);
+      flash(playBtn, 'pop', 350); // "yes, it's playing"
+      return;
+    }
+    if (what !== 'play') { song = PIECES[what]; drawStaff(); }
+    start('tap');
+  }
+
+  // Sparkles and a note over a band member.
+  const cheer = (i, n = 6) => {
+    const r = scene.getBoundingClientRect(), m = imgs[i].getBoundingClientRect();
+    const x = m.left - r.left + m.width / 2, y = m.top - r.top + m.height * 0.3;
+    sparkle(scene, x, y, ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff'], n);
+    const note = h('div', { class: 'note-float', style: `left:${x + (Math.random() - 0.5) * m.width * 0.6}px;top:${y}px` }, Math.random() < 0.5 ? '♪' : '♫');
+    scene.append(note);
+    setTimeout(() => note.remove(), 1200);
+  };
+
+  // Ask the worker for every party piece now, one at a time (this one
+  // first), so a tap rarely has to wait for a render.
+  let prepared = false;
+  async function prepare() {
+    if (prepared || !engine.ctx) return;
+    prepared = true;
+    const order = [song, ...PARTY.map((pid) => PIECES[pid]).filter((p) => p !== song)];
+    for (const p of order) {
+      if (!scene.isConnected) return;
+      await partyAudio(a, p);
+    }
+  }
+
+  async function start(by) {
+    const me = { song, by, at: performance.now(), ignored: [], soundMs: null, t0: Infinity, last: -1, lastBeat: -1, warm: 0 };
+    playing = me;
+    playBtn.textContent = '🔊';
+    playBtn.classList.add('playing');
+    scene.classList.add('performing');
+    imgs.forEach((img, i) => { flash(img, 'hop', 350); cheer(i, 8); });
+    adv.note('play', { step: 'party', piece: song.id, by });
+    raf = requestAnimationFrame(loop); // performs right away, in time once the audio is on
     await engine.start();
-    const { audio, lead } = renderBand(song, ids.map((id) => member(id).instrument), engine.ctx.sampleRate);
+    prepare();
+    const { audio, lead } = await partyAudio(a, song);
+    if (playing !== me) return; // left the screen meanwhile
     const { startTime } = engine.play(audio);
-    const beatSec = 60 / song.bpm;
-    playing = { t0: startTime + lead, beatSec, end: startTime + lead + totalBeats(song.notes) * beatSec + 0.3, last: -1, lastBeat: -1 };
-    playBtn.textContent = '⏹️';
-    loop();
+    me.soundMs = Math.round(performance.now() - me.at + (startTime - engine.now()) * 1000);
+    me.beatSec = 60 / song.bpm;
+    me.t0 = startTime + lead;
+    me.end = me.t0 + totalBeats(song.notes) * me.beatSec + 0.3;
   }
 
   function loop() {
     raf = requestAnimationFrame(loop);
-    const beat = (engine.now() - playing.t0) / playing.beatSec;
+    const p = playing;
+    const now = engine.ctx ? engine.now() : 0;
+    if (now < p.t0) { // waiting for the sound: keep the band bouncing
+      const k = Math.floor((performance.now() - p.at) / 300);
+      if (k !== p.warm) { p.warm = k; const i = k % imgs.length; flash(imgs[i], 'hop', 300); if (k % 2) cheer(i, 4); }
+      return;
+    }
+    const beat = (now - p.t0) / p.beatSec;
     const idx = staff.laid.findIndex((n) => beat >= n.start && beat < n.start + n.d);
-    if (idx !== playing.last && idx >= 0) {
-      if (playing.last >= 0) staff.mark(playing.last, '');
-      playing.last = idx;
+    if (idx !== p.last && idx >= 0) {
+      if (p.last >= 0) staff.mark(p.last, '');
+      p.last = idx;
       staff.mark(idx, 'current');
       staff.show(idx);
-      ids.forEach((id, i) => { if (member(id).instrument !== 'drums') flash(imgs[i], 'hop', 300); });
+      ids.forEach((id, i) => { if (member(id).instrument !== 'drums') { flash(imgs[i], 'hop', 300); if (Math.random() < 0.5) cheer(i, 4); } });
     }
     const whole = Math.floor(beat);
-    if (whole !== playing.lastBeat && beat >= 0) {
-      playing.lastBeat = whole;
+    if (whole !== p.lastBeat && beat >= 0) {
+      p.lastBeat = whole;
       ids.forEach((id, i) => { if (member(id).instrument === 'drums') flash(imgs[i], 'hop', 250); });
     }
-    if (engine.now() > playing.end) {
-      stop();
+    if (now > p.end) {
+      stop('end');
       if (!played) { played = true; adv.finishStep('party', { piece: song.id }); }
     }
   }
 
-  function stop() {
+  function stop(how) {
+    const p = playing;
     cancelAnimationFrame(raf);
-    engine.stopAll();
-    if (playing.last >= 0) staff.mark(playing.last, '');
+    if (p.t0 !== Infinity) engine.stopAll();
+    if (p.last >= 0) staff.mark(p.last, '');
     playing = null;
     playBtn.textContent = '▶';
+    playBtn.classList.remove('playing');
+    scene.classList.remove('performing');
+    adv.note('played', { step: 'party', piece: p.song.id, by: p.by, how, soundMs: p.soundMs, ignored: p.ignored.length, ...(p.ignored.length ? { taps: p.ignored } : {}) });
   }
 
   adv.startStep('party', { band: ids });
-  setTimeout(() => { if (staffBox.isConnected) start(); }, 500);
+  prepare();
+  setTimeout(() => { if (staffBox.isConnected && !playing) start('auto'); }, 500);
   return () => {
-    if (playing) stop();
+    if (playing) stop('left');
     if (!played) adv.quitStep('party');
   };
 }
