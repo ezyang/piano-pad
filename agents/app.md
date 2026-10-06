@@ -186,6 +186,21 @@ As of 2026-10-06:
   'grownup', heard: <notes she'd got> }`. Answer me: a step ends her
   answer now if she's played anything (else ignored), logs `answer-end {
   heard, by: 'grownup' }`.
+  Copy me FINISH LINE (2026-10-05, pedagogy + parent: 💎 piled up forever
+  and the parent had to say "there's nothing left"): `GOAL = 8` 💎, shown
+  from the start as 8 dashed slots (top left) that fill gold. Grown-up
+  steps count. The 8th 💎 → `ending()`: a fixed full-screen layer goes up
+  at once and swallows every tap (header too; mic notes and grown-up
+  steps are ignored since the round is 'done', and setMode/partner/⏭/🔁
+  check `ended`). Then dim, "🎉 The end!", the 8 💎 popping in, her
+  `characterUrl` sprite (plain, no costume) in the middle with the
+  partner and the other band members dancing, confetti and sparkles,
+  renderJingle / renderYay / renderJingle (~4 s of sound). At `ENDING_MS`
+  (6.5 s) a big 🏠 and "▶ again" appear (live 0.5 s later). ▶ again
+  restarts at her current level (no warm-up notch) with empty slots and
+  a fresh session. Answer me: no slots. Logs: the session carries `goal`;
+  `end` { gems, level, ms since session start }, `again` { level } (in
+  the finished session, which ends with `aborted: false`).
 - Other screens: me, calibrate (audio's).
 - ⚙︎ "A grown-up is playing" (pedagogy, parent-approved): sessions carry
   `player: 'kid' | 'grownup' | 'mixed'` (every session from this version

@@ -529,3 +529,32 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .adv-party .performing .member-sprite { filter: drop-shadow(0 0 10px #ffd84a); }
 .note-float { position: absolute; pointer-events: none; z-index: 4; font-size: 34px; color: #fff; text-shadow: 3px 3px 0 #000; animation: note-float 1.2s ease-out forwards; }
 @keyframes note-float { to { transform: translateY(-90px) rotate(12deg); opacity: 0; } }
+
+/* ---------- Copy me: 💎 slots and the ending (echo.js) ---------- */
+.e-gems { gap: 6px; }
+.e-gems .gem-slot { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; font-size: 26px; line-height: 1;
+  border: 3px dashed rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.25); box-sizing: border-box; }
+.e-gems .gem-slot.full { border: 3px solid var(--gold); background: rgba(255, 216, 74, 0.25); }
+.e-end { position: fixed; inset: 0; z-index: 40; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vh;
+  background: rgba(20, 12, 40, 0); animation: e-end-dim 0.6s ease-out 0.6s forwards; color: #fff; text-shadow: 3px 3px 0 #000; touch-action: none; }
+@keyframes e-end-dim { to { background: rgba(20, 12, 40, 0.88); } }
+.e-end > :not(.e-confetti):not(.particle) { opacity: 0; animation: e-end-in 0.5s ease-out 0.7s forwards; }
+@keyframes e-end-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+.e-end-title { display: flex; align-items: center; gap: 20px; font: clamp(30px, 6vw, 60px) var(--pixel); }
+.e-end-pop { font-size: clamp(70px, 13vw, 130px); line-height: 1; display: inline-block; animation: e-end-wiggle 0.5s ease-in-out infinite alternate; }
+@keyframes e-end-wiggle { from { transform: rotate(-12deg) scale(1); } to { transform: rotate(12deg) scale(1.12); } }
+.e-end-gems { display: flex; gap: 8px; font-size: clamp(28px, 4.5vw, 44px); }
+.e-end-gems span { display: inline-block; animation: pop 0.45s ease-out backwards; }
+.e-end-band { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 3vw; padding: 0 16px; }
+.e-dancer { height: clamp(70px, 15vh, 150px); width: auto; image-rendering: pixelated; transform-origin: bottom center;
+  animation: e-dance 0.6s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -0.3s); filter: drop-shadow(0 0 10px #ffd84a); }
+.e-dancer.her { height: clamp(100px, 22vh, 210px); }
+@keyframes e-dance { from { transform: rotate(-10deg) translateY(0); } to { transform: rotate(10deg) translateY(-18px); } }
+.e-end.done .e-dancer { animation-duration: 1.4s; }
+.e-confetti { position: absolute; top: -20px; width: 12px; height: 16px; pointer-events: none; animation: e-confetti 3s linear forwards; }
+@keyframes e-confetti { to { transform: translateY(110vh) rotate(var(--r)); } }
+.e-end-buttons { display: none; gap: 30px; }
+.e-end.done .e-end-buttons { display: flex; pointer-events: none; animation: e-end-in 0.4s ease-out forwards; }
+.e-end.ready .e-end-buttons { pointer-events: auto; }
+.e-end-buttons .btn.huge { font-size: 40px; padding: 24px 44px; display: flex; align-items: center; }
+.e-end-buttons .btn.huge.e-end-home { font: 64px/1 system-ui, sans-serif; padding: 12px 36px; }

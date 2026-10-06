@@ -4,7 +4,9 @@
 //      it never moves on by itself: misses replay the phrase (slower after
 //      six), and ⏭ skips (a notch easier). When the mic misses what she
 //      played, a grown-up's two-finger tap (→) on her turn counts it as a
-//      win, same as homework (grownup.js).
+//      win, same as homework (grownup.js). A round of Copy me is GOAL 💎:
+//      empty slots fill in as she goes, and the last one plays a short
+//      party ending ("🎉 The end!"), then 🏠 or ▶ again.
 //   💬 Answer me — the partner asks, she answers with anything; her turn ends
 //      when she pauses (or at a grown-up step, once she's played something).
 // The app ignores the mic while the partner is playing. Notes show as blocks
@@ -16,7 +18,7 @@ import { BIOMES } from '../build.js';
 import { material, texture, characterUrl, BAND, bandSprite } from '../pixels.js';
 import { sameNote, outOfRange } from '../music.js';
 import { engine } from '../engine.js';
-import { renderVoice } from '../instruments.js';
+import { renderVoice, renderJingle, renderYay } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { labelMode, labelFor, fingerFor, handFor } from '../labels.js';
@@ -42,6 +44,8 @@ const LEVELS = [
   { len: 6, pool: [...POOL, 69, 71, 72] },
 ];
 const LEVEL_UP = 3; // wins in a row to move up
+const GOAL = 8; // 💎 that finish a round of Copy me (she'd pile them up forever)
+const ENDING_MS = 6500; // the party ending, before 🏠 / ▶ again show up
 const BPM = 72;
 const ANSWER_PAUSE = 1.6; // s of silence that ends her answer
 const MAX_ANSWER = 8;
@@ -64,7 +68,7 @@ export function echo(root) {
   let partnerIdx = Math.max(0, PARTNERS.findIndex((p) => p.id === st.echoPartner));
   // Start a notch below where she left off, to warm up.
   let level = Math.max(0, Math.min(LEVELS.length - 1, (st.echoLevel ?? 0) - 1));
-  let streak = 0, gems = 0;
+  let streak = 0, gems = 0, ended = false, sessionAt = performance.now();
   let round = null; // { notes, k, wrong, replays, state: 'call'|'turn'|'done', heard: [] }
   let quietUntil = 0, silenceTimer = 0, listenerOff = null, callRaf = 0, alive = true;
   const timers = new Set();
@@ -76,7 +80,10 @@ export function echo(root) {
   const meImg = h('img', { class: 'e-sprite', src: characterUrl(st.character) });
   const partnerBubble = h('div', { class: 'e-bubble left' });
   const myBubble = h('div', { class: 'e-bubble right' });
-  const gemsEl = h('div', { class: 'e-gems' });
+  // GOAL slots from the start, so she can see the finish line coming.
+  const gemSlots = Array.from({ length: GOAL }, () => h('span', { class: 'gem-slot' }));
+  const gemsEl = h('div', { class: 'e-gems' }, gemSlots);
+  const drawGems = () => gemSlots.forEach((g, i) => { g.classList.toggle('full', i < gems); g.textContent = i < gems ? '💎' : ''; });
   const ear = h('div', { class: 'e-ear' }, '👂');
   const scene = h('div', { class: `build echo-scene biome-${biome.name}`, style: `background:${biome.sky}` },
     ...(biome.stars ? [h('div', { class: 'moon' }), ...Array.from({ length: 24 }, (_, k) => h('div', { class: 'star-px', style: `left:${(k * 37) % 97}%;top:${(k * 53) % 45 + 3}%` }))] : []),
@@ -231,7 +238,8 @@ export function echo(root) {
     scene.classList.remove('your-turn');
     gems++;
     streak++;
-    gemsEl.append(h('span', { class: 'gem' }, '💎'));
+    drawGems();
+    flash(gemSlots[gems - 1], 'pop', 450);
     const r = scene.getBoundingClientRect();
     sparkle(scene, r.width * 0.5, r.height * 0.4, ['#ffd84a', '#55e0d6', '#ff8fb3', '#ffffff'], 18);
     flash(partnerImg, 'hop', 350);
@@ -240,11 +248,75 @@ export function echo(root) {
     st.echoLevel = level;
     save();
     log.event('round', { ok: true, level, ...extra });
-    later(nextRound, 2600);
+    if (gems >= GOAL) ending();
+    else later(nextRound, 2600);
+  }
+
+  // The 8th 💎: a short party, then a clear end. A full-screen layer goes
+  // up at once and swallows every tap (header too) while it plays; the mic
+  // is ignored (round is 'done'). Then just 🏠 and ▶ again.
+  function ending() {
+    ended = true;
+    log.event('end', { gems, level, ms: Math.round(performance.now() - sessionAt) });
+    const others = BAND.filter((m) => m.art && m.id !== PARTNERS[partnerIdx].id);
+    const dancer = (src, cls = '') => h('img', { class: 'e-dancer ' + cls, src });
+    const her = dancer(characterUrl(st.character), 'her');
+    const dancers = [
+      ...others.slice(0, 1).map((m) => dancer(bandSprite(m))),
+      dancer(bandSprite(BAND.find((m) => m.id === PARTNERS[partnerIdx].id))),
+      her,
+      ...others.slice(1).map((m) => dancer(bandSprite(m))),
+    ];
+    dancers.forEach((d, i) => d.style.setProperty('--i', i));
+    const colors = ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff', '#7be36b', '#e8433a', '#8fa8ff'];
+    const confetti = Array.from({ length: 70 }, (_, i) => h('div', {
+      class: 'e-confetti',
+      style: `left:${Math.random() * 100}%;background:${colors[i % colors.length]};animation-delay:${0.6 + Math.random() * 3}s;animation-duration:${2 + Math.random() * 1.6}s;--r:${Math.round(Math.random() * 720 - 360)}deg`,
+    }));
+    const home = h('a', { class: 'btn huge e-end-home', href: '#/', title: 'Home' }, '🏠');
+    const again = h('button', { class: 'btn primary huge e-end-again' }, '▶ again');
+    let going = false;
+    again.addEventListener('pointerdown', (e) => { if (e.button === 0 && !going) { going = true; playAgain(); } });
+    again.addEventListener('click', (e) => { if (e.detail === 0 && !going) { going = true; playAgain(); } });
+    const end = h('div', { class: 'e-end' },
+      ...confetti,
+      h('div', { class: 'e-end-title' }, h('span', { class: 'e-end-pop' }, '🎉'), h('span', {}, 'The end!')),
+      h('div', { class: 'e-end-gems' }, Array.from({ length: GOAL }, (_, i) => h('span', { style: `animation-delay:${0.8 + i * 0.12}s` }, '💎'))),
+      h('div', { class: 'e-end-band' }, dancers),
+      h('div', { class: 'e-end-buttons' }, home, again));
+    // Swallow everything until the buttons are up (and the buttons' own taps
+    // don't leak to the stage's grown-up gestures).
+    for (const ev of ['pointerdown', 'click', 'touchstart']) end.addEventListener(ev, (e) => e.stopPropagation());
+    screenEl.append(end);
+    endEl = end;
+    const party = (k) => {
+      const r = end.getBoundingClientRect(), b = her.getBoundingClientRect();
+      sparkle(end, b.left - r.left + b.width / 2 + (Math.random() - 0.5) * r.width * 0.6, b.top - r.top + b.height * 0.3, colors, 14);
+      flash(dancers[k % dancers.length], 'hop', 350);
+    };
+    const sound = (render) => { if (engine.ctx) engine.play(render(engine.ctx.sampleRate)); };
+    later(() => sound(renderJingle), 800);
+    later(() => sound(renderYay), 2300);
+    later(() => sound(renderJingle), 3500);
+    for (let k = 0; k < 14; k++) later(() => party(k), 900 + k * 360);
+    later(() => end.classList.add('done'), ENDING_MS);
+    later(() => end.classList.add('ready'), ENDING_MS + 500);
+  }
+
+  function playAgain() {
+    log.event('again', { level });
+    endEl?.remove();
+    endEl = null;
+    lastEnded = true; // the finished session is kept as finished
+    ended = false;
+    restart(); // same level, a fresh session
+    gems = 0;
+    streak = 0;
+    drawGems();
   }
 
   function replay(bpm = BPM) {
-    if (!round || round.state !== 'turn') return;
+    if (ended || !round || round.state !== 'turn') return;
     round.replays++;
     round.k = 0;
     myBubble.replaceChildren(...round.notes.map(() => block(null, 'slot')));
@@ -254,7 +326,7 @@ export function echo(root) {
 
   // ⏭: a different phrase, a notch easier.
   function skip() {
-    if (!round || round.state === 'done') return;
+    if (ended || !round || round.state === 'done') return;
     round.state = 'done';
     scene.classList.remove('your-turn');
     streak = 0;
@@ -275,11 +347,12 @@ export function echo(root) {
   }
 
   function setMode(m) {
+    if (ended) return;
     mode = m;
     st.echoMode = m;
     save();
     for (const b of modeBtns) b.classList.toggle('on', b.dataset.mode === m);
-    replayBtn.style.visibility = skipBtn.style.visibility = m === 'copy' ? '' : 'hidden';
+    replayBtn.style.visibility = skipBtn.style.visibility = gemsEl.style.visibility = m === 'copy' ? '' : 'hidden';
     restart();
   }
 
@@ -290,22 +363,25 @@ export function echo(root) {
     cancelAnimationFrame(callRaf);
     engine.stopAll();
     round = null;
-    log.endSession({ aborted: true, gems });
-    log.startSession('echo', { mode, partner: PARTNERS[partnerIdx].id, level });
+    log.endSession({ aborted: !lastEnded, gems });
+    lastEnded = false;
+    log.startSession('echo', { mode, partner: PARTNERS[partnerIdx].id, level, ...(mode === 'copy' ? { goal: GOAL } : {}) });
+    sessionAt = performance.now();
     later(nextRound, 700);
   }
 
   // --- controls ---
   const modeBtns = [['copy', '🦜'], ['answer', '💬']].map(([m, icon]) =>
     h('button', { class: 'seg' + (m === mode ? ' on' : ''), 'data-mode': m, onclick: () => setMode(m) }, icon));
-  const partnerBtns = PARTNERS.map((p, i) => h('button', { class: 'bp partner', 'data-id': p.id, onclick: () => { setPartner(i); restart(); } },
+  const partnerBtns = PARTNERS.map((p, i) => h('button', { class: 'bp partner', 'data-id': p.id, onclick: () => { if (ended) return; setPartner(i); restart(); } },
     h('img', { src: bandSprite(BAND.find((m) => m.id === p.id)) })));
   const replayBtn = h('button', { class: 'btn', title: 'Hear it again', onclick: () => replay() }, '🔁');
   const skipBtn = h('button', { class: 'btn', title: 'A different one', onclick: skip }, '⏭\uFE0F');
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
   const stageEl = h('div', { class: 'stage' }, scene, staffBox, overlay);
 
-  root.append(h('div', { class: 'screen echo' },
+  let endEl = null, lastEnded = false;
+  const screenEl = h('div', { class: 'screen echo' },
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'segs' }, modeBtns),
@@ -313,7 +389,9 @@ export function echo(root) {
       h('div', { class: 'spacer' }),
       replayBtn, skipBtn),
     stageEl,
-    testKeyboard()));
+    testKeyboard());
+  root.append(screenEl);
+  drawGems();
   const gesturesOff = grownupGestures(stageEl, { step: grownupStep });
   setPartner(partnerIdx);
   setMode(mode);
@@ -338,7 +416,7 @@ export function echo(root) {
     engine.stopAll();
     listenerOff?.();
     gesturesOff();
-    log.endSession({ aborted: true, gems });
+    log.endSession({ aborted: !ended, gems });
     engine.listen(false);
   };
 }
