@@ -191,6 +191,9 @@ class Engine {
   // exact-silence input on the iPad was cured by restarting the app): stop
   // the mic, build a fresh context + detector, then ask for the mic again.
   async reopen() {
+    // A diagnostic capture can't span two detectors: drop it (stopCapture()
+    // then resolves to null instead of waiting on the old one).
+    this.capture = null;
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     this.stream = null;
     this.stopAll();
