@@ -2,7 +2,6 @@ import { h } from '../dom.js';
 import { getState, resetAll, save } from '../store.js';
 import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
 import * as adventure from '../adventure.js';
-import { outfitImg } from '../costume.js';
 import { shareLogs, sessionCount, VERSION } from '../telemetry.js';
 import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
@@ -21,7 +20,7 @@ export function home(root) {
     h('div', { class: 'card-title' }, 'Today’s adventure'),
     h('div', { class: 'adv-mini' }, [['zebra', '🦓'], ['train', '🚂'], ['ode', '🎶'], ['party', '🎉']].map(([step, icon]) =>
       h('span', {}, done(step) ? '✅' : icon))),
-    h('div', { class: 'mini-band' }, (a?.band ?? ['piano']).map((id) => (id === 'piano' && a ? outfitImg(st.character, a.costume, {}, 'mini-sprite') : h('img', { class: 'mini-sprite', src: id === 'piano' ? me : bandSprite(BAND.find((m) => m.id === id)) })))));
+    h('div', { class: 'mini-band' }, (a?.band ?? ['piano']).map((id) => (h('img', { class: 'mini-sprite', src: id === 'piano' ? me : bandSprite(BAND.find((m) => m.id === id)) })))));
 
   // The microphone, listed when the menu opens (names show once the mic has
   // been allowed). A pick is remembered by name and applies right away.

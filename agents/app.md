@@ -83,8 +83,8 @@ As of 2026-10-06:
   BETWEEN THE TWO TIMES (2026-10-05, parent via pedagogy: going straight
   into "2nd time" felt harsh): a piece played twice (`repeat`/`twice`)
   pauses after the first time for a small celebration (smaller than the
-  end): a gold-framed panel over the page with her character in her
-  costume so far cheering, the first of two stars filling (⭐☆), a
+  end): a gold-framed panel over the page with her
+  character cheering, the first of two stars filling (⭐☆), a
   two-note ta-da (`renderYay`), "Yay! One more time!"; 2.6 s
   (`BETWEEN_MS`) or her tap, then the second time. Notes are ignored
   meanwhile (judge `why: 'between'`); a grown-up step skips it, a back
@@ -94,29 +94,31 @@ As of 2026-10-06:
   next note). At the piece grain a grown-up step goes to the end of the
   current time through. Logs a `between` event { pass: 1, of: 2 }.
   The band lives in memory only (`src/app/adventure.js`).
-  COSTUME TIME (2026-10-05, pedagogy + parent: the drawing she loves as the
-  reward for homework, `src/app/costume.js`): after each piece's finish
-  (jingle, her cheer) an overlay lets her draw one costume part in the
-  editor's style: 🦓 → hat 🎩, 🚂 → something to hold 🎈, 🎶 → cape 🦸
-  (`PART_OF`). One layer per part on an 18x20 outfit canvas (her 10x14
-  character at 3,4), painted only in the part's zone; the cape goes BEHIND
-  her (her pixels can't be painted). Big ✓ → on (map/pick, or Blobby's
-  welcome → party). Then she wears it on the map lineup, the homework page,
-  the party and the home card (`outfitImg`: cropped, centred, CSS `scale`
-  keeps her pixels the size of the plain sprite). The promise up front
-  (parent): a dashed slot under each map stop (ghost outline, gold-framed
-  with her drawing once done), and unearned parts as faint ghost outlines
-  on her sprite (map lineup, homework page). Homework page: her sprite on
-  a grass block BELOW the page with "🦓 ➜ [slot]"; she hops when a bar
-  passes (bar grain, rhythm pieces, and at bar ends in the note grain;
-  never per note, never on the staff; nothing in the piece grain) and
-  cheers at the end. Costumes are memory-only in the adventure
-  (`a.costume`), like the band; `pianopad.character` is never written.
-  Logs (adventure session): step events with `step: 'costume'`: start
-  { part, after }, finish { part, after, ms, pixels, strokes, before? }
-  (before = pixels already there on a replayed piece), quit (same fields)
-  if she leaves mid-drawing; the session also carries `costume: { part:
-  pixels }`.
+  DRAWING TURNS (2026-10-05, replacing costume time, pedagogy + parent:
+  drawing took ~8 of 20 min, she didn't get layers, hated the cape's
+  ghost "shadow", and replayed pieces to get another go, which we keep on
+  purpose): after each piece's finish (jingle, her cheer) she gets a
+  drawing turn in the REAL character editor (`charedit.js`, shared with
+  me.js: the whole 10x14 grid, full palette, saves to `pianopad.character`
+  after every stroke; no 👑/🧽 wipers in the turn) as an overlay
+  (`drawturn.js`) with a big sand timer (`DRAW_MS` 90 s; glows the last
+  10 s) and a big ✓ to finish early. When the sand runs out her drawing is
+  kept and a green "Time to play! 🎹" shows for 2.2 s, then on (map/pick,
+  or Blobby's welcome → party). A grown-up step (→ / two-finger tap, not on
+  the board or palette) closes the turn, keeping the drawing. Every finish
+  earns a turn, replays too. No costume layers or ghost outlines anywhere:
+  her character appears as she drew it. Map: under each piece a 🎨 badge
+  (dashed ring = promise; gold ✓ once used, with "🔁 ➜ 🎨" = play again,
+  draw again); homework page: her sprite on a grass block BELOW the page
+  with "🦓 ➜ 🎨" ("🔁 ➜ 🎨" on a replay); she hops when a bar passes (bar
+  grain, rhythm pieces, and at bar ends in the note grain; never per note)
+  and cheers at the end. Turn counts are memory-only (`a.turns`).
+  Logs (adventure session): step events with `step: 'draw'` (was
+  'costume'): start { after, turn }, finish { after, turn, ms, strokes,
+  pixels, timeout?: true, by?: 'grownup' }, quit (same fields) if she
+  leaves mid-turn; turn = 1, 2, ... per piece; pixels = cells of her
+  character changed in the turn. The session carries `drawn: { piece:
+  turns }` (was `costume`).
   PARTY PLAY BUTTON (2026-10-05, pedagogy + parent: kids, a 2-year-old
   sibling too, thought nothing happened and mashed it; the room missed the
   sound). The delay was the band's whole-piece render, synchronous on the

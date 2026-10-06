@@ -8,10 +8,12 @@
 // means she got to the end, never how well she played. Build! and Copy me
 // are free play, outside the adventure.
 //
-// After each homework piece she draws a costume part for her character
-// (costume time, see costume.js), worn for the rest of the adventure.
+// After each homework piece she gets a drawing turn: the character editor
+// on her real character, against a sand timer (drawturn.js). Replaying a
+// finished piece earns another turn, on purpose (more homework, willingly).
 //
-// Nothing is saved: the adventure, its band and costume live in memory, and a new one
+// Nothing is saved: the adventure and its band live in memory (her
+// character is saved by the editor as always), and a new one
 // starts after a reload or an hour away. Its log is one session of kind
 // 'adventure' (step start / finish / quit and pick events), rewritten as it
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
@@ -39,8 +41,8 @@ export function current() {
       band: ['piano'],
       active: null, // step in progress
       joined: null, // band member to welcome on the map
-      costume: {}, // part → layer she drew (costume.js); memory only, like the band
-      drawing: null, // costume time in progress: { part, after }
+      turns: {}, // piece → drawing turns started after it (drawturn.js)
+      drawing: null, // drawing turn in progress: { after, turn }
     };
     adv.log = { ...log.sessionHeader('adventure', adv.id), events: [] };
     event('open');
@@ -53,7 +55,7 @@ function event(what, data = {}) {
   adv.log.events.push([Date.now() - adv.t0, 'step', { what, ...data }]);
   adv.log.done = [...adv.done];
   adv.log.band = adv.band;
-  adv.log.costume = Object.fromEntries(Object.entries(adv.costume).map(([p, layer]) => [p, layer.filter((v) => v >= 0).length]));
+  adv.log.drawn = { ...adv.turns };
   log.record(adv.log);
 }
 
@@ -91,23 +93,28 @@ export function pick(id) {
   event('pick', { member: id });
 }
 
-// Costume time (costume.js): after a homework piece she draws one costume
-// part. Logged as step events with step 'costume' (it isn't one of STEPS and
-// never goes in `done`): start { part, after }, then finish { part, after,
-// ms, pixels, strokes, before? } on ✓, or quit with the same fields if she
-// leaves. pixels: the part's pixels now; before: what it had at the start
-// (a replayed piece); strokes: drags that changed something.
-export function startCostume(part, after) {
+// Drawing turns (drawturn.js): after a homework piece (every time she
+// finishes it, replays too) she edits her character. Logged as step events
+// with step 'draw' (it isn't one of STEPS and never goes in `done`):
+// start { after, turn }, then finish { after, turn, ms, strokes, pixels,
+// timeout?, by? } (✓; timeout: true when the sand ran out; by: 'grownup' for
+// a grown-up's step), or quit with the same fields if she leaves. turn: 1 for
+// the first turn after that piece, 2 after a replay, ...; pixels: cells of
+// her character changed in the turn; strokes: drags that changed something.
+// The session carries drawn: { piece: turns }.
+export const turnsAfter = (a, step) => a.turns[step] ?? 0;
+export function startDraw(after) {
   const a = current();
-  a.drawing = { part, after };
-  event('start', { step: 'costume', part, after });
+  const turn = (a.turns[after] = turnsAfter(a, after) + 1);
+  a.drawing = { after, turn };
+  event('start', { step: 'draw', after, turn });
 }
-export function endCostume(how, stats) {
+export function endDraw(how, stats) {
   if (!adv?.drawing) return;
-  const { part, after } = adv.drawing;
+  const { after, turn } = adv.drawing;
   adv.drawing = null;
   adv.touched = Date.now();
-  event(how === 'finish' ? 'finish' : 'quit', { step: 'costume', part, after, ...stats });
+  event(how === 'finish' ? 'finish' : 'quit', { step: 'draw', after, turn, ...stats });
 }
 
 // Anything else worth a line in the adventure's log (e.g. a skip).

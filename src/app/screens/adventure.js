@@ -19,15 +19,12 @@ import * as log from '../telemetry.js';
 import { createHand } from '../hand.js';
 import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
-import { PART_OF, outfitImg, setOutfit, slot, costumeTime } from '../costume.js';
+import { drawTurn } from '../drawturn.js';
 
 const member = (id) => BAND.find((m) => m.id === id);
 const spriteOf = (id) => (id === 'piano' ? characterUrl(getState().character) : bandSprite(member(id)));
-// A band member's sprite; hers wears the adventure's costume (with the
-// parts still to earn as dashed ghosts, if `ghosts`).
-const memberImg = (a, id, cls = 'member-sprite', ghosts = false) => (id === 'piano'
-  ? outfitImg(getState().character, a.costume, { ghosts }, cls)
-  : h('img', { class: cls, src: spriteOf(id) }));
+// A band member's sprite (hers is her character, as she drew it).
+const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
 
 const STOPS = {
   zebra: ['🦓', 'Zebra'], train: ['🚂', 'Train'], ode: ['🎶', 'Ode'], party: ['🎉', 'Party!'],
@@ -63,7 +60,7 @@ function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
   const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
-    id ? memberImg(a, id, 'member-sprite' + (here ? '' : ' locked'), big) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    id ? memberImg(a, id, 'member-sprite' + (here ? '' : ' locked')) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
     h('div', { class: 'member-name' }, here ? member(id).name : id === adv.HEADLINER ? '⭐' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
@@ -77,6 +74,15 @@ function choosePick(parent, a, then) {
     }, h('img', { class: 'adv-welcome-sprite', src: spriteOf(id) }), h('div', { class: 'member-name' }, member(id).name)))));
   parent.append(box);
   box.querySelectorAll('.adv-pick img').forEach((img, i) => setTimeout(() => flash(img, 'hop', 350), 200 + i * 180));
+}
+
+// The drawing turn a piece earns: 🎨, gold once she's had one; after
+// that, "🔁 ➜ 🎨": playing it again earns another.
+function turnBadge(a, step, cls = '') {
+  const used = adv.turnsAfter(a, step) > 0;
+  return h('div', { class: 'adv-turn ' + cls + (used ? ' used' : '') },
+    h('div', { class: 'adv-turn-icon' }, '🎨', used ? h('span', { class: 'adv-turn-check' }, '✓') : null),
+    used ? h('div', { class: 'adv-turn-again' }, '🔁 ➜ 🎨') : null);
 }
 
 // --- the map ---
@@ -94,8 +100,10 @@ function map(root) {
       },
     }, h('div', { class: 'adv-icon' }, locked ? '🔒' : icon), h('div', { class: 'adv-label' }, label),
       done ? h('div', { class: 'adv-check' }, '✅') : null);
-    // The costume part this piece earns, under it: a ghost until she draws it.
-    return PART_OF[step] ? h('div', { class: 'adv-stop-wrap' }, el, slot(a.costume, PART_OF[step], 'adv-stop-slot')) : el;
+    // The drawing turn this piece earns, under it (the promise up front):
+    // 🎨 in a dashed ring until she's had it, then gold, with "🔁 ➜ 🎨"
+    // (play it again, draw again).
+    return step === 'party' ? el : h('div', { class: 'adv-stop-wrap' }, el, turnBadge(a, step, 'adv-stop-turn'));
   };
 
   const screen = h('div', { class: 'screen adventure' },
@@ -182,12 +190,11 @@ function piece(root, id) {
   const setupText = h('div', { class: 'adv-setup-text' });
   const setupBox = h('div', { class: 'adv-setup', style: 'display:none' }, setupHands, setupText);
   const passLabel = h('span', { class: 'adv-pass' });
-  // Her character comes along, off the page (below it), wearing what she's
-  // earned so far, with the costume part this piece earns beside her:
-  // "🦓 ➜ 🎩". She reacts only at the bar/piece grain, never per note.
-  const part = PART_OF[step];
-  const buddy = memberImg(a, 'piano', 'adv-buddy-sprite', true);
-  const promise = part ? h('div', { class: 'adv-promise' }, h('span', { class: 'adv-promise-icon' }, STOPS[step][0]), h('span', { class: 'adv-promise-arrow' }, '➜'), slot(a.costume, part)) : null;
+  // Her character comes along, off the page (below it), with the drawing
+  // turn this piece earns beside her: "🦓 ➜ 🎨" ("🔁 ➜ 🎨" on a replay).
+  // She reacts only at the bar/piece grain, never per note.
+  const buddy = memberImg(a, 'piano', 'adv-buddy-sprite');
+  const promise = h('div', { class: 'adv-promise' }, h('span', { class: 'adv-promise-icon' }, adv.turnsAfter(a, step) ? '🔁' : STOPS[step][0]), h('span', { class: 'adv-promise-arrow' }, '➜'), h('span', { class: 'adv-promise-icon adv-promise-turn' }, '🎨'));
   const buddyRow = h('div', { class: 'adv-buddy' },
     h('div', { class: 'adv-buddy-stand' }, buddy, h('div', { class: 'adv-buddy-block', style: `background-image:url(${texture('grass')})` })), promise);
   const hop = () => flash(buddy, 'hop', 350);
@@ -452,6 +459,7 @@ function piece(root, id) {
   // The grown-up's step: a bar (rhythm pieces), or one note / the rest of
   // the bar / the whole piece at the grain.
   function grownupStep() {
+    if (drawing?.open) { drawing.close('grownup'); return; } // ends the drawing turn, keeping her drawing
     if (!session || session.cur >= N) return;
     if (session.between === 'on') { endBetween(); return; }
     hideSetup();
@@ -502,7 +510,8 @@ function piece(root, id) {
   // Two-finger tap: on; two-finger swipe right: back.
   let swipe = null;
   const xs = (e) => [...e.touches].reduce((s, t) => s + t.clientX, 0) / e.touches.length;
-  const onTouch = (e) => { if (e.touches.length === 2) { e.preventDefault(); swipe = { x0: xs(e), x: xs(e) }; } };
+  // (Not on the drawing turn's board or palette: that's her drawing.)
+  const onTouch = (e) => { if (e.touches.length === 2 && !e.target.closest?.('.draw-turn .board, .draw-turn .palette')) { e.preventDefault(); swipe = { x0: xs(e), x: xs(e) }; } };
   const onMove = (e) => { if (swipe && e.touches.length === 2) swipe.x = xs(e); };
   const onEnd = () => {
     if (!swipe) return;
@@ -533,10 +542,10 @@ function piece(root, id) {
     const r = pageBox.getBoundingClientRect();
     for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
     flash(buddy, 'cheer', 1500);
-    // Then costume time (her drawing, the reward), then on: the headliner's
-    // piece opens the party; the others go back to the map, which asks who
-    // joins the band. (a.joined waits, so leaving early still welcomes them
-    // on the map.)
+    // Then her drawing turn (the reward), then on: the headliner's piece
+    // opens the party; the others go back to the map, which asks who joins
+    // the band. (a.joined waits, so leaving early still welcomes them on the
+    // map.)
     const next = () => {
       if (!screen.isConnected) return;
       const joined = a.joined;
@@ -545,17 +554,18 @@ function piece(root, id) {
       welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
       warmParty(a); // render the party's first piece while she looks at the welcome
     };
-    if (!part) { setTimeout(next, a.joined ? 900 : 1800); return; }
     setTimeout(() => {
       if (!screen.isConnected) return;
-      adv.startCostume(part, step);
-      drawing = costumeTime(stageEl, getState().character, a.costume, part, (stats) => {
-        drawing = null;
-        adv.endCostume('finish', stats);
-        setOutfit(buddy, getState().character, a.costume, { ghosts: true });
-        promise?.lastChild.replaceWith(slot(a.costume, part, 'filled-now'));
-        flash(buddy, 'cheer', 1500);
-        setTimeout(next, 1200);
+      adv.startDraw(step);
+      drawing = drawTurn(stageEl, {
+        icon: STOPS[step][0],
+        done: (stats) => {
+          drawing = null;
+          adv.endDraw('finish', stats);
+          buddy.src = spriteOf('piano');
+          flash(buddy, 'cheer', 1500);
+          setTimeout(next, 1200);
+        },
       });
     }, 1600);
   }
@@ -569,7 +579,7 @@ function piece(root, id) {
     if (modelRaf) { cancelAnimationFrame(modelRaf); engine.stopAll(); }
     if (session) { session.off(); session = null; log.endSession({ aborted: true }); }
     if (!finished) adv.quitStep(step);
-    if (drawing) { adv.endCostume('quit', drawing.stats()); drawing = null; }
+    if (drawing) { const stats = drawing.quit(); if (stats) adv.endDraw('quit', stats); drawing = null; }
     engine.expect?.(null);
     engine.listen(false);
   };
@@ -596,7 +606,7 @@ function party(root) {
   const ids = a.band;
   let playing = null, raf = 0, played = false;
 
-  const imgs = ids.map((id) => memberImg(a, id)); // she performs in her outfit
+  const imgs = ids.map((id) => memberImg(a, id));
   const staffBox = h('div', { class: 'staff-box book-box' });
   const playBtn = h('button', { class: 'btn primary huge party-play' }, '▶');
   const pieceBtns = PARTY.map((pid) => h('button', {
@@ -614,8 +624,6 @@ function party(root) {
     h('div', { class: 'row center' }, pieceBtns, playBtn),
     h('div', { class: 'row center' }, h('a', { class: 'btn big', href: '#/world' }, '⛏️ Build!'), h('a', { class: 'btn big', href: '#/echo' }, '🐸 Copy me!')),
     staffBox));
-  // Her outfit can stand taller than her (a hat): make room above the band.
-  requestAnimationFrame(() => { const sc = +imgs[0].style.scale || 1; if (sc > 1) { scene.style.flexShrink = '0'; scene.style.paddingTop = `${10 + imgs[0].offsetHeight * (sc - 1)}px`; } });
   let staff;
   function drawStaff() {
     for (const b of pieceBtns) b.classList.toggle('on', PIECES[b.dataset.piece] === song);
