@@ -9,7 +9,7 @@
 // are free play, outside the adventure.
 //
 // After each homework piece she gets a drawing turn: the character editor
-// on her real character, against a sand timer (drawturn.js). Replaying a
+// on her real character, untimed (drawturn.js). Replaying a
 // finished piece earns another turn, on purpose (more homework, willingly).
 //
 // Nothing is saved: the adventure and its band live in memory (her
@@ -97,10 +97,11 @@ export function pick(id) {
 // finishes it, replays too) she edits her character. Logged as step events
 // with step 'draw' (it isn't one of STEPS and never goes in `done`):
 // start { after, turn }, then finish { after, turn, ms, strokes, pixels,
-// timeout?, by? } (✓; timeout: true when the sand ran out; by: 'grownup' for
-// a grown-up's step), or quit with the same fields if she leaves. turn: 1 for
-// the first turn after that piece, 2 after a replay, ...; pixels: cells of
-// her character changed in the turn; strokes: drags that changed something.
+// by? } (✓; by: 'grownup' for a grown-up's step; `timeout: true` appears
+// only in logs from before the sand timer was removed, 2026-10-05), or quit
+// with the same fields if she leaves. turn: 1 for the first turn after that
+// piece, 2 after a replay, ...; pixels: cells of her character changed in
+// the turn; strokes: drags that changed something.
 // The session carries drawn: { piece: turns }.
 export const turnsAfter = (a, step) => a.turns[step] ?? 0;
 export function startDraw(after) {

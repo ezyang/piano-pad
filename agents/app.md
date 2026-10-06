@@ -101,11 +101,13 @@ As of 2026-10-06:
   drawing turn in the REAL character editor (`charedit.js`, shared with
   me.js: the whole 10x14 grid, full palette, saves to `pianopad.character`
   after every stroke; no 👑/🧽 wipers in the turn) as an overlay
-  (`drawturn.js`) with a big sand timer (`DRAW_MS` 90 s; glows the last
-  10 s) and a big ✓ to finish early. When the sand runs out her drawing is
-  kept and a green "Time to play! 🎹" shows for 2.2 s, then on (map/pick,
-  or Blobby's welcome → party). A grown-up step (→ / two-finger tap, not on
-  the board or palette) closes the turn, keeping the drawing. Every finish
+  (`drawturn.js`), UNTIMED: no sand timer, no countdown, no auto-close
+  (a 90 s sand timer shipped in 7754c61 was removed the same day, parent:
+  a countdown taking her drawing away is the wrong feeling; the grown-up
+  moves her along instead). Her preview on a grass block and a big ✓ sit
+  under the palette. The turn ends only with her ✓, a grown-up step (→ /
+  two-finger tap, not on the board or palette; keeps the drawing), or
+  leaving; then on (map/pick, or Blobby's welcome → party). Every finish
   earns a turn, replays too. No costume layers or ghost outlines anywhere:
   her character appears as she drew it. Map: under each piece a 🎨 badge
   (dashed ring = promise; gold ✓ once used, with "🔁 ➜ 🎨" = play again,
@@ -115,7 +117,8 @@ As of 2026-10-06:
   and cheers at the end. Turn counts are memory-only (`a.turns`).
   Logs (adventure session): step events with `step: 'draw'` (was
   'costume'): start { after, turn }, finish { after, turn, ms, strokes,
-  pixels, timeout?: true, by?: 'grownup' }, quit (same fields) if she
+  pixels, by?: 'grownup' } (`timeout: true` only in logs from before the
+  timer was removed), quit (same fields) if she
   leaves mid-turn; turn = 1, 2, ... per piece; pixels = cells of her
   character changed in the turn. The session carries `drawn: { piece:
   turns }` (was `costume`).
