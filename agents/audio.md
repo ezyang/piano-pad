@@ -583,3 +583,7 @@ As of 2026-09-26:
   as low notes, raise voiceLoudDb. Replay of the live-missed LH notes: 3 of 5
   now pass; the other 2 weren't voice-flagged in replay at all (live vs
   replay again, cf. the semitone errors and Zebra #1's lag drift).
+- **Oct 5: app added engine.reopen() (15c7a5b, mic-health.js)** after an
+  evening of exact -120 dB silence on the iPad (cured by an app restart).
+  A reopen restarts the audio clock: detector times after one are offset;
+  `mic` events in the log mark it. 7ed1483: reopen drops a diagnostic capture.
