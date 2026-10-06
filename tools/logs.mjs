@@ -28,6 +28,8 @@ const brief = (s) => {
     count('sim') ? `sim ${count('sim')}` : '',
     r.aborted ? 'aborted' : r.stars != null ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '',
     count('error') ? `ERRORS ${count('error')}` : '',
+    s.jewels && Object.keys(s.jewels).length ? `jewels ${Object.entries(s.jewels).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
+    s.drawn && Object.keys(s.drawn).length ? `drawn ${Object.entries(s.drawn).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     silent ? 'NO MIC INPUT (-120 dB)' : '',
     count('mic') ? `mic events ${count('mic')} (${ev.filter((e) => e[1] === 'mic').map((e) => `${e[2].state}:${e[2].action}${e[2].ok ? '✓' : ''}`).join(' ')})` : '',
   ].join('  ');

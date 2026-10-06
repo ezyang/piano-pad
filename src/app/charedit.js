@@ -2,9 +2,11 @@
 // by the Me screen (screens/me.js) and the adventure's drawing turns
 // (drawturn.js). It edits her real character (store.js `pianopad.character`)
 // and saves after every stroke; keep() saves now (call it on leaving).
+// Her jewels (jewels.js) show on the board; painting a jewel's cell (any
+// colour, the eraser too) removes that jewel.
 import { h } from './dom.js';
 import { getState, save } from './store.js';
-import { CHAR_W, CHAR_PALETTE, characterUrl } from './pixels.js';
+import { CHAR_W, CHAR_PALETTE, characterUrl, jewelStyle } from './pixels.js';
 
 export function characterEditor({ color = 6 } = {}) {
   const st = getState();
@@ -17,18 +19,25 @@ export function characterEditor({ color = 6 } = {}) {
   const preview = h('img', { class: 'me-preview' });
 
   const keep = () => { st.character = [...grid]; save(); };
+  const jewelAt = (i) => st.jewels.findIndex((j) => j.i === i);
+  let jewelsGone = 0;
   const paint = (i) => {
-    if (i == null || grid[i] === color) return;
+    if (i == null) return;
+    const j = jewelAt(i);
+    if (j < 0 && grid[i] === color) return;
+    if (j >= 0) { st.jewels.splice(j, 1); jewelsGone++; }
     grid[i] = color;
     changed = true;
     render();
   };
   function render() {
+    const gems = new Map(st.jewels.map((j) => [j.i, j.m]));
     grid.forEach((v, i) => {
-      cells[i].style.background = v < 0 ? '' : CHAR_PALETTE[v];
-      cells[i].classList.toggle('clear', v < 0);
+      const c = cells[i], m = gems.get(i);
+      c.className = 'cell' + (v < 0 && !m ? ' clear' : '') + (m ? ' gem' : '');
+      c.style.cssText = m ? jewelStyle(m) : v < 0 ? '' : `background:${CHAR_PALETTE[v]}`;
     });
-    preview.src = characterUrl(grid);
+    preview.src = characterUrl(grid, st.jewels);
   }
   const cellAt = (e) => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -54,6 +63,6 @@ export function characterEditor({ color = 6 } = {}) {
     grid, board, palette, preview, render, keep,
     // For the logs: drags that changed something, and cells now different
     // from when the editor opened.
-    stats: () => ({ strokes, pixels: grid.reduce((n, v, i) => n + (v !== start[i]), 0) }),
+    stats: () => ({ strokes, pixels: grid.reduce((n, v, i) => n + (v !== start[i]), 0), ...(jewelsGone ? { jewelsGone } : {}) }),
   };
 }

@@ -12,10 +12,10 @@
 // The app ignores the mic while the partner is playing. Notes show as blocks
 // in speech bubbles and on a staff.
 import { h, flash, sparkle } from '../dom.js';
-import { getState, save } from '../store.js';
+import { getState, save, meUrl } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
-import { material, texture, characterUrl, BAND, bandSprite } from '../pixels.js';
+import { material, texture, BAND, bandSprite } from '../pixels.js';
 import { sameNote, outOfRange } from '../music.js';
 import { engine } from '../engine.js';
 import { renderVoice, renderJingle, renderYay } from '../instruments.js';
@@ -77,7 +77,7 @@ export function echo(root) {
   // --- scene ---
   const biome = BIOMES.find((b) => b.name === st.worldSky) ?? BIOMES[2];
   const partnerImg = h('img', { class: 'e-sprite' });
-  const meImg = h('img', { class: 'e-sprite', src: characterUrl(st.character) });
+  const meImg = h('img', { class: 'e-sprite', src: meUrl() });
   const partnerBubble = h('div', { class: 'e-bubble left' });
   const myBubble = h('div', { class: 'e-bubble right' });
   // GOAL slots from the start, so she can see the finish line coming.
@@ -260,7 +260,7 @@ export function echo(root) {
     log.event('end', { gems, level, ms: Math.round(performance.now() - sessionAt) });
     const others = BAND.filter((m) => m.art && m.id !== PARTNERS[partnerIdx].id);
     const dancer = (src, cls = '') => h('img', { class: 'e-dancer ' + cls, src });
-    const her = dancer(characterUrl(st.character), 'her');
+    const her = dancer(meUrl(), 'her');
     const dancers = [
       ...others.slice(0, 1).map((m) => dancer(bandSprite(m))),
       dancer(bandSprite(BAND.find((m) => m.id === PARTNERS[partnerIdx].id))),

@@ -94,34 +94,53 @@ As of 2026-10-06:
   next note). At the piece grain a grown-up step goes to the end of the
   current time through. Logs a `between` event { pass: 1, of: 2 }.
   The band lives in memory only (`src/app/adventure.js`).
-  DRAWING TURNS (2026-10-05, replacing costume time, pedagogy + parent:
-  drawing took ~8 of 20 min, she didn't get layers, hated the cape's
-  ghost "shadow", and replayed pieces to get another go, which we keep on
-  purpose): after each piece's finish (jingle, her cheer) she gets a
-  drawing turn in the REAL character editor (`charedit.js`, shared with
-  me.js: the whole 10x14 grid, full palette, saves to `pianopad.character`
-  after every stroke; no 👑/🧽 wipers in the turn) as an overlay
-  (`drawturn.js`), UNTIMED: no sand timer, no countdown, no auto-close
-  (a 90 s sand timer shipped in 7754c61 was removed the same day, parent:
-  a countdown taking her drawing away is the wrong feeling; the grown-up
-  moves her along instead). Her preview on a grass block and a big ✓ sit
-  under the palette. The turn ends only with her ✓, a grown-up step (→ /
-  two-finger tap, not on the board or palette; keeps the drawing), or
-  leaving; then on (map/pick, or Blobby's welcome → party). Every finish
-  earns a turn, replays too. No costume layers or ghost outlines anywhere:
-  her character appears as she drew it. Map: under each piece a 🎨 badge
-  (dashed ring = promise; gold ✓ once used, with "🔁 ➜ 🎨" = play again,
-  draw again); homework page: her sprite on a grass block BELOW the page
-  with "🦓 ➜ 🎨" ("🔁 ➜ 🎨" on a replay); she hops when a bar passes (bar
-  grain, rhythm pieces, and at bar ends in the note grain; never per note)
-  and cheers at the end. Turn counts are memory-only (`a.turns`).
-  Logs (adventure session): step events with `step: 'draw'` (was
-  'costume'): start { after, turn }, finish { after, turn, ms, strokes,
-  pixels, by?: 'grownup' } (`timeout: true` only in logs from before the
-  timer was removed), quit (same fields) if she
-  leaves mid-turn; turn = 1, 2, ... per piece; pixels = cells of her
-  character changed in the turn. The session carries `drawn: { piece:
-  turns }` (was `costume`).
+  JEWELS + ONE DRAWING TURN (2026-10-06, pedagogy + parent: a drawing
+  turn after every piece took ~8 of 20 min, and a timer would upset her).
+  After each homework piece's finish (jingle, her cheer), a JEWEL TURN
+  (`jewels.js`, overlay on the page, ~10 s): her character big on its grid,
+  the jewel bobbing at the top; she taps a cell, it pops in with sparkles;
+  tapping another cell moves it; cells with a jewel already are refused
+  (shake). Big ✓ (dim until placed), or a grown-up step (places it for her
+  on a random cell of her if she hadn't). Every finish earns one, replays
+  too ("play again to earn more"). Colour = the Build block of the piece's
+  most-played letter (`pieceJewel(notes)` in pixels.js; tie → the letter
+  that comes first in the piece): Zebra gold (G), Train planks (D; D/E/F
+  tie at 6), Ode stone (E). Every jewel shines: in the CSS (`.gem`:
+  facets + a sweeping shine + a twinkle) and on her sprite: with jewels,
+  `characterUrl(grid, jewels)` returns an animated SVG (crisp rects, SMIL
+  shimmer + glint; plays inside <img>), so the jewels show everywhere she
+  appears (map lineup, homework buddy, party, home, Build, Copy me, Me).
+  Use `meUrl()` from store.js for her image. Storage: `pianopad.jewels` =
+  [{ i: cell, m: material name }], treated like the character (own key,
+  kept across clean slates and "Reset all data", mirrored into the blob
+  as `jewels`). Painting a jewel's cell in charedit (drawing turn or Me,
+  any colour or the eraser) removes that jewel; the Me screen's 👑/🧽
+  wipes keep jewels.
+  The DRAWING TURN (`drawturn.js`, the real character editor, untimed as
+  since 01cd9d0) now comes ONCE per adventure, right before the party:
+  Ode → jewel → Blobby's welcome (button "🎨 ➜ 🎉") → the party screen
+  opens with the drawing turn over it (header/🗺️ left visible), and the
+  party autoplays when it ends (✓, grown-up step via grownupGestures with
+  `ignore` for the board/palette, or leaving, which still counts).
+  `adv.drawPending(a)` = Ode done and no turn yet; reaching the party any
+  other way also gets it first. Replays after that give jewels only.
+  Map: under each piece a jewel badge in its colour (dashed ring until
+  earned this adventure, then the shining jewel, ×n for more, "🔁 ➜ 💎");
+  between Ode and Party a 🎨 node (dashed, gold ✓ once had). Stops are
+  17vw now so the 🎨 fits in portrait. Homework page: "🦓 ➜ [jewel]" under
+  the page beside her ("🔁 ➜" on a replay), ring goes solid once earned.
+  Her sprite sits on a grass block below the homework page and hops when
+  a bar passes (bar grain, rhythm pieces, and at bar ends in the note
+  grain; never per note), cheers at the end. No costume layers or ghost
+  outlines anywhere (costume time was replaced 2026-10-05; old logs have
+  `step: 'costume'`). Counts are memory-only (`a.jewels`, `a.turns`).
+  Logs (adventure session, step events): `step: 'jewel'` start { after,
+  color, turn }, finish { after, color, turn, cell, ms, moves, by?:
+  'grownup' }, quit (same; cell null = not placed, nothing kept); color is
+  the material name. `step: 'draw'` start { after: 'ode', turn: 1 },
+  finish/quit { ms, strokes, pixels, jewelsGone?, by? }. The session
+  carries `jewels: { piece: n }` and `drawn: { ode: 1 }`; logs.mjs shows
+  both. (7754c61..01cd9d0 logs: a draw turn after every piece.)
   PARTY PLAY BUTTON (2026-10-05, pedagogy + parent: kids, a 2-year-old
   sibling too, thought nothing happened and mashed it; the room missed the
   sound). The delay was the band's whole-piece render, synchronous on the
@@ -241,5 +260,6 @@ As of 2026-10-06:
   settings) are grandfathered, not a pattern to extend.
 - Except her character, which the parent says is special (2026-09-27): own
   key `pianopad.character`, kept across versions/clean slates/"Reset all
-  data", mirrored into the blob for old versions. The editor (`me.js`)
+  data", mirrored into the blob for old versions. Her jewels likewise
+  (`pianopad.jewels`, 2026-10-06). The editor (`me.js`)
   saves after every stroke and on leaving; wipes (👑, 🧽) take two taps.

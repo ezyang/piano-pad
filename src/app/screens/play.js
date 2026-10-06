@@ -6,11 +6,11 @@
 //   beat  — count-in, then she keeps the beat herself (no moving line);
 //           graded on timing
 import { h } from '../dom.js';
-import { getSong, getState, save } from '../store.js';
+import { getSong, getState, save, meUrl } from '../store.js';
 import { createStaff, systemHeight, resolveClef } from '../staff.js';
 import { createBuild } from '../build.js';
 import { totalBeats, sameNote, outOfRange } from '../music.js';
-import { characterUrl, BAND, bandSprite } from '../pixels.js';
+import { BAND, bandSprite } from '../pixels.js';
 import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
 import { renderJingle, renderTick } from '../instruments.js';
@@ -43,7 +43,7 @@ export function play(root, id) {
     const avail = stageEl.clientHeight - 150 - 10; // keep ≥150px of scene
     staff = createStaff(song, { s, letters, width: staffBox.clientWidth - 6, visible: avail >= 2 * H ? 2 : 1 });
     staffBox.replaceChildren(staff.el);
-    build = createBuild(staff.targets.length, characterUrl(st.character), song.plays ?? 0);
+    build = createBuild(staff.targets.length, meUrl(), song.plays ?? 0);
     sceneBox.replaceChildren(build.el);
   }
 

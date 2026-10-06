@@ -1,7 +1,7 @@
 import { h, flash } from '../dom.js';
-import { getSong, getState, save } from '../store.js';
+import { getSong, getState, save, meUrl } from '../store.js';
 import { createStaff, systemHeight, resolveClef } from '../staff.js';
-import { BAND, bandSprite, characterUrl, texture } from '../pixels.js';
+import { BAND, bandSprite, texture } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
 import { totalBeats } from '../music.js';
@@ -17,7 +17,7 @@ export function band(root, id) {
 
   const members = BAND.map((m, i) => {
     const unlocked = i < song.band;
-    const img = h('img', { class: 'member-sprite' + (unlocked ? '' : ' locked'), src: i === 0 ? characterUrl(st.character) : bandSprite(m) });
+    const img = h('img', { class: 'member-sprite' + (unlocked ? '' : ' locked'), src: i === 0 ? meUrl() : bandSprite(m) });
     const el = h('button', {
       class: 'member' + (song.muted.includes(m.id) ? ' muted' : ''), disabled: !unlocked || null,
       onclick: () => {

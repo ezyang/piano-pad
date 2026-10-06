@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
-import { getState, resetAll, save } from '../store.js';
-import { characterUrl, BAND, bandSprite, texture } from '../pixels.js';
+import { getState, resetAll, save, meUrl } from '../store.js';
+import { BAND, bandSprite, texture } from '../pixels.js';
 import * as adventure from '../adventure.js';
 import { shareLogs, sessionCount, VERSION } from '../telemetry.js';
 import { engine } from '../engine.js';
@@ -10,7 +10,7 @@ import { isGrownup, setGrownup } from '../player.js';
 
 export function home(root) {
   const st = getState();
-  const me = characterUrl(st.character);
+  const me = meUrl();
 
   // Today's adventure leads; the experiments are for free play after. (Her
   // songs and the editor are hidden for now; old songs stay in storage.)

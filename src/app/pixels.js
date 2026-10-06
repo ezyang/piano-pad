@@ -123,7 +123,9 @@ export const CHAR_PALETTE = [
   '#8a8a8a', '#55e0d6', '#ff9a2e', '#2b2b2b',
 ];
 
-export function characterUrl(grid) {
+// jewels: [{ i, m }] to show on her (see characterSvg).
+export function characterUrl(grid, jewels = []) {
+  if (jewels.length) return characterSvg(grid, jewels);
   const rows = [];
   for (let y = 0; y < CHAR_H; y++) {
     let r = '';
@@ -135,6 +137,69 @@ export function characterUrl(grid) {
   }
   const palette = Object.fromEntries(CHAR_PALETTE.map((c, i) => [i.toString(16), c]));
   return sprite(rows, palette, 'char:' + rows.join(''));
+}
+
+// --- Jewels (jewels.js): shiny pixels she earns and places on her character.
+// A jewel is { i: cell index, m: material name } (MATERIALS' names), kept
+// beside her character (store.js `pianopad.jewels`).
+export const JEWEL_MATERIALS = MATERIALS.filter(Boolean).map((m) => m.name);
+const mix = (hex, to, t) => '#' + [1, 3, 5].map((k) => {
+  const a = parseInt(hex.slice(k, k + 2), 16), b = parseInt(to.slice(k, k + 2), 16);
+  return Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+}).join('');
+// Its colour and the light and dark of its facets.
+export function jewelColors(name) {
+  const c = MATERIALS.find((m) => m?.name === name)?.color ?? '#f5d63d';
+  return { c, l: mix(c, '#ffffff', 0.6), d: mix(c, '#000000', 0.35) };
+}
+// A piece's jewel: the material of its most-played letter (sharps count as
+// the letter below, like the Build blocks); a tie goes to the letter that
+// comes first in the piece.
+export function pieceJewel(notes) {
+  const count = new Map();
+  for (const n of notes) {
+    if (n.p == null || n.rest) continue;
+    const pc = pitchClass(n.p), m = MATERIALS[pc] ?? MATERIALS[pc - 1];
+    count.set(m.name, (count.get(m.name) ?? 0) + 1);
+  }
+  let best = null;
+  for (const [name, k] of count) if (!best || k > count.get(best)) best = name;
+  return best ?? 'gold';
+}
+// A CSS custom-property string for an element showing a jewel (.gem in app.css).
+export const jewelStyle = (name) => { const { c, l, d } = jewelColors(name); return `--c:${c};--l:${l};--d:${d}`; };
+
+// With jewels, her character is an animated SVG: every cell a crisp square,
+// each jewel faceted with a slow shimmer and a twinkling glint (SMIL, which
+// plays inside an <img>). Same 10x14 natural size as the PNG.
+function characterSvg(grid, jewels) {
+  const at = new Map(jewels.map((j) => [j.i, j.m]));
+  let body = '', gems = '', glints = '';
+  for (let y = 0; y < CHAR_H; y++) {
+    for (let x = 0; x < CHAR_W; x++) {
+      const i = y * CHAR_W + x, v = grid[i];
+      if (at.has(i)) continue;
+      if (v < 0) continue;
+      // Run of the same colour along the row: one rect.
+      let w = 1;
+      while (x + w < CHAR_W && grid[i + w] === v && !at.has(i + w)) w++;
+      body += `<rect x="${x}" y="${y}" width="${w}" height="1" fill="${CHAR_PALETTE[v]}"/>`;
+      x += w - 1;
+    }
+  }
+  jewels.forEach(({ i, m }, k) => {
+    const x = i % CHAR_W, y = Math.floor(i / CHAR_W), { c, l, d } = jewelColors(m);
+    const beg = -((k * 0.83) % 2.6).toFixed(2);
+    gems += `<rect x="${x}" y="${y}" width="1" height="1" fill="${d}"/>`
+      + `<rect x="${x + 0.14}" y="${y + 0.14}" width="0.72" height="0.72" fill="${c}"/>`
+      + `<path d="M${x + 0.14} ${y + 0.14}h0.5l-0.5 0.5z" fill="${l}"/>`
+      + `<rect x="${x}" y="${y}" width="1" height="1" fill="#fff" opacity="0"><animate attributeName="opacity" values="0;0;0.55;0" keyTimes="0;0.6;0.8;1" dur="2.6s" begin="${beg}s" repeatCount="indefinite"/></rect>`;
+    const cx = x + 0.3, cy = y + 0.3, r = 0.55, q = 0.1;
+    glints += `<path d="M${cx} ${cy - r}L${cx + q} ${cy - q}L${cx + r} ${cy}L${cx + q} ${cy + q}L${cx} ${cy + r}L${cx - q} ${cy + q}L${cx - r} ${cy}L${cx - q} ${cy - q}z" fill="#fff" opacity="0">`
+      + `<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.66;0.8;1" dur="2.6s" begin="${beg}s" repeatCount="indefinite"/></path>`;
+  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CHAR_W}" height="${CHAR_H}" viewBox="0 0 ${CHAR_W} ${CHAR_H}"><g shape-rendering="crispEdges">${body}</g>${gems}${glints}</svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
 // Default character: a little blocky princess.

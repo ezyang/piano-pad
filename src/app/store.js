@@ -5,11 +5,16 @@
 // so that format and the palette's order must never change (append colors
 // only). It's mirrored into the state blob too, so old /v/ versions (which
 // only read the blob) show her current character.
-import { defaultCharacter, CHAR_W, CHAR_H } from './pixels.js';
+// Her jewels (jewels.js) are treated the same way, under their own key
+// `pianopad.jewels`: [{ i: cell index, m: material name }], in the order
+// she earned them; kept across clean slates and resets, mirrored into the
+// blob. Painting over a jewel's cell removes it (charedit.js).
+import { defaultCharacter, characterUrl, CHAR_W, CHAR_H, JEWEL_MATERIALS } from './pixels.js';
 import { PIECES } from './homework.js';
 
 const KEY = 'pianopad.v1';
 const CHARACTER_KEY = 'pianopad.character';
+const JEWELS_KEY = 'pianopad.jewels';
 
 const HOMEWORK = { ...PIECES.g, band: 1, plays: 0 };
 
@@ -30,6 +35,10 @@ try { kept = JSON.parse(localStorage.getItem(CHARACTER_KEY)); } catch { /* none 
 state.character = [kept, state.character].find(isCharacter) ?? defaultCharacter();
 // Copy it to its own key right away, so a clean slate can't catch it first.
 if (!isCharacter(kept)) try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(state.character)); } catch { /* storage unavailable */ }
+const isJewels = (js) => Array.isArray(js) && js.every((j) => Number.isInteger(j?.i) && j.i >= 0 && j.i < CHAR_W * CHAR_H && JEWEL_MATERIALS.includes(j.m));
+let keptJewels = null;
+try { keptJewels = JSON.parse(localStorage.getItem(JEWELS_KEY)); } catch { /* none yet */ }
+state.jewels = [keptJewels, state.jewels].find(isJewels) ?? [];
 // Fill in anything missing from older or partial saves.
 if (!Array.isArray(state.songs)) state.songs = fresh().songs;
 
@@ -37,10 +46,13 @@ export function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
     localStorage.setItem(CHARACTER_KEY, JSON.stringify(state.character));
+    localStorage.setItem(JEWELS_KEY, JSON.stringify(state.jewels));
   } catch { /* storage unavailable */ }
 }
 
 export const getState = () => state;
+// Her character as an image, jewels and all.
+export const meUrl = () => characterUrl(state.character, state.jewels);
 export const getSong = (id) => state.songs.find((s) => s.id === id);
 
 // by: 'me' (her own song) or 'teacher' (homework a grown-up enters).
@@ -58,8 +70,8 @@ export function deleteSong(id) {
   save();
 }
 
-// Everything but her character.
+// Everything but her character (and her jewels).
 export function resetAll() {
-  state = { ...fresh(), character: state.character };
+  state = { ...fresh(), character: state.character, jewels: state.jewels };
   save();
 }

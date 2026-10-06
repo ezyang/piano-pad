@@ -11,10 +11,10 @@
 // no letters on the staff, no ✋ (she'd memorised the fixed six; 🎲 is new
 // every time).
 import { h, flash, sparkle } from '../dom.js';
-import { getState, save } from '../store.js';
+import { getState, save, meUrl } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
-import { material, texture, characterUrl } from '../pixels.js';
+import { material, texture } from '../pixels.js';
 import { pitchClass, quantize, layout, sameNote, outOfRange, noteName } from '../music.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
@@ -70,7 +70,7 @@ export function world(root) {
   // --- world scene ---
   const colsEl = h('div', { class: 'w-cols' });
   const ghostsEl = h('div', { class: 'w-cols' });
-  const charImg = h('img', { src: characterUrl(st.character) });
+  const charImg = h('img', { src: meUrl() });
   const climber = h('div', { class: 'climber' }, charImg);
   const decoEl = h('div', { class: 'w-deco' });
   const groundEl = h('div', { class: 'build-ground' });

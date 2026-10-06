@@ -1,4 +1,5 @@
-// A drawing turn: the adventure's reward after each homework piece. She gets
+// A drawing turn: the adventure's big reward, once, right before the party
+// (after each piece she gets a quick jewel instead, jewels.js). She gets
 // the real character editor (charedit.js: her whole character, the full
 // palette, saved to `pianopad.character` after every stroke) for as long as
 // she likes. No timer (2026-10-05, parent: a countdown taking her drawing
@@ -11,7 +12,8 @@ import { characterEditor } from './charedit.js';
 // done({ ms, strokes, pixels, by? }) once the turn is over (✓, or
 // close('grownup')). quit() for leaving mid-turn: it keeps the drawing and
 // returns the same stats, without calling done.
-export function drawTurn(parent, { icon = '🎨', done }) {
+// top: where it starts in parent (px), to leave a header uncovered.
+export function drawTurn(parent, { icon = '🎨', done, top = 0 }) {
   const ed = characterEditor();
   const t0 = Date.now();
   let over = false;
@@ -25,6 +27,7 @@ export function drawTurn(parent, { icon = '🎨', done }) {
         h('div', { class: 'draw-row' },
           h('div', { class: 'me-stand' }, ed.preview, h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` })),
           doneBtn))));
+  if (top) box.style.top = `${top}px`;
   parent.append(box);
 
   const stats = () => ({ ms: Date.now() - t0, ...ed.stats() });

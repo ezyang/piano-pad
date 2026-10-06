@@ -86,5 +86,6 @@ Never force-push `main`. If you break production, revert first, debug second.
   build features that depend on things piling up or lasting a long time. The
   durable record is the practice logs on autobox, not the iPad.
   **The one exception is her character (avatar)**: it's kept across versions,
-  clean slates and resets (`pianopad.character`, see `store.js`). Never
+  clean slates and resets (`pianopad.character`, see `store.js`), and so
+  are the jewels she puts on it (`pianopad.jewels`). Never
   break it: keep its format, and only append to `CHAR_PALETTE`.
