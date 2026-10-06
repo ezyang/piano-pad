@@ -105,9 +105,10 @@ export function pick(id) {
 // finish { after, color, turn, cell, ms, moves, by? } (✓; by: 'grownup' for
 // a grown-up's step, which places it for her if she hadn't), or quit with
 // the same fields if she leaves (cell null: not placed, no jewel). color: the
-// material name (pixels.js MATERIALS: grass, planks, stone, brick, gold,
-// diamond, amethyst); cell: index in her 10x14 grid; moves: times she moved
-// it after placing it. turn: 1, 2, ... per piece. The session carries
+// gem name (pixels.js GEMS: gold, ruby, diamond, emerald, amethyst,
+// sapphire; logs before the gems have a Build block name: planks, stone
+// ...); cell: index in her 10x14 grid; moves: times she moved it after
+// placing it. turn: 1, 2, ... per piece. The session carries
 // jewels: { piece: jewels earned }.
 export const jewelsAfter = (a, step) => a.jewels[step] ?? 0;
 export function startJewel(after, color) {

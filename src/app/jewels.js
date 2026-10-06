@@ -1,7 +1,6 @@
 // The jewel turn: the adventure's quick reward after each homework piece.
-// One shiny pixel (the colour of the piece's most-played note's Build block,
-// pixels.js pieceJewel) to put on her character: her character big on its
-// grid, she taps a cell and the jewel pops in with sparkles; tapping another
+// One shiny gem pixel (the piece's gem: homework.js `gem`, pixels.js GEMS)
+// to put on her character: her character big on its grid, she taps a cell and the jewel pops in with sparkles; tapping another
 // cell moves it; the big ✓ (or a grown-up's step) finishes. About ten
 // seconds, no palette. Jewels are kept with her character (store.js
 // `pianopad.jewels`) and show everywhere she appears; painting over one in
@@ -21,7 +20,7 @@ export function jewelTurn(parent, { m, icon = '', done }) {
   const t0 = Date.now();
   let cell = null, moves = 0, over = false;
   const taken = new Set(st.jewels.map((j) => j.i));
-  const { c } = jewelColors(m);
+  const { c, l } = jewelColors(m);
 
   const cells = st.character.map((v, i) => h('div', { class: 'cell' + (v < 0 && !taken.has(i) ? ' clear' : '') + (taken.has(i) ? ' gem' : ''), 'data-i': i }));
   const paintCell = (i) => {
@@ -50,7 +49,7 @@ export function jewelTurn(parent, { m, icon = '', done }) {
     waiting.classList.add('placed');
     doneBtn.classList.add('ready');
     const r = cells[i].getBoundingClientRect(), b = box.getBoundingClientRect();
-    sparkle(box, r.left - b.left + r.width / 2, r.top - b.top + r.height / 2, [c, '#ffffff', '#fff6a8', c], 14);
+    sparkle(box, r.left - b.left + r.width / 2, r.top - b.top + r.height / 2, [c, '#ffffff', l, c], 14);
   }
   board.addEventListener('pointerdown', (e) => {
     const el = document.elementFromPoint(e.clientX, e.clientY);

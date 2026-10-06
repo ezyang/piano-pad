@@ -102,18 +102,24 @@ As of 2026-10-06:
   tapping another cell moves it; cells with a jewel already are refused
   (shake). Big ✓ (dim until placed), or a grown-up step (places it for her
   on a random cell of her if she hadn't). Every finish earns one, replays
-  too ("play again to earn more"). Colour = the Build block of the piece's
-  most-played letter (`pieceJewel(notes)` in pixels.js; tie → the letter
-  that comes first in the piece): Zebra gold (G), Train planks (D; D/E/F
-  tie at 6), Ode stone (E). Every jewel shines: in the CSS (`.gem`:
-  facets + a sweeping shine + a twinkle) and on her sprite: with jewels,
-  `characterUrl(grid, jewels)` returns an animated SVG (crisp rects, SMIL
-  shimmer + glint; plays inside <img>), so the jewels show everywhere she
+  too ("play again to earn more"). GEMS (2026-10-06, parent: block
+  colours read as planks/stone, not jewels): each piece earns a real gem,
+  `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond;
+  a piece without one gets GEM_NAMES[its index in PIECES % 6] (gold, ruby,
+  diamond, emerald, amethyst, sapphire), `pieceGem` in pixels.js. GEMS
+  holds 5 tones per gem (table c, facets l top / s left / m right / d
+  bottom+rim). Every jewel shines: in the CSS (`.gem`: conic-gradient
+  facets + centre table + white fleck, a sweeping shine and a twinkle) and
+  on her sprite: with jewels,
+  `characterUrl(grid, jewels)` returns an animated SVG (crisp rects, the
+  same facets, SMIL shimmer + glint; plays inside <img>), so the jewels show everywhere she
   appears (map lineup, homework buddy, party, home, Build, Copy me, Me).
   Use `meUrl()` from store.js for her image. Storage: `pianopad.jewels` =
-  [{ i: cell, m: material name }], treated like the character (own key,
+  [{ i: cell, m: gem name }], treated like the character (own key,
   kept across clean slates and "Reset all data", mirrored into the blob
-  as `jewels`). Painting a jewel's cell in charedit (drawing turn or Me,
+  as `jewels`). Saves from 9041ed3 hold Build block names: kept as saved
+  and drawn as gems via `gemName` (planks → ruby, stone → diamond, grass →
+  emerald, brick → ruby, unknown → gold); any string `m` is valid. Painting a jewel's cell in charedit (drawing turn or Me,
   any colour or the eraser) removes that jewel; the Me screen's 👑/🧽
   wipes keep jewels.
   The DRAWING TURN (`drawturn.js`, the real character editor, untimed as
@@ -137,7 +143,7 @@ As of 2026-10-06:
   Logs (adventure session, step events): `step: 'jewel'` start { after,
   color, turn }, finish { after, color, turn, cell, ms, moves, by?:
   'grownup' }, quit (same; cell null = not placed, nothing kept); color is
-  the material name. `step: 'draw'` start { after: 'ode', turn: 1 },
+  the gem name (9041ed3 logs: the Build block name). `step: 'draw'` start { after: 'ode', turn: 1 },
   finish/quit { ms, strokes, pixels, jewelsGone?, by? }. The session
   carries `jewels: { piece: n }` and `drawn: { ode: 1 }`; logs.mjs shows
   both. (7754c61..01cd9d0 logs: a draw turn after every piece.)

@@ -549,8 +549,10 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .e-end-buttons .btn.huge { font-size: 40px; padding: 24px 44px; display: flex; align-items: center; }
 .e-end-buttons .btn.huge.e-end-home { font: 64px/1 system-ui, sans-serif; padding: 12px 36px; }
 
-/* ---------- Jewels (jewels.js): a faceted pixel with a sweeping shine and a twinkle ---------- */
-.gem { position: relative; display: inline-block; overflow: hidden; background: var(--c) !important; box-shadow: inset 4px 4px 0 var(--l), inset -4px -4px 0 var(--d); }
+/* ---------- Jewels (jewels.js): a faceted gem pixel (table + four facets, colours from pixels.js GEMS) with a sweeping shine and a twinkle ---------- */
+.gem { position: relative; display: inline-block; overflow: hidden; box-shadow: inset 0 0 0 1px var(--d);
+  background: linear-gradient(#fff, #fff) 34% 34% / 13% 13% no-repeat, linear-gradient(var(--c), var(--c)) 50% 50% / 46% 46% no-repeat,
+    conic-gradient(from -45deg, var(--l) 0 25%, var(--m) 0 50%, var(--d) 0 75%, var(--s) 0) !important; }
 .gem::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) 100% 0 / 300% 100% no-repeat; animation: gem-shine 2.6s ease-in-out infinite; }
 .gem::after { content: ''; position: absolute; left: 10%; top: 10%; width: 36%; height: 36%; background: #fff; opacity: 0;
   clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); animation: gem-twinkle 2.6s ease-in-out infinite; }
@@ -577,11 +579,11 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .adv-jewel-ring .gem { width: 46%; height: 46%; opacity: 0.35; box-shadow: none; }
 .adv-jewel-ring .gem::before, .adv-jewel-ring .gem::after { display: none; }
 .adv-jewel.got .adv-jewel-ring { border: 4px solid #000; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 16px var(--c); }
-.adv-jewel.got .adv-jewel-ring .gem { width: 60%; height: 60%; opacity: 1; border: 3px solid #000; box-shadow: inset 4px 4px 0 var(--l), inset -4px -4px 0 var(--d); }
+.adv-jewel.got .adv-jewel-ring .gem { width: 60%; height: 60%; opacity: 1; border: 3px solid #000; box-shadow: none; }
 .adv-jewel.got .adv-jewel-ring .gem::before, .adv-jewel.got .adv-jewel-ring .gem::after { display: block; }
 .adv-jewel-count { position: absolute; right: -14px; bottom: -8px; font: 700 22px system-ui, sans-serif; color: #fff; text-shadow: 2px 2px 0 #000; }
 .adv-jewel-again { display: flex; align-items: center; gap: 4px; font-size: clamp(16px, 2.6vw, 24px); white-space: nowrap; background: rgba(0, 0, 0, 0.35); border: 2px solid #000; padding: 2px 8px; color: #fff; }
-.adv-jewel-again .gem { width: 20px; height: 20px; box-shadow: inset 2px 2px 0 var(--l), inset -2px -2px 0 var(--d); }
+.adv-jewel-again .gem { width: 20px; height: 20px; box-shadow: none; border: 1px solid #000; }
 .adv-draw-stop { flex: 0 0 auto; }
 .adv-draw-stop .adv-turn-icon { width: clamp(56px, 9vw, 84px); height: clamp(56px, 9vw, 84px); }
 .adv-promise-gem { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; box-sizing: border-box; border: 4px dashed var(--c); border-radius: 50%; background: rgba(0, 0, 0, 0.25); }

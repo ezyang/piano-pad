@@ -10,7 +10,7 @@ import { createStaff, systemHeight, roomBelow } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
 import { barRhythm, missedNote } from '../scoring.js';
-import { BAND, bandSprite, texture, pieceJewel, jewelStyle } from '../pixels.js';
+import { BAND, bandSprite, texture, pieceGem, jewelStyle } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle, renderYay } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
@@ -33,8 +33,8 @@ const STOPS = {
   g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
 };
 const PARTY = ['zebra', 'train', 'ode', 'g', 'stairs', 'updown'];
-// The jewel a piece earns: its most-played letter's Build block (pixels.js).
-const jewelOf = (id) => pieceJewel(PIECES[id].notes);
+// The jewel a piece earns: its gem (homework.js `gem`, pixels.js pieceGem).
+const jewelOf = (id) => pieceGem(PIECES[id], Object.keys(PIECES).indexOf(id));
 
 export function adventure(root, sub, id) {
   const a = adv.current();

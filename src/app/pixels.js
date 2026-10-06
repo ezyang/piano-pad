@@ -139,35 +139,34 @@ export function characterUrl(grid, jewels = []) {
   return sprite(rows, palette, 'char:' + rows.join(''));
 }
 
-// --- Jewels (jewels.js): shiny pixels she earns and places on her character.
-// A jewel is { i: cell index, m: material name } (MATERIALS' names), kept
-// beside her character (store.js `pianopad.jewels`).
-export const JEWEL_MATERIALS = MATERIALS.filter(Boolean).map((m) => m.name);
+// --- Jewels (jewels.js): shiny gems she earns and places on her character.
+// A jewel is { i: cell index, m: gem name }, kept beside her character
+// (store.js `pianopad.jewels`). Each gem: the table (c, the middle), the
+// facets around it lit from the top left (l top, s left, m right, d bottom
+// and rim).
 const mix = (hex, to, t) => '#' + [1, 3, 5].map((k) => {
   const a = parseInt(hex.slice(k, k + 2), 16), b = parseInt(to.slice(k, k + 2), 16);
   return Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
 }).join('');
-// Its colour and the light and dark of its facets.
-export function jewelColors(name) {
-  const c = MATERIALS.find((m) => m?.name === name)?.color ?? '#f5d63d';
-  return { c, l: mix(c, '#ffffff', 0.6), d: mix(c, '#000000', 0.35) };
-}
-// A piece's jewel: the material of its most-played letter (sharps count as
-// the letter below, like the Build blocks); a tie goes to the letter that
-// comes first in the piece.
-export function pieceJewel(notes) {
-  const count = new Map();
-  for (const n of notes) {
-    if (n.p == null || n.rest) continue;
-    const pc = pitchClass(n.p), m = MATERIALS[pc] ?? MATERIALS[pc - 1];
-    count.set(m.name, (count.get(m.name) ?? 0) + 1);
-  }
-  let best = null;
-  for (const [name, k] of count) if (!best || k > count.get(best)) best = name;
-  return best ?? 'gold';
-}
+const gemTones = (l, c, d) => ({ l, c, d, s: mix(c, l, 0.45), m: mix(c, d, 0.45) });
+export const GEMS = {
+  gold: gemTones('#fff3a0', '#ffc928', '#a87200'),
+  ruby: gemTones('#ffa3b4', '#ec1c45', '#78061f'),
+  diamond: gemTones('#ecffff', '#6eeaf2', '#1a93a8'),
+  emerald: gemTones('#b0f8c9', '#22c96c', '#066b37'),
+  amethyst: gemTones('#ebcbff', '#a95ee8', '#55208a'),
+  sapphire: gemTones('#b0ccff', '#3170f4', '#102f94'),
+};
+export const GEM_NAMES = Object.keys(GEMS);
+// Jewels saved before gems (9041ed3) carry a Build block name: each becomes
+// a gem (planks were Train's, now ruby; stone was Ode's, now diamond).
+const OLD_GEM = { planks: 'ruby', stone: 'diamond', grass: 'emerald', brick: 'ruby' };
+export const gemName = (name) => (GEMS[name] ? name : OLD_GEM[name] ?? 'gold');
+export const jewelColors = (name) => GEMS[gemName(name)];
+// A piece's gem: its own `gem` (homework.js), else by its place k in the list.
+export const pieceGem = (piece, k = 0) => (GEMS[piece?.gem] ? piece.gem : GEM_NAMES[k % GEM_NAMES.length]);
 // A CSS custom-property string for an element showing a jewel (.gem in app.css).
-export const jewelStyle = (name) => { const { c, l, d } = jewelColors(name); return `--c:${c};--l:${l};--d:${d}`; };
+export const jewelStyle = (name) => { const { c, l, s, m, d } = jewelColors(name); return `--c:${c};--l:${l};--s:${s};--m:${m};--d:${d}`; };
 
 // With jewels, her character is an animated SVG: every cell a crisp square,
 // each jewel faceted with a slow shimmer and a twinkling glint (SMIL, which
@@ -187,12 +186,18 @@ function characterSvg(grid, jewels) {
       x += w - 1;
     }
   }
-  jewels.forEach(({ i, m }, k) => {
-    const x = i % CHAR_W, y = Math.floor(i / CHAR_W), { c, l, d } = jewelColors(m);
+  jewels.forEach(({ i, m: name }, k) => {
+    const x = i % CHAR_W, y = Math.floor(i / CHAR_W), { c, l, s, m, d } = jewelColors(name);
     const beg = -((k * 0.83) % 2.6).toFixed(2);
+    // Facets: the cell in the dark tone, then top, left and right facets
+    // meeting a square table in the middle, and a white fleck on the table.
+    const o = 0.27, e = 1 - o;
     gems += `<rect x="${x}" y="${y}" width="1" height="1" fill="${d}"/>`
-      + `<rect x="${x + 0.14}" y="${y + 0.14}" width="0.72" height="0.72" fill="${c}"/>`
-      + `<path d="M${x + 0.14} ${y + 0.14}h0.5l-0.5 0.5z" fill="${l}"/>`
+      + `<path d="M${x} ${y}h1l${-o} ${o}h${-(e - o)}z" fill="${l}"/>`
+      + `<path d="M${x} ${y}l${o} ${o}v${e - o}l${-o} ${o}z" fill="${s}"/>`
+      + `<path d="M${x + 1} ${y}v1l${-o} ${-o}v${-(e - o)}z" fill="${m}"/>`
+      + `<rect x="${x + o}" y="${y + o}" width="${e - o}" height="${e - o}" fill="${c}"/>`
+      + `<rect x="${x + o + 0.06}" y="${y + o + 0.06}" width="0.14" height="0.14" fill="#fff" opacity="0.9"/>`
       + `<rect x="${x}" y="${y}" width="1" height="1" fill="#fff" opacity="0"><animate attributeName="opacity" values="0;0;0.55;0" keyTimes="0;0.6;0.8;1" dur="2.6s" begin="${beg}s" repeatCount="indefinite"/></rect>`;
     const cx = x + 0.3, cy = y + 0.3, r = 0.55, q = 0.1;
     glints += `<path d="M${cx} ${cy - r}L${cx + q} ${cy - q}L${cx + r} ${cy}L${cx + q} ${cy + q}L${cx} ${cy + r}L${cx - q} ${cy + q}L${cx - r} ${cy}L${cx - q} ${cy - q}z" fill="#fff" opacity="0">`

@@ -6,10 +6,11 @@
 // only). It's mirrored into the state blob too, so old /v/ versions (which
 // only read the blob) show her current character.
 // Her jewels (jewels.js) are treated the same way, under their own key
-// `pianopad.jewels`: [{ i: cell index, m: material name }], in the order
+// `pianopad.jewels`: [{ i: cell index, m: gem name }] (older saves have
+// Build block names, shown as gems: pixels.js gemName), in the order
 // she earned them; kept across clean slates and resets, mirrored into the
 // blob. Painting over a jewel's cell removes it (charedit.js).
-import { defaultCharacter, characterUrl, CHAR_W, CHAR_H, JEWEL_MATERIALS } from './pixels.js';
+import { defaultCharacter, characterUrl, CHAR_W, CHAR_H } from './pixels.js';
 import { PIECES } from './homework.js';
 
 const KEY = 'pianopad.v1';
@@ -35,7 +36,7 @@ try { kept = JSON.parse(localStorage.getItem(CHARACTER_KEY)); } catch { /* none 
 state.character = [kept, state.character].find(isCharacter) ?? defaultCharacter();
 // Copy it to its own key right away, so a clean slate can't catch it first.
 if (!isCharacter(kept)) try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(state.character)); } catch { /* storage unavailable */ }
-const isJewels = (js) => Array.isArray(js) && js.every((j) => Number.isInteger(j?.i) && j.i >= 0 && j.i < CHAR_W * CHAR_H && JEWEL_MATERIALS.includes(j.m));
+const isJewels = (js) => Array.isArray(js) && js.every((j) => Number.isInteger(j?.i) && j.i >= 0 && j.i < CHAR_W * CHAR_H && typeof j.m === 'string');
 let keptJewels = null;
 try { keptJewels = JSON.parse(localStorage.getItem(JEWELS_KEY)); } catch { /* none yet */ }
 state.jewels = [keptJewels, state.jewels].find(isJewels) ?? [];
