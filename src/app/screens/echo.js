@@ -2,9 +2,11 @@
 //   🦜 Copy me — the partner plays a phrase; she plays it back. Phrases start
 //      at one note and grow slowly as she succeeds. There's no time limit and
 //      it never moves on by itself: misses replay the phrase (slower after
-//      six), and ⏭ skips.
+//      six), and ⏭ skips (a notch easier). When the mic misses what she
+//      played, a grown-up's two-finger tap (→) on her turn counts it as a
+//      win, same as homework (grownup.js).
 //   💬 Answer me — the partner asks, she answers with anything; her turn ends
-//      when she pauses.
+//      when she pauses (or at a grown-up step, once she's played something).
 // The app ignores the mic while the partner is playing. Notes show as blocks
 // in speech bubbles and on a staff.
 import { h, flash, sparkle } from '../dom.js';
@@ -19,6 +21,7 @@ import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { labelMode, labelFor, fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
+import { grownupGestures } from '../grownup.js';
 
 const PARTNERS = [
   { id: 'slime', voice: 'chip' },
@@ -192,16 +195,38 @@ export function echo(root) {
       if (round.wrong === 3 || round.wrong === 6) replay(round.wrong === 6 ? BPM * 0.7 : BPM);
       return;
     }
-    slot.replaceWith(block(want));
-    flash(myBubble.children[round.k], 'drop', 250);
-    flash(meImg, 'hop', 300);
-    staff?.mark(round.k, 'hit');
-    staff?.burst(round.k);
+    fill(round.k);
     round.k++;
     if (round.k < round.notes.length) { staff?.mark(round.k, 'current'); showHand(round.notes[round.k].p); } else { showHand(null); success(); }
   }
 
-  function success() {
+  // Note k of the phrase is done: its block drops into her bubble.
+  function fill(k) {
+    myBubble.children[k].replaceWith(block(round.notes[k].p));
+    flash(myBubble.children[k], 'drop', 250);
+    flash(meImg, 'hop', 300);
+    staff?.mark(k, 'hit');
+    staff?.burst(k);
+  }
+
+  // A grown-up step: on her turn, the round counts as a win exactly as if
+  // she'd played it (the mic missed it); during the call, or between
+  // rounds, it's ignored. In answer mode it ends her answer now, if she's
+  // played anything.
+  function grownupStep() {
+    if (!round || round.state !== 'turn') return;
+    if (mode === 'answer') {
+      if (!round.heard.length) return;
+      log.event('answer-end', { heard: round.heard.length, by: 'grownup' });
+      return endAnswer();
+    }
+    const heard = round.k;
+    while (round.k < round.notes.length) fill(round.k++);
+    showHand(null);
+    success({ by: 'grownup', heard });
+  }
+
+  function success(extra) {
     round.state = 'done';
     scene.classList.remove('your-turn');
     gems++;
@@ -214,7 +239,7 @@ export function echo(root) {
     if (streak >= LEVEL_UP && level < LEVELS.length - 1) { level++; streak = 0; }
     st.echoLevel = level;
     save();
-    log.event('round', { ok: true, level });
+    log.event('round', { ok: true, level, ...extra });
     later(nextRound, 2600);
   }
 
@@ -278,6 +303,7 @@ export function echo(root) {
   const replayBtn = h('button', { class: 'btn', title: 'Hear it again', onclick: () => replay() }, '🔁');
   const skipBtn = h('button', { class: 'btn', title: 'A different one', onclick: skip }, '⏭\uFE0F');
   const overlay = h('div', { class: 'overlay', style: 'display:none' });
+  const stageEl = h('div', { class: 'stage' }, scene, staffBox, overlay);
 
   root.append(h('div', { class: 'screen echo' },
     h('header', { class: 'bar' },
@@ -286,8 +312,9 @@ export function echo(root) {
       h('div', { class: 'e-partners' }, partnerBtns),
       h('div', { class: 'spacer' }),
       replayBtn, skipBtn),
-    h('div', { class: 'stage' }, scene, staffBox, overlay),
+    stageEl,
     testKeyboard()));
+  const gesturesOff = grownupGestures(stageEl, { step: grownupStep });
   setPartner(partnerIdx);
   setMode(mode);
   listen();
@@ -310,6 +337,7 @@ export function echo(root) {
     cancelAnimationFrame(callRaf);
     engine.stopAll();
     listenerOff?.();
+    gesturesOff();
     log.endSession({ aborted: true, gems });
     engine.listen(false);
   };

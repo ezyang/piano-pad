@@ -151,6 +151,16 @@ As of 2026-10-05:
   buttons in Build!/Copy me.
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
+  Copy me GROWN-UP STEP (2026-10-05, pedagogy: the mic missed phrases she
+  played and ⏭ dropped her a level): the homework gestures, now shared in
+  `grownup.js` (`grownupGestures(el, { step, back })`; adventure.js still
+  has its own copy). On her turn a two-finger tap / → counts the round as
+  a win exactly like playing it (remaining blocks drop in, 💎, streak,
+  level-up, same celebration); ignored during the call and between rounds;
+  swipe/← does nothing there. Logs `round { ok: true, level, by:
+  'grownup', heard: <notes she'd got> }`. Answer me: a step ends her
+  answer now if she's played anything (else ignored), logs `answer-end {
+  heard, by: 'grownup' }`.
 - Other screens: me, calibrate (audio's).
 - ⚙︎ "A grown-up is playing" (pedagogy, parent-approved): sessions carry
   `player: 'kid' | 'grownup' | 'mixed'` (every session from this version
