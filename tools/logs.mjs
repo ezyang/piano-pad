@@ -9,7 +9,7 @@ const nm = (m) => (m == null ? '?' : NAMES[((m % 12) + 12) % 12] + (Math.floor(m
 const [file, which] = process.argv.slice(2);
 if (!file) { console.error('usage: node tools/logs.mjs logs.json [id|index]'); process.exit(1); }
 const data = JSON.parse(readFileSync(file, 'utf8'));
-const sessions = Array.isArray(data) ? data : data.sessions;
+const sessions = Array.isArray(data) ? data : data.sessions ?? [data]; // an export, or one uploaded session
 
 const brief = (s) => {
   const ev = s.events ?? [];
@@ -17,6 +17,9 @@ const brief = (s) => {
   const pitches = ev.filter((e) => e[1] === 'pitch');
   const rejected = pitches.filter((e) => !e[2].ok).length;
   const r = s.result ?? {};
+  // Exact digital silence the whole time (-120 dB = all zeros): the mic was dead.
+  const levels = ev.filter((e) => e[1] === 'level');
+  const silent = levels.length >= 3 && levels.every((e) => e[2].max <= -119.9);
   return [
     s.started?.slice(5, 16).replace('T', ' '), s.id, (s.kind ?? '').padEnd(8), (s.mode ?? '').padEnd(5),
     (s.song?.title ?? '').slice(0, 18).padEnd(18),
@@ -25,6 +28,8 @@ const brief = (s) => {
     count('sim') ? `sim ${count('sim')}` : '',
     r.aborted ? 'aborted' : r.stars != null ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '',
     count('error') ? `ERRORS ${count('error')}` : '',
+    silent ? 'NO MIC INPUT (-120 dB)' : '',
+    count('mic') ? `mic events ${count('mic')} (${ev.filter((e) => e[1] === 'mic').map((e) => `${e[2].state}:${e[2].action}${e[2].ok ? '✓' : ''}`).join(' ')})` : '',
   ].join('  ');
 };
 

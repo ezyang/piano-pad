@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-05:
+As of 2026-10-06:
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
@@ -143,6 +143,29 @@ As of 2026-10-05:
   labels readings `expected` (no leniency). Agreed policy with audio: fewer
   false advances, even at the cost of misses; `by: 'grownup'` steps are
   labeling candidates, not proof she played the note.
+- MIC HEALTH (2026-10-06, pedagogy, urgent): an evening of homework on
+  3c53816 logged exact digital silence (-120 dB = all zeros, from the first
+  second; the MediaRecorder copy of the raw track was silent too) with a
+  live "iPad Microphone" track and running contexts. No code cause found in
+  b328dea..3c53816 (nothing touches the mic; the worker only renders band
+  audio). Restarting the app (same version) fixed it: iOS device/session
+  state. `src/app/mic-health.js` (imported by main.js) checks every 0.5 s
+  while `engine.listening`: dead = track ended, ctx not running, track
+  muted, or level exactly -120 for 3 s. Then: resume (suspended ctx, first
+  try only), `engine.restartMic()` (new getUserMedia + input node), then
+  `engine.reopen()` (new context + detector + mic, like a reload; added to
+  engine.js with a header line, tell audio). After 2 failed tries a grey
+  grown-up badge top right "🎤✕ not hearing · tap to retry" (a tap =
+  reopen, in a gesture); quiet retries continue (15 s, then every 60 s).
+  It hides when sound comes back or nobody is listening; never blocks.
+  Logs: `mic` events { state: ended|suspended|muted|silent|ok, muted,
+  readyState, ctxState, action: detected|resume|reacquire|reopen|none, ok,
+  by: auto|tap, n, err? }; session `audio.track` also has muted,
+  readyState, ctxState; aborted sessions with mic events are kept;
+  `tools/logs.mjs` flags "NO MIC INPUT (-120 dB)" and reads single
+  uploaded session files. After a reopen the audio clock restarts (later
+  detector times in that session are off) and the session's MediaRecorder
+  copy stops at the old stream.
 - Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
   the first block's letter as the one clue, no "next" column, no staff
   letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.
@@ -176,7 +199,12 @@ As of 2026-10-05:
   straight to onNote listeners, bypassing the detector, since 9d268ae).
   Chrome flags: `--headless=new --remote-debugging-port=9333
   --use-fake-ui-for-media-stream --use-fake-device-for-media-stream
-  --use-file-for-fake-audio-capture=<silent.wav>`. Scratchpads don't
+  --use-file-for-fake-audio-capture=<file.wav>
+  --disable-features=AudioServiceOutOfProcess,AudioServiceSandbox`
+  (without the last flag headless Chrome on the Mac delivers all-zero mic
+  input whatever the file, which mic-health.js now reports as a dead mic;
+  use a quiet-noise wav for normal tests, an all-zero one to test the
+  badge). Scratchpads don't
   survive sessions, so expect to rewrite the ~20-line runner. Adventure
   progress is in memory: unlock a piece in-page with
   `import('./src/app/adventure.js')` → `current().done.add('zebra')`, then

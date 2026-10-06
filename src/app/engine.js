@@ -25,6 +25,10 @@
 //                       targets); pitch events are marked `expected` (no
 //                       leniency for now). null: nothing in particular
 //   level, takeLevelStats()   input level (dB)
+//   restartMic()        get the mic stream again (new getUserMedia + input node)
+//   reopen()            start over like a reload: new context + detector and
+//                       a new mic stream (app's mic-health.js, when the input
+//                       has gone dead; best called from a tap on iOS)
 // Changes to these need a heads-up to piano-app before they ship.
 import { createDetectorNode } from '../detector-node.js';
 import { renderNote } from '../synth.js';
@@ -181,6 +185,24 @@ class Engine {
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     this.stream = null;
     try { await this._openMic(); this._attachMic(); } catch { /* permission lost; the next listen() asks again */ }
+  }
+
+  // Start over the way reloading the app does (2026-10-06: an evening of
+  // exact-silence input on the iPad was cured by restarting the app): stop
+  // the mic, build a fresh context + detector, then ask for the mic again.
+  async reopen() {
+    for (const t of this.stream?.getTracks() ?? []) t.stop();
+    this.stream = null;
+    this.stopAll();
+    const old = this.ctx;
+    this.stale = false;
+    this.starting = this._create();
+    await this.starting;
+    if (old && old !== this.ctx) old.close().catch(() => {});
+    if (this.ctx.state !== 'running') await this.ctx.resume().catch(() => {});
+    await this._openMic();
+    this._attachMic();
+    if (this.ctx.state !== 'running') await this.ctx.resume().catch(() => {});
   }
 
   // Diagnostic capture (grown-up tools): a fresh detector starts and the

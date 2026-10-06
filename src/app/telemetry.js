@@ -68,7 +68,8 @@ function micInfo() {
   try {
     const { deviceId, groupId, ...settings } = track.getSettings?.() ?? {}; // drop the opaque device ids
     return {
-      track: { settings, constraints: track.getConstraints?.(), label: track.label },
+      // muted / readyState / ctxState: is the input alive? (see mic-health.js)
+      track: { settings, constraints: track.getConstraints?.(), label: track.label, muted: track.muted, readyState: track.readyState, ctxState: engine.ctx?.state },
       supported: navigator.mediaDevices?.getSupportedConstraints?.(),
     };
   } catch { return {}; }
@@ -169,8 +170,9 @@ export function endSession(result = {}) {
   if (latest && !s.app.latest) s.app.latest = latest; // the first check may finish after the session starts
   // Screens that start logging before the mic is up get it at the end.
   if (s.audio && !s.audio.track) Object.assign(s.audio, micInfo());
-  // An abandoned run where nothing was heard isn't worth keeping.
-  const keep = !(result.aborted && !s.events.some((e) => e[1] === 'onset' || e[1] === 'sim'));
+  // An abandoned run where nothing was heard isn't worth keeping, unless the
+  // mic was in trouble (mic-health.js events): that's why nothing was heard.
+  const keep = !(result.aborted && !s.events.some((e) => e[1] === 'onset' || e[1] === 'sim' || e[1] === 'mic'));
   stopAudio(s, keep);
   if (!keep) return;
   s.ended = new Date().toISOString();
