@@ -625,3 +625,18 @@ As of 2026-09-26:
   key-specific enough to pick a key; never estimate expect-based rescue
   with the true key as the target. Replay harness with the app's expect
   timeline from judge events: ~/Dev/piano-audio-data/scratch/xev.mjs (copy to tools/ if reused).
+- **OCTAVE-5 WORK PAUSED (Oct 7, parent decision via pedagogy).** She'll be
+  encouraged to play in the written octave, so octave-5 recall isn't the
+  bottleneck. Don't start the learned pitch stage unless asked. Where it
+  stands: oct5 C5-B5 152/214 (Zebra 37/65) on held-out Oct 6 replay; the
+  retrain gave no gain (Sep 26 net still best); the sub-harmonic guard
+  was reverted; the expected-key check was 30-40% wrong-key rescues.
+  Losses are downstream of onsets (sub-harmonic f/5 readings, wrong
+  letter, low-clarity 'high'). To resume: the learned pitch stage
+  (Kong-labelled) for net onsets, or the verifier choosing among k*f0. Use
+  rcat.mjs and xev.mjs (see above) and the Oct 6 hold-out.
+- **NEXT LIKELY ASK: left hand F2-C3** (new homework piece, lower than
+  she has played). Pedagogy has a helper checking that the app judges
+  those notes and will come back if detection is weak. Relevant: classic
+  dsp handles < lowDspBelow 57; the voice check (_drift, < midi 60) and the
+  voiceLoudDb/-Vp override (153e893); Kong transcribes speech as low notes.
