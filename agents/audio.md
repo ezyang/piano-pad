@@ -612,3 +612,16 @@ As of 2026-09-26:
   k*f0 candidates for low readings (it scores "new strike of this pitch"),
   or a learned pitch (Kong-labelled) instead of NSDF for net onsets.
   onset_mlp.py EXPORT now skips heldout.txt and EXCLUDE=<substr,...>.
+- **Expected-key verifier check (Oct 6, pedagogy/parent idea "app knows
+  she plays 8va"): NOT shipped.** Patch in scratchpad expect-verify.patch
+  (expectVerifyThr). Oracle estimate (target = Kong's true key) said Zebra
+  oct5 37 -> 50; but replaying the app's real expect() timeline: the
+  verifier says yes to NEIGHBOUR keys on loud strikes, so a second candidate
+  of the note just played passed as the NEXT expected note (160 wrong-key
+  rescues). With guards (target = k*f0 of the reading, k 1..6; nothing
+  within the refractory window of an accepted note): oct5 152 -> 158/214,
+  Zebra 37 -> 41/65, but 6 of 16 rescues were the wrong key (vp 0.9: +5,
+  3 of 10 wrong). LESSON: the verifier's "this pitch" output is not
+  key-specific enough to pick a key; never estimate expect-based rescue
+  with the true key as the target. Replay harness with the app's expect
+  timeline from judge events: scratchpad xev.mjs (copy to tools/ if reused).
