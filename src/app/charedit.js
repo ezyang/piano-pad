@@ -1,6 +1,6 @@
-// Her character editor: the grid, the palette and a preview of her, shared
-// by the Me screen (screens/me.js) and the adventure's drawing turns
-// (drawturn.js). It edits her real character (store.js `pianopad.character`)
+// Her character editor: the grid, the palette and a preview of her, for
+// the Me screen (screens/me.js; the adventure's drawing turns used it until
+// 2026-10-06). It edits her real character (store.js `pianopad.character`)
 // and saves after every stroke; keep() saves now (call it on leaving).
 // Her jewels (jewels.js) show on the board; painting a jewel's cell (any
 // colour, the eraser too) removes that jewel.

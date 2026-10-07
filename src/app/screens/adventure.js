@@ -19,9 +19,7 @@ import * as log from '../telemetry.js';
 import { createHand } from '../hand.js';
 import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
-import { drawTurn } from '../drawturn.js';
-import { jewelTurn, gem } from '../jewels.js';
-import { grownupGestures } from '../grownup.js';
+import { jewelTurn, gem, PAIR } from '../jewels.js';
 
 const member = (id) => BAND.find((m) => m.id === id);
 const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
@@ -80,20 +78,16 @@ function choosePick(parent, a, then) {
   box.querySelectorAll('.adv-pick img').forEach((img, i) => setTimeout(() => flash(img, 'hop', 350), 200 + i * 180));
 }
 
-// The jewel a piece earns, in its colour: a dashed ring until she has
-// one, then the jewel itself (×2, ×3 ... for more), with "🔁 ➜ 💎": playing
-// it again earns another.
+// A pair of a piece's gems (what a turn earns).
+const pair = (m) => Array.from({ length: PAIR }, () => gem(m));
+// The jewels a piece earns, in its colour: a dashed ring with the pair
+// until she has them, then the jewels themselves (×2, ×3 ... for more
+// turns), with "🔁 ➜ 💎💎": playing it again earns another pair.
 function jewelBadge(a, step, cls = '') {
-  const n = adv.jewelsAfter(a, step), m = jewelOf(step);
+  const n = adv.pairsAfter(a, step), m = jewelOf(step);
   return h('div', { class: 'adv-jewel ' + cls + (n ? ' got' : ''), style: jewelStyle(m) },
-    h('div', { class: 'adv-jewel-ring' }, gem(m), n > 1 ? h('span', { class: 'adv-jewel-count' }, `×${n}`) : null),
-    n ? h('div', { class: 'adv-jewel-again' }, '🔁 ➜ ', gem(m)) : null);
-}
-// The drawing turn, once, before the party: 🎨 in a dashed ring, gold ✓ once had.
-function drawBadge(a) {
-  const used = adv.turnsAfter(a, adv.DRAW_AFTER) > 0;
-  return h('div', { class: 'adv-turn adv-draw-stop' + (used ? ' used' : '') },
-    h('div', { class: 'adv-turn-icon' }, '🎨', used ? h('span', { class: 'adv-turn-check' }, '✓') : null));
+    h('div', { class: 'adv-jewel-ring' }, ...pair(m), n > 1 ? h('span', { class: 'adv-jewel-count' }, `×${n}`) : null),
+    n ? h('div', { class: 'adv-jewel-again' }, '🔁 ➜ ', ...pair(m)) : null);
 }
 
 // --- the map ---
@@ -119,11 +113,7 @@ function map(root) {
     h('header', { class: 'bar' },
       h('a', { class: 'btn', href: '#/' }, '🏠'),
       h('div', { class: 'song-title' }, 'Today’s adventure')),
-    // ... ➜ Ode ➜ 🎨 ➜ Party: the drawing turn comes right before the party.
-    h('div', { class: 'adv-path' }, adv.STEPS.flatMap((step, i) => [
-      i ? h('div', { class: 'adv-link' }) : null,
-      ...(step === 'party' ? [drawBadge(a), h('div', { class: 'adv-link' })] : []),
-      stop(step)])),
+    h('div', { class: 'adv-path' }, adv.STEPS.flatMap((step, i) => [i ? h('div', { class: 'adv-link' }) : null, stop(step)])),
     lineup(a, true),
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` }));
   root.append(screen);
@@ -204,11 +194,11 @@ function piece(root, id) {
   const setupText = h('div', { class: 'adv-setup-text' });
   const setupBox = h('div', { class: 'adv-setup', style: 'display:none' }, setupHands, setupText);
   const passLabel = h('span', { class: 'adv-pass' });
-  // Her character comes along, off the page (below it), with the jewel
-  // this piece earns beside her: "🦓 ➜ 💎" ("🔁 ➜ 💎" on a replay).
+  // Her character comes along, off the page (below it), with the pair of
+  // jewels this piece earns beside her: "🦓 ➜ 💎💎" ("🔁 ➜ 💎💎" on a replay).
   // She reacts only at the bar/piece grain, never per note.
   const buddy = memberImg(a, 'piano', 'adv-buddy-sprite');
-  const promise = h('div', { class: 'adv-promise' }, h('span', { class: 'adv-promise-icon' }, adv.jewelsAfter(a, step) ? '🔁' : STOPS[step][0]), h('span', { class: 'adv-promise-arrow' }, '➜'), h('span', { class: 'adv-promise-gem', style: jewelStyle(jewel) }, gem(jewel)));
+  const promise = h('div', { class: 'adv-promise' }, h('span', { class: 'adv-promise-icon' }, adv.jewelsAfter(a, step) ? '🔁' : STOPS[step][0]), h('span', { class: 'adv-promise-arrow' }, '➜'), h('span', { class: 'adv-promise-gem', style: jewelStyle(jewel) }, ...pair(jewel)));
   const buddyRow = h('div', { class: 'adv-buddy' },
     h('div', { class: 'adv-buddy-stand' }, buddy, h('div', { class: 'adv-buddy-block', style: `background-image:url(${texture('grass')})` })), promise);
   const hop = () => flash(buddy, 'hop', 350);
@@ -555,8 +545,8 @@ function piece(root, id) {
     const r = pageBox.getBoundingClientRect();
     for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
     flash(buddy, 'cheer', 1500);
-    // Then her jewel (the reward), then on: the headliner's piece opens the
-    // party (whose drawing turn comes first); the others go back to the
+    // Then her jewels (the reward), then on: the headliner's piece opens the
+    // party; the others go back to the
     // map, which asks who joins the band. (a.joined waits, so leaving early
     // still welcomes them on the map.)
     const next = () => {
@@ -564,7 +554,7 @@ function piece(root, id) {
       const joined = a.joined;
       if (!joined) { location.hash = '#/adventure'; return; }
       a.joined = null;
-      welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, adv.drawPending(a) ? '🎨 ➜ 🎉' : '🎉 Party!'));
+      welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
       warmParty(a); // render the party's first piece while she looks at the welcome
     };
     setTimeout(() => {
@@ -614,13 +604,11 @@ function piece(root, id) {
 const BOOST = 6; // dB, through a clean limiter (instruments.js)
 const partyAudio = (a, song) => bandAudio(song, a.band.map((id) => member(id).instrument), engine.ctx.sampleRate, { boost: BOOST });
 function warmParty(a) { if (engine.ctx) partyAudio(a, PIECES[adv.STEPS.at(-2)]); }
-// The drawing turn comes first, once per adventure (adv.drawPending): the
-// party waits behind it and starts when she's done.
 function party(root) {
   const a = adv.current();
   let song = PIECES[adv.STEPS.at(-2)];
   const ids = a.band;
-  let playing = null, raf = 0, played = false, drawing = null;
+  let playing = null, raf = 0, played = false;
 
   const imgs = ids.map((id) => memberImg(a, id));
   const staffBox = h('div', { class: 'staff-box book-box' });
@@ -755,29 +743,8 @@ function party(root) {
 
   adv.startStep('party', { band: ids });
   prepare();
-  const autoplay = () => setTimeout(() => { if (staffBox.isConnected && !playing) start('auto'); }, 500);
-  let offGestures = null;
-  if (adv.drawPending(a)) {
-    adv.startDraw();
-    const head = partyEl.querySelector('header').getBoundingClientRect();
-    drawing = drawTurn(partyEl, {
-      icon: '🎉', top: Math.round(head.bottom - partyEl.getBoundingClientRect().top), // the 🗺️ stays
-      done: (stats) => {
-        drawing = null;
-        offGestures?.();
-        adv.endDraw('finish', stats);
-        imgs[0].src = spriteOf('piano');
-        flash(imgs[0], 'cheer', 1500);
-        autoplay();
-      },
-    });
-    // A grown-up's step (two-finger tap, not on her board or palette; →)
-    // ends it, keeping her drawing.
-    offGestures = grownupGestures(partyEl, { step: () => drawing?.close('grownup'), ignore: '.draw-turn .board, .draw-turn .palette' });
-  } else autoplay();
+  setTimeout(() => { if (staffBox.isConnected && !playing) start('auto'); }, 500);
   return () => {
-    offGestures?.();
-    if (drawing) { const stats = drawing.quit(); if (stats) adv.endDraw('quit', stats); drawing = null; }
     if (playing) stop('left');
     if (!played) adv.quitStep('party');
   };

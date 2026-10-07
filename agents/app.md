@@ -94,15 +94,22 @@ As of 2026-10-06:
   next note). At the piece grain a grown-up step goes to the end of the
   current time through. Logs a `between` event { pass: 1, of: 2 }.
   The band lives in memory only (`src/app/adventure.js`).
-  JEWELS + ONE DRAWING TURN (2026-10-06, pedagogy + parent: a drawing
-  turn after every piece took ~8 of 20 min, and a timer would upset her).
-  After each homework piece's finish (jingle, her cheer), a JEWEL TURN
-  (`jewels.js`, overlay on the page, ~10 s): her character big on its grid,
-  the jewel bobbing at the top; she taps a cell, it pops in with sparkles;
-  tapping another cell moves it; cells with a jewel already are refused
-  (shake). Big ✓ (dim until placed), or a grown-up step (places it for her
-  on a random cell of her if she hadn't). Every finish earns one, replays
-  too ("play again to earn more"). GEMS (2026-10-06, parent: block
+  JEWELS IN PAIRS (2026-10-06, pedagogy + parent). After each homework
+  piece's finish (jingle, her cheer), a JEWEL TURN (`jewels.js`, overlay
+  on the page, ~10 s) gives TWO gems of the piece's kind (`PAIR = 2`;
+  parent: three single gems couldn't go symmetrically on her 10-wide
+  grid, and symmetry matters to her; nothing is auto-mirrored, she
+  chooses). Her character big on its grid, the two gems waiting at the top
+  (the next one bobs, placed ones dim); she taps a cell, the first pops in
+  with sparkles, then taps again for the second. Tapping one of the new
+  gems picks it up (gold pulsing outline), the next empty cell she taps
+  moves it there; with both placed, tapping an empty cell moves the last
+  one placed. Cells with an older jewel are refused (shake). Big ✓ (dim
+  and shakes the waiting gem until both are placed), or a grown-up step
+  (places any unplaced ones on random free cells of her). Every finish
+  earns a pair, replays too: the replay loop is wanted (she replayed a
+  piece to fix a misplaced gem), and there is deliberately NO UNDO.
+  GEMS (2026-10-06, parent: block
   colours read as planks/stone, not jewels): each piece earns a real gem,
   `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond;
   a piece without one gets GEM_NAMES[its index in PIECES % 6] (gold, ruby,
@@ -119,34 +126,33 @@ As of 2026-10-06:
   kept across clean slates and "Reset all data", mirrored into the blob
   as `jewels`). Saves from 9041ed3 hold Build block names: kept as saved
   and drawn as gems via `gemName` (planks → ruby, stone → diamond, grass →
-  emerald, brick → ruby, unknown → gold); any string `m` is valid. Painting a jewel's cell in charedit (drawing turn or Me,
-  any colour or the eraser) removes that jewel; the Me screen's 👑/🧽
+  emerald, brick → ruby, unknown → gold); any string `m` is valid. Painting a jewel's cell in charedit (Me, any colour or
+  the eraser) removes that jewel; the Me screen's 👑/🧽
   wipes keep jewels.
-  The DRAWING TURN (`drawturn.js`, the real character editor, untimed as
-  since 01cd9d0) now comes ONCE per adventure, right before the party:
-  Ode → jewel → Blobby's welcome (button "🎨 ➜ 🎉") → the party screen
-  opens with the drawing turn over it (header/🗺️ left visible), and the
-  party autoplays when it ends (✓, grown-up step via grownupGestures with
-  `ignore` for the board/palette, or leaving, which still counts).
-  `adv.drawPending(a)` = Ode done and no turn yet; reaching the party any
-  other way also gets it first. Replays after that give jewels only.
-  Map: under each piece a jewel badge in its colour (dashed ring until
-  earned this adventure, then the shining jewel, ×n for more, "🔁 ➜ 💎");
-  between Ode and Party a 🎨 node (dashed, gold ✓ once had). Stops are
-  17vw now so the 🎨 fits in portrait. Homework page: "🦓 ➜ [jewel]" under
-  the page beside her ("🔁 ➜" on a replay), ring goes solid once earned.
+  NO DRAWING TURN in the adventure any more (2026-10-06, parent: the one
+  before the party felt unnecessary): `drawturn.js` is gone, Blobby's
+  welcome says "🎉 Party!" and the party autoplays at once. Drawing is the
+  Me screen (`me.js` + `charedit.js`). Older logs have `step: 'draw'`
+  (7754c61..01cd9d0 after every piece, 9041ed3..fc9c0ab once before the
+  party) and `drawn` in the session.
+  Map: under each piece a jewel badge in its colour with the PAIR (dashed
+  ring until earned this adventure, then the shining pair, ×n = turns
+  earned, "🔁 ➜ 💎💎"). Stops 19vw again. Homework page: "🦓 ➜ [💎💎]"
+  under the page beside her ("🔁 ➜" on a replay), ring goes solid once
+  earned.
   Her sprite sits on a grass block below the homework page and hops when
   a bar passes (bar grain, rhythm pieces, and at bar ends in the note
   grain; never per note), cheers at the end. No costume layers or ghost
   outlines anywhere (costume time was replaced 2026-10-05; old logs have
-  `step: 'costume'`). Counts are memory-only (`a.jewels`, `a.turns`).
+  `step: 'costume'`). Counts are memory-only (`a.jewels` gems, `a.pairs`
+  turns that earned any).
   Logs (adventure session, step events): `step: 'jewel'` start { after,
-  color, turn }, finish { after, color, turn, cell, ms, moves, by?:
-  'grownup' }, quit (same; cell null = not placed, nothing kept); color is
-  the gem name (9041ed3 logs: the Build block name). `step: 'draw'` start { after: 'ode', turn: 1 },
-  finish/quit { ms, strokes, pixels, jewelsGone?, by? }. The session
-  carries `jewels: { piece: n }` and `drawn: { ode: 1 }`; logs.mjs shows
-  both. (7754c61..01cd9d0 logs: a draw turn after every piece.)
+  color, turn }, finish { after, color, turn, cells: [first, second], ms,
+  moves, by?: 'grownup' }, quit (same; a null in cells = not placed, not
+  kept; placed ones are kept). Before 2026-10-06 one `cell` instead of
+  `cells`. color is the gem name (9041ed3 logs: the Build block name).
+  The session carries `jewels: { piece: gems }` (two per turn now);
+  logs.mjs shows it.
   PARTY PLAY BUTTON (2026-10-05, pedagogy + parent: kids, a 2-year-old
   sibling too, thought nothing happened and mashed it; the room missed the
   sound). The delay was the band's whole-piece render, synchronous on the

@@ -8,12 +8,11 @@
 // means she got to the end, never how well she played. Build! and Copy me
 // are free play, outside the adventure.
 //
-// After each homework piece she gets a jewel (jewels.js): one shiny pixel
-// to place on her character, about ten seconds. Replaying a finished piece
-// earns another, on purpose (more homework, willingly). Once per adventure,
-// right before the party, a drawing turn: the character editor on her real
-// character, untimed (drawturn.js). (Until 2026-10-05 every piece earned a
-// drawing turn; they took ~8 of 20 minutes.)
+// After each homework piece she gets a pair of jewels (jewels.js): two
+// shiny pixels to place on her character, about ten seconds. Replaying a
+// finished piece earns another pair, on purpose (more homework, willingly).
+// (A drawing turn after every piece until 2026-10-05, then one right before
+// the party until 2026-10-06; drawing is in the Me screen now.)
 //
 // Nothing is saved: the adventure and its band live in memory (her
 // character is saved by the editor as always), and a new one
@@ -44,10 +43,9 @@ export function current() {
       band: ['piano'],
       active: null, // step in progress
       joined: null, // band member to welcome on the map
-      jewels: {}, // piece → jewels earned after it (jewels.js)
+      jewels: {}, // piece → jewels earned after it (jewels.js; two a turn)
+      pairs: {}, // piece → jewel turns that earned any
       jeweling: null, // jewel turn in progress: { after, color, turn }
-      turns: {}, // piece → drawing turns started after it (drawturn.js; only 'ode' now)
-      drawing: null, // drawing turn in progress: { after, turn }
     };
     adv.log = { ...log.sessionHeader('adventure', adv.id), events: [] };
     event('open');
@@ -60,7 +58,6 @@ function event(what, data = {}) {
   adv.log.events.push([Date.now() - adv.t0, 'step', { what, ...data }]);
   adv.log.done = [...adv.done];
   adv.log.band = adv.band;
-  adv.log.drawn = { ...adv.turns };
   adv.log.jewels = { ...adv.jewels };
   log.record(adv.log);
 }
@@ -100,17 +97,20 @@ export function pick(id) {
 }
 
 // Jewels (jewels.js): after a homework piece (every time she finishes it,
-// replays too) she places a jewel on her character. Logged as step events
-// with step 'jewel' (never in `done`): start { after, color, turn }, then
-// finish { after, color, turn, cell, ms, moves, by? } (✓; by: 'grownup' for
-// a grown-up's step, which places it for her if she hadn't), or quit with
-// the same fields if she leaves (cell null: not placed, no jewel). color: the
-// gem name (pixels.js GEMS: gold, ruby, diamond, emerald, amethyst,
-// sapphire; logs before the gems have a Build block name: planks, stone
-// ...); cell: index in her 10x14 grid; moves: times she moved it after
-// placing it. turn: 1, 2, ... per piece. The session carries
-// jewels: { piece: jewels earned }.
+// replays too) she places a pair of jewels on her character. Logged as step
+// events with step 'jewel' (never in `done`): start { after, color, turn },
+// then finish { after, color, turn, cells, ms, moves, by? } (✓; by:
+// 'grownup' for a grown-up's step, which places any she hadn't), or quit
+// with the same fields if she leaves (a null in cells: not placed, not
+// kept). color: the gem name (pixels.js GEMS: gold, ruby, diamond, emerald,
+// amethyst, sapphire; logs before the gems have a Build block name:
+// planks, stone ...); cells: [first, second], indexes in her 10x14 grid
+// (logs before 2026-10-06 have one `cell`); moves: times she moved one
+// after placing it. turn: 1, 2, ... per piece. The session carries
+// jewels: { piece: jewels earned } (two per turn now). Logs up to
+// 2026-10-06 also have step 'draw' turns and `drawn: { piece: n }`.
 export const jewelsAfter = (a, step) => a.jewels[step] ?? 0;
+export const pairsAfter = (a, step) => a.pairs[step] ?? 0;
 export function startJewel(after, color) {
   const a = current();
   const turn = (a.jewelTurns ??= {})[after] = (a.jewelTurns[after] ?? 0) + 1;
@@ -122,35 +122,9 @@ export function endJewel(how, stats) {
   const { after, color, turn } = adv.jeweling;
   adv.jeweling = null;
   adv.touched = Date.now();
-  if (stats.cell != null) adv.jewels[after] = jewelsAfter(adv, after) + 1;
+  const got = stats.cells.filter((i) => i != null).length;
+  if (got) { adv.jewels[after] = jewelsAfter(adv, after) + got; adv.pairs[after] = pairsAfter(adv, after) + 1; }
   event(how === 'finish' ? 'finish' : 'quit', { step: 'jewel', after, color, turn, ...stats });
-}
-
-// The drawing turn (drawturn.js): once per adventure, after the last piece
-// (and the headliner's welcome), right before the party. Logged as step
-// events with step 'draw' (never in `done`): start { after, turn }, then
-// finish { after, turn, ms, strokes, pixels, jewelsGone?, by? } (✓; by:
-// 'grownup' for a grown-up's step), or quit with the same fields if she
-// leaves (it still counts as her turn). after: 'ode'; turn: 1. pixels:
-// cells of her character changed in the turn; strokes: drags that changed
-// something; jewelsGone: jewels she painted over. (Logs from 7754c61 to
-// 2026-10-05 have a turn after every piece; `timeout: true` only before
-// 01cd9d0.) The session carries drawn: { piece: turns }.
-export const turnsAfter = (a, step) => a.turns[step] ?? 0;
-export const DRAW_AFTER = HEADLINING;
-export const drawPending = (a) => a.done.has(DRAW_AFTER) && !turnsAfter(a, DRAW_AFTER);
-export function startDraw(after = DRAW_AFTER) {
-  const a = current();
-  const turn = (a.turns[after] = turnsAfter(a, after) + 1);
-  a.drawing = { after, turn };
-  event('start', { step: 'draw', after, turn });
-}
-export function endDraw(how, stats) {
-  if (!adv?.drawing) return;
-  const { after, turn } = adv.drawing;
-  adv.drawing = null;
-  adv.touched = Date.now();
-  event(how === 'finish' ? 'finish' : 'quit', { step: 'draw', after, turn, ...stats });
 }
 
 // Anything else worth a line in the adventure's log (e.g. a skip).
