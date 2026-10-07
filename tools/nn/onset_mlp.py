@@ -133,7 +133,15 @@ if __name__ == '__main__' and os.environ.get('EXPORT'):
     if split.startswith('fold'):
         i, k = map(int, split[4:].split('/'))
         files = [f for j, f in enumerate(files) if j % k != i]
-    items = [{'X': features(V), 'Y': labels(V, ref)} for f, V, ref in nm.load(files)]
+    # Never train on the held-out recordings (heldout.txt next to the logs
+    # dir, as tools/verifier/train.py), nor on paths containing an EXCLUDE
+    # substring (comma-separated, e.g. EXCLUDE=2026-10-06 to keep a day unseen).
+    hp = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'heldout.txt')
+    held = {l.strip() for l in open(hp) if l.strip() and not l.startswith('#')} if os.path.exists(hp) else set()
+    excl = [e for e in os.environ.get('EXCLUDE', '').split(',') if e]
+    files = [f for f in files if os.path.basename(f)[:-4] not in held and not any(e in f for e in excl)]
+    print(f'training on {len(files)} recordings', file=sys.stderr)
+    items =[{'X': features(V), 'Y': labels(V, ref)} for f, V, ref in nm.load(files)]
     export(train(items), os.environ['EXPORT'])
     sys.exit(0)
 

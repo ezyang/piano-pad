@@ -598,3 +598,17 @@ As of 2026-09-26:
   NEXT: (a) retrain the onset net with the new octave-5 recordings (fold CV);
   (b) sub-harmonic guard for high strikes (net key / spectrum). Script:
   scratchpad rcat.mjs pattern (Kong vel>=40 vs replay, categories).
+- **Octave-5 attempts, Oct 6 (none shipped).** Before = deployed, replay,
+  held-out Oct 6 recordings (5 sessions), Kong firm strikes C5-B5: 152/214.
+  (a) Retrained onset net (onset_mlp.py, all 236 recordings minus Oct 6 and
+  heldout): minvel 20 149/214 (false 3 -> 6), minvel 35 144, minvel 45 144.
+  The Sep 26 net is still best; more data doesn't fix octave 5, and missing
+  onsets are only 15/214 (losses are downstream: sub-harmonic readings 18,
+  wrong letter 8, 'high' 12). (b) Sub-harmonic guard by harmonic level rise
+  at the onset: worse (Zebra 37 -> 33-36); attacks raise many harmonics, max
+  rise picks wrong k. dspFallbackClarity 0.6: +2 oct5, +8/7649 overall,
+  wrong letter +13: no. MECHANISM: G5 struck over a ringing E5 reads as the
+  pair's common period (f/5 = D#3). NEXT IDEA: let the verifier choose among
+  k*f0 candidates for low readings (it scores "new strike of this pitch"),
+  or a learned pitch (Kong-labelled) instead of NSDF for net onsets.
+  onset_mlp.py EXPORT now skips heldout.txt and EXCLUDE=<substr,...>.
