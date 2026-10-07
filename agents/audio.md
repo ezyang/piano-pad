@@ -587,3 +587,14 @@ As of 2026-09-26:
   evening of exact -120 dB silence on the iPad (cured by an app restart).
   A reopen restarts the audio clock: detector times after one are offset;
   `mic` events in the log mark it. 7ed1483: reopen drops a diagnostic capture.
+- **OCTAVE 5 IS WEAK (Oct 6, pedagogy request).** She likes playing an
+  octave up (Zebra at G5/A5/D5/E5). Kong firm strikes, all 240 recordings,
+  replay: G4 472/518 caught, G5 100/217, A5 61/145. Oct 6 Zebra C5-B5 35/65
+  live, 37/65 replay (so not the live path). G5 misses: no onset (net has
+  ~4x fewer G5/A5 training strikes than G4), sub-harmonic pitch readings
+  (G5 -> G2/D2/D#3 = f/5; then 'low'/voice), dsp-only G5 at clarity
+  0.56-0.65 ('high'). Semitone errors at C5+: Zebra live 2/33, replay 0 (live
+  only again); Train/Ode 0. Singing along adds ~0 false notes (0-0.8/min).
+  NEXT: (a) retrain the onset net with the new octave-5 recordings (fold CV);
+  (b) sub-harmonic guard for high strikes (net key / spectrum). Script:
+  scratchpad rcat.mjs pattern (Kong vel>=40 vs replay, categories).
