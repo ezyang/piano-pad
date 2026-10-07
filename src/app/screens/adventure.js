@@ -10,9 +10,9 @@ import { createStaff, systemHeight, roomBelow } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
 import { barRhythm, missedNote } from '../scoring.js';
-import { BAND, bandSprite, texture, pieceGem, jewelStyle } from '../pixels.js';
+import { bandMember, bandSprite, texture, pieceGem, jewelStyle } from '../pixels.js';
 import { engine } from '../engine.js';
-import { renderBand, renderJingle, renderYay } from '../instruments.js';
+import { renderBand, renderJingle, renderYay, renderDrumroll } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
@@ -21,7 +21,7 @@ import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
 import { jewelTurn, gem, PAIR } from '../jewels.js';
 
-const member = (id) => BAND.find((m) => m.id === id);
+const member = bandMember;
 const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
 // A band member's sprite (hers is her character, as she drew it).
 const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
@@ -43,27 +43,65 @@ export function adventure(root, sub, id) {
 }
 
 // Welcome a band member who just joined: big sprite, a jingle, tap to close.
+// The headliner (a surprise guest, adventure.js GUESTS) comes as a reveal
+// first: "Who's coming?" over a wiggling ⭐ box and a drum roll, then the
+// guest pops in (after REVEAL_MS, or sooner if she taps), says hello on its
+// instrument, and `then` (the Party button) appears.
+const REVEAL_MS = 1800;
 function welcome(parent, id, then) {
-  const m = member(id);
-  const img = h('img', { class: 'adv-welcome-sprite', src: spriteOf(id) });
-  const box = h('div', { class: 'overlay adv-welcome' }, h('div', { class: 'joined' }, img, h('div', {}, `${m.name} joined the band!`)), then ?? null);
-  if (!then) box.addEventListener('click', () => box.remove());
+  if (!adv.GUESTS.includes(id)) return greetMember(parent, h('div', { class: 'overlay adv-welcome' }), id, then);
+  const box = h('div', { class: 'overlay adv-welcome adv-reveal' },
+    h('div', { class: 'joined' }, 'Who’s coming?'),
+    h('div', { class: 'adv-surprise' }, '⭐'));
   parent.append(box);
+  const roll = engine.ctx ? engine.play(renderDrumroll(engine.ctx.sampleRate, REVEAL_MS / 1000)) : null;
+  let shown = false;
+  const go = (early) => {
+    if (shown || !box.isConnected) return;
+    shown = true;
+    if (early === true && roll) try { roll.source.stop(); } catch { /* ended */ }
+    box.classList.remove('adv-reveal');
+    box.replaceChildren();
+    greetMember(parent, box, id, then);
+  };
+  box.addEventListener('pointerdown', () => go(true), { once: true });
+  setTimeout(go, REVEAL_MS);
+}
+// The guest's hello on its own instrument: C E G C, up.
+const HELLO = [60, 64, 67, 72].map((p, i) => ({ p, d: i < 3 ? 0.5 : 1.5 }));
+
+function greetMember(parent, box, id, then) {
+  const m = member(id), guest = adv.GUESTS.includes(id);
+  const img = h('img', { class: 'adv-welcome-sprite' + (guest ? ' adv-guest-in' : ''), src: spriteOf(id) });
+  box.append(h('div', { class: 'joined' }, img,
+    h('div', {}, guest ? `${m.name} is here!` : `${m.name} joined the band!`),
+    guest && m.hi ? h('div', { class: 'adv-hi' }, m.hi) : null));
+  if (then) box.append(then);
+  if (!then) box.addEventListener('click', () => box.remove());
+  if (!box.isConnected) parent.append(box);
   const bounce = setInterval(() => (box.isConnected ? flash(img, 'hop', 350) : clearInterval(bounce)), 700);
-  flash(img, 'hop', 350);
-  if (engine.ctx) engine.play(renderJingle(engine.ctx.sampleRate));
+  if (!guest) flash(img, 'hop', 350); // a guest pops in (CSS adv-guest-in) instead
+  if (engine.ctx) {
+    const sr = engine.ctx.sampleRate;
+    if (!guest) engine.play(renderJingle(sr));
+    else {
+      engine.play(renderYay(sr));
+      setTimeout(() => box.isConnected && engine.play(renderBand({ notes: HELLO, bpm: 150 }, [m.instrument], sr).audio), 400);
+    }
+  }
   const r = parent.getBoundingClientRect();
-  for (let i = 0; i < 4; i++) setTimeout(() => sparkle(box, r.width * (0.25 + 0.5 * Math.random()), r.height * (0.2 + 0.4 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff'], 16), i * 200);
-  if (!then) setTimeout(() => box.remove(), 3500);
+  for (let i = 0; i < (guest ? 7 : 4); i++) setTimeout(() => sparkle(box, r.width * (0.25 + 0.5 * Math.random()), r.height * (0.2 + 0.4 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#ffffff'], 16), i * 200);
+  if (!then) setTimeout(() => box.remove(), guest ? 4000 : 3500);
 }
 
 // Her, her two picks (mysteries until she picks), the headliner.
 function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
-  const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [adv.HEADLINER, a.band.includes(adv.HEADLINER)]];
+  // The guest stays a ⭐ box (no silhouette) until it joins.
+  const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [a.guest, a.band.includes(a.guest)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
-    id ? memberImg(a, id, 'member-sprite' + (here ? '' : ' locked')) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
-    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.HEADLINER ? '⭐' : '?'),
+    here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐') : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    h('div', { class: 'member-name' }, here ? member(id).name : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
 

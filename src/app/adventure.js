@@ -3,8 +3,9 @@
 // week's homework, easiest melody first:
 //   Zebra → Train → Ode → party
 // Each step unlocks the next. Finishing Zebra and then Train each lets her
-// pick a band member (Froggy, Beep Bot or Buzzy); Ode brings the headliner
-// (Blobby), and the party waits for it. "Finished"
+// pick a band member (Froggy, Beep Bot or Buzzy); Ode brings the headliner,
+// a surprise guest (Blobby, Kitty, Sparky or Waddles: GUESTS), and the party
+// waits for it. "Finished"
 // means she got to the end, never how well she played. Build! and Copy me
 // are free play, outside the adventure.
 //
@@ -19,12 +20,26 @@
 // starts after a reload or an hour away. Its log is one session of kind
 // 'adventure' (step start / finish / quit and pick events), rewritten as it
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
+// The guest: session `guest` and open { guest } (drawn; before 2026-10-06
+// always Blobby, 'slime'), and the finish of Ode that brings it has
+// joined: <id>.
 import * as log from './telemetry.js';
 
 export const STEPS = ['zebra', 'train', 'ode', 'party'];
 export const PICKING = ['zebra', 'train']; // finishing these earns a pick
-export const HEADLINER = 'slime'; // the last piece brings Blobby
+// The last piece brings a surprise guest, a different one from the last
+// adventure's (2026-10-06: she asked why it was always Blobby). Drawn when
+// the adventure starts, kept secret on the map (⭐) until it joins; the one
+// she met is remembered in LAST_GUEST (lost on a clean slate, which is fine).
+export const GUESTS = ['slime', 'cat', 'dragon', 'penguin'];
+const LAST_GUEST = 'pianopad.lastGuest';
 const HEADLINING = 'ode';
+function drawGuest() {
+  let last = null;
+  try { last = localStorage.getItem(LAST_GUEST); } catch { /* none */ }
+  const pool = GUESTS.filter((id) => id !== last);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 export const PICKS = ['frog', 'bot', 'bee'];
 const STALE_MS = 60 * 60 * 1000;
 
@@ -41,14 +56,15 @@ export function current() {
       t0, touched: t0,
       done: new Set(),
       band: ['piano'],
+      guest: drawGuest(), // the headliner, a secret until Ode is done
       active: null, // step in progress
       joined: null, // band member to welcome on the map
       jewels: {}, // piece → jewels earned after it (jewels.js; two a turn)
       pairs: {}, // piece → jewel turns that earned any
       jeweling: null, // jewel turn in progress: { after, color, turn }
     };
-    adv.log = { ...log.sessionHeader('adventure', adv.id), events: [] };
-    event('open');
+    adv.log = { ...log.sessionHeader('adventure', adv.id), guest: adv.guest, events: [] };
+    event('open', { guest: adv.guest });
   }
   adv.touched = Date.now();
   return adv;
@@ -79,8 +95,13 @@ export function finishStep(step, info = {}) {
   if (a.active === step) a.active = null;
   const first = !a.done.has(step);
   a.done.add(step);
-  if (first && step === HEADLINING && !a.band.includes(HEADLINER)) { a.band.push(HEADLINER); a.joined = HEADLINER; }
-  event('finish', { step, ...info });
+  let joined;
+  if (first && step === HEADLINING && !a.band.includes(a.guest)) {
+    a.band.push(a.guest);
+    a.joined = joined = a.guest;
+    try { localStorage.setItem(LAST_GUEST, a.guest); } catch { /* storage unavailable */ }
+  }
+  event('finish', { step, ...info, ...(joined ? { joined } : {}) });
 }
 
 // Picks earned (one per finished picking step) but not yet made.

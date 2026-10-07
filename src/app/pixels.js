@@ -229,7 +229,7 @@ export function defaultCharacter() {
 }
 
 // Band members (after the player herself).
-const P = { k: '#1b1b1b', w: '#ffffff', g: '#5fc24a', G: '#3c8a2e', y: '#ffd84a', o: '#ff9a2e', s: '#9aa6b2', S: '#6b7680', r: '#e8433a', p: '#ff8fb3', b: '#2f7de1', c: '#55e0d6', l: '#9a5cc6', L: '#c9a0ea' };
+const P = { k: '#1b1b1b', w: '#ffffff', g: '#5fc24a', G: '#3c8a2e', y: '#ffd84a', o: '#ff9a2e', s: '#9aa6b2', S: '#6b7680', r: '#e8433a', p: '#ff8fb3', b: '#2f7de1', c: '#55e0d6', l: '#9a5cc6', L: '#c9a0ea', O: '#c4651a', n: '#2b3a67', B: '#1f4fa0' };
 export const BAND = [
   { id: 'piano', name: 'You!', instrument: 'piano' },
   {
@@ -245,8 +245,28 @@ export const BAND = [
     art: ['..ww..ww..', '..www.ww..', '...kyyk...', '..yyyyyy..', '.ykyyyyky.', '.yyyyyyyy.', '.kkkkkkkk.', '.yyyyyyyy.', '..kkkkkk..', '...yyyy...', '....kk....'],
   },
   {
-    id: 'slime', name: 'Blobby', instrument: 'chip',
+    id: 'slime', name: 'Blobby', instrument: 'chip', hi: 'Bloop bloop!',
     art: ['.LLLLLLLL.', 'LllllllllL', 'LlkklkklLL', 'LlkklkklLL', 'LllllllllL', 'LlllkklllL', 'LllllllllL', '.LLLLLLLL.'],
   },
 ];
 export const bandSprite = (m) => sprite(m.art.map((r) => r.replace(/ /g, '.')), P, 'band:' + m.id);
+// Surprise guests: the adventure's headliner, one per adventure, drawn
+// from these and Blobby (BAND above; adventure.js GUESTS). Kept out of BAND
+// so the older screens that walk BAND (band, play, Copy me's dancers)
+// don't change. `hi`: the welcome line under the name.
+export const GUESTS = [
+  {
+    id: 'cat', name: 'Kitty', instrument: 'meow', hi: 'Meow! I sing!',
+    art: ['.O......O.', '.oO....Oo.', '.oooOOooo.', 'oooooooooo', 'oowkoowkoo', 'ookkookkoo', 'ooooppoooo', '.ooowwooo.', '..oooooo.O', '.oOooooOoO', '.oooooooo.', '.ww....ww.'],
+  },
+  {
+    id: 'dragon', name: 'Sparky', instrument: 'horn', hi: 'Toot toot! Hi!',
+    art: ['.y......y.', '.yb....by.', '..bbbbbb..', '.bbbbbbbb.', '.bwkbbwkb.', '.bbbbbbbb.', '..bbrrbb..', 'cc.bbbb.cc', 'ccbyyyybcc', '.cbyyyybc.', '..byyyybBB', '..bb..bb.B'],
+  },
+  {
+    id: 'penguin', name: 'Waddles', instrument: 'xylo', hi: 'Ding ding! Hello!',
+    art: ['...nnnn...', '..nnnnnn..', '.nwwnnwwn.', '.nwknnwkn.', '.nnnoonnn.', 'nnnwoownnn', 'nnwwwwwwnn', 'nnwwwwwwnn', '.nwwwwwwn.', '.nwwwwwwn.', '..nwwwwn..', '..oo..oo..'],
+  },
+];
+// Any band member or guest, by id.
+export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id);

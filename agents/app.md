@@ -48,7 +48,8 @@ As of 2026-10-06:
   homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
   each unlocking the next (`#/adventure/piece/<id>`, `#/adventure/party`).
   Finishing Zebra and Train each gives a "Who joins your band?" pick
-  (Froggy / Beep Bot / Buzzy); Ode brings Blobby. The party plays Ode first;
+  (Froggy / Beep Bot / Buzzy); Ode brings the SURPRISE GUEST (below). The
+  party plays Ode first;
   buttons switch to any piece (the earlier G / Stairs / Up and Down too),
   then free Build! / Copy me. New homework = new PIECES + adventure.js STEPS.
   Pieces (parent: she'd become dependent on prompts, so the app is a bridge
@@ -94,6 +95,23 @@ As of 2026-10-06:
   next note). At the piece grain a grown-up step goes to the end of the
   current time through. Logs a `between` event { pass: 1, of: 2 }.
   The band lives in memory only (`src/app/adventure.js`).
+  SURPRISE GUEST (2026-10-06, pedagogy: she asked "why is it always
+  Blobby at the end?"). The headliner is drawn per adventure from
+  adventure.js `GUESTS` = slime (Blobby, chip), cat (Kitty, `meow`: sung,
+  slides up into each note), dragon (Sparky, `horn`: toy trumpet), penguin
+  (Waddles, `xylo`), never the last one she met (`pianopad.lastGuest`,
+  set when the guest joins; losing it is fine). Sprites/names/`hi` lines
+  in pixels.js `GUESTS` (kept out of `BAND` so the hidden band/play screens
+  and Copy me's dancers don't change; look members up with `bandMember`).
+  The three voices are in instruments.js (`guestNote`, GAIN matched to
+  about the others' solo level). Map: the 4th slot is a bobbing ⭐ box (no
+  silhouette) until it joins. Reveal (`welcome` in screens/adventure.js,
+  after Ode's jewel turn, or on the map if she left early): "Who's
+  coming?" over a wiggling ⭐ with a drum roll (`renderDrumroll`), at 1.8 s
+  (or her tap) the guest pops in, "<Name> is here!" + its hello line, a
+  ta-da and C-E-G-C on its own instrument, then 🎉 Party!. Logs: adventure
+  session `guest`, `open { guest }`, and the Ode `finish` that brings it
+  has `joined: <id>`; logs.mjs shows "guest <id> (came)".
   JEWELS IN PAIRS (2026-10-06, pedagogy + parent). After each homework
   piece's finish (jingle, her cheer), a JEWEL TURN (`jewels.js`, overlay
   on the page, ~10 s) gives TWO gems of the piece's kind (`PAIR = 2`;
@@ -130,7 +148,7 @@ As of 2026-10-06:
   the eraser) removes that jewel; the Me screen's 👑/🧽
   wipes keep jewels.
   NO DRAWING TURN in the adventure any more (2026-10-06, parent: the one
-  before the party felt unnecessary): `drawturn.js` is gone, Blobby's
+  before the party felt unnecessary): `drawturn.js` is gone, the guest's
   welcome says "🎉 Party!" and the party autoplays at once. Drawing is the
   Me screen (`me.js` + `charedit.js`). Older logs have `step: 'draw'`
   (7754c61..01cd9d0 after every piece, 9041ed3..fc9c0ab once before the
@@ -160,7 +178,7 @@ As of 2026-10-06:
   partials in synth.js), so not even the pressed state could paint. Now:
   `band-render.js` renders in a module worker (`band-worker.js`; falls back
   to the main thread) and caches by song+band+sr; the party asks for its
-  first piece at Blobby's welcome (`warmParty`) and for the rest one at a
+  first piece at the guest's welcome (`warmParty`) and for the rest one at a
   time on open, so a replay starts its sound in ~30 ms. The button reacts
   on pointerdown (`.pressed`), turns gold 🔊 with a glow, the band glows
   and bounces (sparkles, floating ♪) at once, in time once the sound runs.

@@ -20,6 +20,40 @@ function addTone(out, start, sr, len, f, amp, decay, shape) {
   }
 }
 
+// The surprise guests' voices (pixels.js GUESTS), one note at midi:
+//   meow  Kitty sings: slides up into each note, a little vibrato, and
+//         brightens then softens like "mee-ow"
+//   horn  Sparky's toy trumpet: buzzy harmonics, soft attack
+//   xylo  Waddles's xylophone: a short wooden ding with a click
+function guestNote(out, start, sr, len, midi, kind) {
+  const n = Math.min(out.length - start, Math.round(len * sr));
+  const f0 = midiToHz(midi);
+  let ph = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const rel = i > n - 0.03 * sr ? (n - i) / (0.03 * sr) : 1;
+    let v;
+    if (kind === 'meow') {
+      const glide = 2 ** ((-3 * Math.exp(-t / 0.05)) / 12);
+      const vib = 1 + 0.006 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, t / 0.15);
+      ph += (2 * Math.PI * f0 * glide * vib) / sr;
+      const u = Math.min(1, t / Math.max(0.05, len));
+      const bright = 0.15 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.4));
+      v = 0.1 * Math.min(1, t / 0.03) * (Math.sin(ph) + bright * Math.sin(2 * ph) + 0.4 * bright * Math.sin(3 * ph));
+    } else if (kind === 'horn') {
+      ph += (2 * Math.PI * f0) / sr;
+      let x = 0;
+      for (let k = 1; k <= 6; k++) x += Math.sin(k * ph) / k;
+      v = 0.08 * Math.min(1, t / 0.035) * (0.75 + 0.25 * Math.exp(-t / 0.3)) * x;
+    } else { // xylo
+      ph += (2 * Math.PI * f0) / sr;
+      v = 0.14 * Math.exp(-t / 0.13) * Math.sin(ph) + 0.06 * Math.exp(-t / 0.03) * Math.sin(3.9 * ph) +
+        (i < 0.002 * sr ? 0.05 * (1 - i / (0.002 * sr)) : 0);
+    }
+    out[start + i] += v * rel;
+  }
+}
+
 function drums(out, sr, beats, beat, t0, rng) {
   for (let b = 0; b < beats; b++) {
     const s = Math.round((t0 + b * beat) * sr);
@@ -52,7 +86,7 @@ function drums(out, sr, beats, beat, t0, rng) {
 }
 
 // Mix levels: brings each instrument alone to about -22 dB RMS.
-const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92 };
+const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8 };
 
 // members: array of instrument names. Returns {audio, lead} where lead is
 // the time (s) before the first beat. opts.boost (dB): louder, through a
@@ -77,6 +111,9 @@ export function renderBand(song, members, sr, { boost = 0 } = {}) {
       else if (inst === 'bass') renderNote(buf, s, { midi: n.p - 24, vel: 0.8, dur: len * 0.9 }, sr, rng);
       else if (inst === 'musicbox') addTone(buf, s, sr, len + 0.4, midiToHz(n.p + 12), 0.12, 0.35, 'bell');
       else if (inst === 'chip') addTone(buf, s, sr, len * 0.9, midiToHz(n.p + 12), 0.08, 2, 'square');
+      else if (inst === 'meow') guestNote(buf, s, sr, len * 0.92, n.p + 12, 'meow');
+      else if (inst === 'horn') guestNote(buf, s, sr, len * 0.9, n.p, 'horn');
+      else if (inst === 'xylo') guestNote(buf, s, sr, Math.min(len, 0.6) + 0.1, n.p + 12, 'xylo');
     }
     const g = GAIN[inst] ?? 1;
     for (let i = 0; i < out.length; i++) out[i] += g * buf[i];
@@ -142,6 +179,26 @@ export function renderJingle(sr) {
 export function renderYay(sr) {
   const out = new Float32Array(Math.round(0.8 * sr));
   [76, 84].forEach((m, i) => addTone(out, Math.round(i * 0.14 * sr), sr, 0.45, midiToHz(m), 0.1, 0.25, 'square'));
+  return out;
+}
+
+// A snare drum roll, getting faster and louder, for `secs` (the surprise
+// guest's reveal), with a cymbal-ish crash at the end.
+export function renderDrumroll(sr, secs = 1.8) {
+  const out = new Float32Array(Math.round((secs + 0.8) * sr));
+  const rng = mulberry32(11);
+  for (let t = 0, k = 0; t < secs; k++) {
+    const u = t / secs, s = Math.round(t * sr);
+    for (let i = 0; i < 0.06 * sr && s + i < out.length; i++) out[s + i] += (0.05 + 0.13 * u) * (rng() * 2 - 1) * Math.exp(-i / (0.018 * sr));
+    t += 0.09 - 0.05 * u + (k % 2 ? 0.004 : 0);
+  }
+  const s = Math.round(secs * sr);
+  let prev = 0;
+  for (let i = 0; s + i < out.length; i++) {
+    const x = rng() * 2 - 1;
+    out[s + i] += 0.22 * (x - 0.6 * prev) * Math.exp(-i / (0.25 * sr));
+    prev = x;
+  }
   return out;
 }
 
