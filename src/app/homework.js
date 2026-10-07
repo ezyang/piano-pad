@@ -7,7 +7,9 @@
 // which hand, which finger goes where. `repeat`: a printed repeat sign;
 // `twice`: played twice anyway (no sign; repetition is the practice).
 // `gem`: the jewel it earns in the adventure (pixels.js GEMS); without one
-// a piece gets a gem by its place in this list.
+// a piece gets a gem by its place in this list. `position`: where the hands
+// sit, { R: {midi: finger}, L: {...} } (labels.js; default C position), for
+// finger numbers the book doesn't print and the ✋.
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -28,7 +30,7 @@ const LEFT = { hand: 'left', finger: 5, text: 'Left hand: pinky on C' };
 const RIGHT = { hand: 'right', finger: 1, text: 'Right hand: thumb on C' };
 
 export const PIECES = {
-  // --- this week (lesson of 2026-09-30) ---
+  // --- this week (lesson of 2026-10-07: Zebra and Ode kept, Sea new) ---
   // Hands take turns near middle C: the right hand plays G A B (finger 2 on
   // G), the left hand D E (finger 3 on D, between the two black keys). A
   // real treble staff with one sharp (no F appears); repeated (played twice).
@@ -49,18 +51,20 @@ export const PIECES = {
     ], { 0: 2, 6: 3, 7: 2, 8: 3, 9: 2, 15: 3, 18: 2, 24: 3, 27: 4, 28: 3, 30: 2 }),
     setup: [{ at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 2 }], text: 'Left hand: finger 3 on D. Right hand: finger 2 on G.' }],
   },
-  // C position, right hand first. The whole notes are counted "(2 - 3 - 4)".
-  train: {
-    id: 'train',
-    title: 'Homework: Train',
-    gem: 'ruby', twice: true, by: 'teacher', bpm: 80, clef: 'grand',
+  // Hands take turns, but NOT in C position: the left THUMB is on the C
+  // below middle C and the left hand walks DOWN from there (C3=1 B2=2 A2=3
+  // G2=4 F2=5: "feels backwards", the teacher says); the right thumb is on
+  // middle C. Left hand line, then right hand line; played twice.
+  sea: {
+    id: 'sea',
+    title: 'Homework: Sea',
+    gem: 'sapphire', twice: true, by: 'teacher', bpm: 80, clef: 'grand',
+    position: { R: { 60: 1, 62: 2, 64: 3, 65: 4, 67: 5 }, L: { 48: 1, 47: 2, 45: 3, 43: 4, 41: 5 } },
     notes: [
-      ...fingers([...n(1, R.C, R.D, R.C, R.D), ...n(1, R.E, R.D, R.E, R.D), ...n(1, R.C, R.D, R.E, R.F), ...n(4, R.G)],
-        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
-      ...fingers([...n(1, L.G, L.F, L.G, L.F), ...n(1, L.E, L.F, L.E, L.F), ...n(1, L.G, L.F, L.E, L.D), ...n(4, L.C)],
-        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
+      ...lh(fingers([...n(1, 48, 47, 45, 47), ...n(1, 48, 47, 45, 43), ...n(1, 41, 43, 45, 47), ...n(1, 48, 48), ...n(2, 48)], { 0: 1 })),
+      ...rh(fingers([...n(1, R.C, R.D, R.E, R.D), ...n(1, R.C, R.D, R.E, R.F), ...n(1, R.G, R.F, R.E, R.D), ...n(4, R.C)], { 0: 1 })),
     ],
-    setup: [{ at: 0, ...RIGHT }, { at: 13, ...LEFT }],
+    setup: [{ at: 0, hand: 'left', finger: 1, text: 'Left hand: thumb on the C below middle C' }, { at: 15, ...RIGHT }],
   },
   // C position, left hand first.
   ode: {
@@ -77,6 +81,20 @@ export const PIECES = {
   },
 
   // --- earlier homework (the party can still play these) ---
+  // (Train: this week's 2026-09-30..10-07.)
+  // C position, right hand first. The whole notes are counted "(2 - 3 - 4)".
+  train: {
+    id: 'train',
+    title: 'Homework: Train',
+    gem: 'ruby', twice: true, by: 'teacher', bpm: 80, clef: 'grand',
+    notes: [
+      ...fingers([...n(1, R.C, R.D, R.C, R.D), ...n(1, R.E, R.D, R.E, R.D), ...n(1, R.C, R.D, R.E, R.F), ...n(4, R.G)],
+        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
+      ...fingers([...n(1, L.G, L.F, L.G, L.F), ...n(1, L.E, L.F, L.E, L.F), ...n(1, L.G, L.F, L.E, L.D), ...n(4, L.C)],
+        { 0: 1, 4: 3, 5: 2, 6: 3, 7: 2 }),
+    ],
+    setup: [{ at: 0, ...RIGHT }, { at: 13, ...LEFT }],
+  },
   // Right hand, then left hand.
   updown: {
     id: 'updown',

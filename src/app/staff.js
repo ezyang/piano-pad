@@ -59,7 +59,7 @@ export const roomBelow = (song) => (song.notes.some((n) => n.hand === 'L' && n.p
 export function createStaff(song, { s = 20, width = 1000, letters = 'letters', visible = 2, fingersAbove = false } = {}) {
   const mode = labelMode(letters), rows = labelRows(letters);
   const label = (g, m, x, y, finger, beats) => rows.forEach((md, r) => {
-    const { text, fallback } = labelFor(m, md, finger, beats);
+    const { text, fallback } = labelFor(m, md, finger, beats, song.position);
     if (text) g.append(svg('text', { x, y: y + r * s * ROW, class: 'letter' + (md === 'fingers' && !fallback ? ' finger' : '') + (fallback ? ' fallback' : '') + (md === 'rhythm' ? ' word' : '') }, text));
   });
   const clef = resolveClef(song);

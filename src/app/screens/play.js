@@ -94,7 +94,7 @@ export function play(root, id) {
   const hand = createHand();
   hand.show(null);
   const stageEl = h('div', { class: 'stage' }, sceneBox, staffBox, count, overlay, h('div', { class: 'hand-box' }, hand.el));
-  const showHand = (m) => hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
+  const showHand = (m) => hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m, song.position) : null, handFor(m, song.position) ?? 'right'); // the piece's hand position (C position by default)
 
   root.append(h('div', { class: 'screen play' },
     h('header', { class: 'bar' },

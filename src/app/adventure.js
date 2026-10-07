@@ -1,8 +1,10 @@
 // Today's adventure: a short practice with a beginning and an end, the same
 // path every day so she does all the material (the parent's call). This
 // week's homework, easiest melody first:
-//   Zebra → Train → Ode → party
-// Each step unlocks the next. Finishing Zebra and then Train each lets her
+//   Zebra → Sea → Ode → party
+// (Zebra → Train → Ode 2026-09-30..10-07; Train is in the party now, with
+// the other earlier homework.)
+// Each step unlocks the next. Finishing Zebra and then Sea each lets her
 // pick a band member (Froggy, Beep Bot or Buzzy); Ode brings the headliner,
 // a surprise guest (Blobby, Kitty, Sparky or Waddles: GUESTS), and the party
 // waits for it. "Finished"
@@ -25,8 +27,8 @@
 // joined: <id>.
 import * as log from './telemetry.js';
 
-export const STEPS = ['zebra', 'train', 'ode', 'party'];
-export const PICKING = ['zebra', 'train']; // finishing these earns a pick
+export const STEPS = ['zebra', 'sea', 'ode', 'party'];
+export const PICKING = ['zebra', 'sea']; // finishing these earns a pick
 // The last piece brings a surprise guest, a different one from the last
 // adventure's (2026-10-06: she asked why it was always Blobby). Drawn when
 // the adventure starts, kept secret on the map (⭐) until it joins; the one

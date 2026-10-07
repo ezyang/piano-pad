@@ -7,11 +7,17 @@
 //   'letters' letters kept; finger numbers only on each hand's first note
 //   'first'   each hand's first note keeps its letter and finger; the other
 //             heads are blank, so she reads by direction
+//   'fingers' letters kept, and every note gets its finger number (the
+//             book's where printed, else from the piece's hand position)
 // (`firsts`: the indices of each hand's first note, from the piece's setup.)
+// Fingers not printed come from the piece's `position` (labels.js; C
+// position by default), so a hand that sits elsewhere (the left thumb on C3,
+// going down) is numbered right.
 // Same interface as staff.js where the pieces need it:
 // { el, laid, targets, mark(i, state), show(i), span(i0, i1, cls) }.
 import { svg } from './dom.js';
 import { layout, letter } from './music.js';
+import { C_POSITION } from './labels.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // steps above C in its octave
 const BEATS = 4;
@@ -29,16 +35,19 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
   // Steps above the hand's C (C4 for the right hand, C3 for the left).
   const lift = (p) => NAT[((p % 12) + 12) % 12] + 7 * (Math.floor(p / 12) - (rh(p) ? 5 : 4));
   // Each row is as tall as the notes it holds (at least C..G).
-  const reach = (hand) => Math.max(4, ...laid.filter((n) => n.p != null && rh(n.p) === hand).map((n) => lift(n.p)));
-  const rhUp = reach(true), lhUp = reach(false);
+  // Notes below the hand's C (a left hand going down from C3) hang below it.
+  const lifts = (hand) => laid.filter((n) => n.p != null && rh(n.p) === hand).map((n) => lift(n.p));
+  const dip = (hand) => Math.max(0, ...lifts(hand).map((l) => -l));
+  const reach = (hand) => Math.max(4 - dip(hand), ...lifts(hand));
+  const rhUp = reach(true), lhUp = reach(false), rhDown = dip(true), lhDown = dip(false);
   // Vertical metrics, in head radii. A line, top to bottom: right-hand
   // finger numbers and stems (up), the right hand's row, a gap, the left
   // hand's row, its stems (down) and finger numbers.
   const metrics = (r) => {
     const step = r * 0.95, stem = r * 3, fRow = r * 1.4;
     const rhC = r * 0.3 + fRow + stem + rhUp * step;
-    const lhC = rhC + r * 3.2 + lhUp * step;
-    return { r, step, stem, rhC, lhC, lineH: lhC + stem + fRow + r * 0.9 };
+    const lhC = rhC + rhDown * step + r * 3.2 + lhUp * step;
+    return { r, step, stem, rhC, lhC, lineH: lhC + lhDown * step + stem + fRow + r * 0.9 };
   };
   // Head radius: as big as the width allows, and small enough for every
   // line to fit the height.
@@ -59,7 +68,7 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
 
   // Bar lines (through both rows), a double bar at the end.
   for (let line = 0; line < lines; line++) {
-    const top = line * lineH, y1 = top + topOf(true), y2 = top + lhC + r;
+    const top = line * lineH, y1 = top + topOf(true), y2 = top + lhC + lhDown * step + r;
     const count = Math.min(perLine, nBars - line * perLine);
     for (let k = 0; k <= count; k++) {
       const x = 6 + k * barW;
@@ -68,11 +77,14 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     }
   }
 
-  // The finger that plays a hand's first note, if the book doesn't print it:
-  // from the C position (thumb or pinky on C).
+  // The finger for a note the book doesn't number: from the piece's hand
+  // position (by its row: right hand from middle C up).
+  const position = song.position ?? C_POSITION;
+  const fingerOf = (p) => (rh(p) ? position.R : position.L)[p] ?? null;
+  // ...for a hand's first note (it sets the hand), by the set-up's hand.
   const fingerOn = (i) => {
-    const s = setupFinger.get(i), p = laid[i].p, steps = NAT[((p % 12) + 12) % 12];
-    return s ? (s.hand === 'left' ? 5 - steps : 1 + steps) : null;
+    const s = setupFinger.get(i), p = laid[i].p;
+    return s ? (s.hand === 'left' ? position.L : position.R)[p] ?? null : null;
   };
   const groups = laid.map((n, i) => {
     const g = svg('g', { class: 'n' + (n.p == null ? ' rest' : '') });
@@ -89,7 +101,7 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     if (labels !== 'first' || first) g.append(svg('text', { x, y: hy + r * 0.42, class: 'ltr' + (open ? ' open' : ''), 'font-size': r * 1.15 }, letter(n.p)));
     // Finger numbers sit at the end of the stem, as in the book. Off the
     // book's labels, only a hand's first note keeps one (it sets the hand).
-    const f = labels === 'book' ? n.f : first ? n.f ?? fingerOn(i) : null;
+    const f = labels === 'book' ? n.f : labels === 'fingers' ? n.f ?? fingerOf(n.p) : first ? n.f ?? fingerOn(i) : null;
     if (f != null) g.append(svg('text', { x: sx, y: up ? hy - stem - r * 0.35 : hy + stem + r * 1.15, class: 'fing', 'font-size': r * 1.1 }, String(f)));
     return g;
   });
@@ -105,7 +117,7 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     span(i0, i1, cls) {
       const a = pos[i0], b = pos[i1];
       const x0 = a.x - beatW * 0.5 + 3, x1 = b.x - beatW * 0.5 + laid[i1].d * beatW - 3;
-      const rect = svg('rect', { x: x0, y: a.top + topOf(true), width: x1 - x0, height: lhC + r - topOf(true), rx: r * 0.5, class: cls });
+      const rect = svg('rect', { x: x0, y: a.top + topOf(true), width: x1 - x0, height: lhC + lhDown * step + r - topOf(true), rx: r * 0.5, class: cls });
       bg.append(rect);
       return rect;
     },

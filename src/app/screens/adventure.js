@@ -27,10 +27,10 @@ const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
 const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
 
 const STOPS = {
-  zebra: ['🦓', 'Zebra'], train: ['🚂', 'Train'], ode: ['🎶', 'Ode'], party: ['🎉', 'Party!'],
-  g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
+  zebra: ['🦓', 'Zebra'], sea: ['🌊', 'Sea'], ode: ['🎶', 'Ode'], party: ['🎉', 'Party!'],
+  train: ['🚂', 'Train'], g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
 };
-const PARTY = ['zebra', 'train', 'ode', 'g', 'stairs', 'updown'];
+const PARTY = ['zebra', 'sea', 'ode', 'train', 'g', 'stairs', 'updown'];
 // The jewel a piece earns: its gem (homework.js `gem`, pixels.js pieceGem).
 const jewelOf = (id) => pieceGem(PIECES[id], Object.keys(PIECES).indexOf(id));
 
@@ -173,7 +173,9 @@ function map(root) {
 // under the notes. labels (⚙︎ Homework labels) takes scaffolding away:
 // 'book' as printed; 'letters' letters (under a staff; in the heads of
 // pre-staff) and a finger number only on each hand's first note; 'first'
-// only each hand's first note labelled.
+// only each hand's first note labelled; 'fingers' (pre-staff only; a
+// staff page treats it as 'book') letters and every note's finger, from
+// the piece's hand position.
 export function bookPage(song, width, height, labels = 'book') {
   if (song.clef === 'grand') return createBook(song, { width, height, labels });
   // Each hand's first note: by the notes' `hand` when they have one, else the set-ups.
@@ -186,7 +188,7 @@ export function bookPage(song, width, height, labels = 'book') {
     // The whole page at once when it fits, like the book.
     s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters, roomBelow(song)))),
     letters,
-    fingersAbove: labels === 'book' ? true : (i) => (firsts.has(i) ? song.notes[i].f ?? null : null),
+    fingersAbove: labels === 'book' || labels === 'fingers' ? true : (i) => (firsts.has(i) ? song.notes[i].f ?? null : null),
   });
 }
 
@@ -222,7 +224,7 @@ function piece(root, id) {
   const song = PIECES[id], step = id, st = getState();
   const rhythm = !!song.rhythm;
   const grain = rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(st.feedback) ? st.feedback : 'note';
-  const labels = ['book', 'letters', 'first'].includes(st.bookLabels) ? st.bookLabels : 'book';
+  const labels = ['book', 'letters', 'first', 'fingers'].includes(st.bookLabels) ? st.bookLabels : 'book';
   let session = null, finished = false, gen = 0, jeweling = null;
   const jewel = jewelOf(id);
 

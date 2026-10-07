@@ -42,23 +42,43 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-06:
+As of 2026-10-07:
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
-  homework in a fixed order (since 2026-09-30): Zebra → Train → Ode → party,
+  homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
+  (2026-09-30..10-07 it was Zebra → Train → Ode; Train is now with the
+  earlier homework, in the party's buttons),
   each unlocking the next (`#/adventure/piece/<id>`, `#/adventure/party`).
-  Finishing Zebra and Train each gives a "Who joins your band?" pick
+  Finishing Zebra and Sea each gives a "Who joins your band?" pick
   (Froggy / Beep Bot / Buzzy); Ode brings the SURPRISE GUEST (below). The
   party plays Ode first;
-  buttons switch to any piece (the earlier G / Stairs / Up and Down too),
+  buttons switch to any piece (the earlier Train / G / Stairs / Up and Down too),
   then free Build! / Copy me. New homework = new PIECES + adventure.js STEPS.
   Pieces (parent: she'd become dependent on prompts, so the app is a bridge
   to the paper book): drawn like her book, pre-staff (`book.js`: letter in
   the head, RH row above LH, whole notes counted "(2 - 3 - 4)") or a real
   staff (staff.js: `sharps` key signature, `repeat` sign = played twice,
   finger numbers above as printed, label rows); `twice` = played twice with
-  no sign drawn (Train and Ode since 2026-10-04, parent via pedagogy; logs
-  `repeat: true, twice: true`). Staff notes with `hand: 'R'|'L'`
+  no sign drawn (Train and Ode since 2026-10-04, Sea 2026-10-07; logs
+  `repeat: true, twice: true`).
+  SEA (2026-10-07, pedagogy): pre-staff, LH line then RH line, NOT C
+  position: left THUMB on C3 walking down (C3=1 B2=2 A2=3 G2=4 F2=5), right
+  thumb on middle C. Pieces may carry `position: { R: {midi: f}, L: {...} }`
+  (default `C_POSITION` in labels.js); `fingerFor/handFor(m, pos)`,
+  `labelFor(..., pos)`, staff.js (song.position), book.js (fingers not
+  printed, first-note fingers) and play.js's ✋ all use it. book.js hangs
+  notes below a hand's C under its row (`dip`). New ⚙︎ Homework labels
+  option 'fingers': letters + every note's finger (pre-staff; a staff page
+  treats it as 'book'). NO LYRICS: pedagogy asked for the book's words under
+  the notes; not added (repo rule: no book titles or lyrics in this public
+  repo), sent back to pedagogy/parent. Detection of F2–B2: no hard limit in
+  the app (outOfRange is ±12 around the piece); the detector sends notes
+  below A3 (lowDspBelow 57) through the dsp path (minF0 60 Hz; the first
+  1024-sample pitch window can't see F2's 87 Hz, the 2048 one can); the
+  onset net's keys start at A2 (45), so F2/G2 have no key of their own
+  (lowNetMin is 0, so that gate is off). Synthetic F2..C3 lines: 100%
+  recall, one F2→E2 at far mic. No real recordings of her piano that low
+  yet: watch the logs. Staff notes with `hand: 'R'|'L'`
   get the book's stems: RH up + fingers above, LH down + fingers below the
   stem, else stems by pitch (Zebra has hands, 2026-10-04, pedagogy). In
   the letters/first label settings each hand's first note shows its finger
@@ -129,7 +149,8 @@ As of 2026-10-06:
   piece to fix a misplaced gem), and there is deliberately NO UNDO.
   GEMS (2026-10-06, parent: block
   colours read as planks/stone, not jewels): each piece earns a real gem,
-  `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond;
+  `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond,
+  Sea sapphire;
   a piece without one gets GEM_NAMES[its index in PIECES % 6] (gold, ruby,
   diamond, emerald, amethyst, sapphire), `pieceGem` in pixels.js. GEMS
   holds 5 tones per gem (table c, facets l top / s left / m right / d
