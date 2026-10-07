@@ -597,7 +597,7 @@ As of 2026-09-26:
   only again); Train/Ode 0. Singing along adds ~0 false notes (0-0.8/min).
   NEXT: (a) retrain the onset net with the new octave-5 recordings (fold CV);
   (b) sub-harmonic guard for high strikes (net key / spectrum). Script:
-  scratchpad rcat.mjs pattern (Kong vel>=40 vs replay, categories).
+  ~/Dev/piano-audio-data/scratch/rcat.mjs (Kong vel>=40 vs replay, categories).
 - **Octave-5 attempts, Oct 6 (none shipped).** Before = deployed, replay,
   held-out Oct 6 recordings (5 sessions), Kong firm strikes C5-B5: 152/214.
   (a) Retrained onset net (onset_mlp.py, all 236 recordings minus Oct 6 and
@@ -613,7 +613,7 @@ As of 2026-09-26:
   or a learned pitch (Kong-labelled) instead of NSDF for net onsets.
   onset_mlp.py EXPORT now skips heldout.txt and EXCLUDE=<substr,...>.
 - **Expected-key verifier check (Oct 6, pedagogy/parent idea "app knows
-  she plays 8va"): NOT shipped.** Patch in scratchpad expect-verify.patch
+  she plays 8va"): NOT shipped.** Patch in ~/Dev/piano-audio-data/scratch/expect-verify.patch
   (expectVerifyThr). Oracle estimate (target = Kong's true key) said Zebra
   oct5 37 -> 50; but replaying the app's real expect() timeline: the
   verifier says yes to NEIGHBOUR keys on loud strikes, so a second candidate
@@ -624,4 +624,4 @@ As of 2026-09-26:
   3 of 10 wrong). LESSON: the verifier's "this pitch" output is not
   key-specific enough to pick a key; never estimate expect-based rescue
   with the true key as the target. Replay harness with the app's expect
-  timeline from judge events: scratchpad xev.mjs (copy to tools/ if reused).
+  timeline from judge events: ~/Dev/piano-audio-data/scratch/xev.mjs (copy to tools/ if reused).
