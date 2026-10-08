@@ -1,8 +1,8 @@
 import { h } from '../dom.js';
-import { getState, resetAll, save, meUrl } from '../store.js';
-import { bandMember, bandSprite, texture } from '../pixels.js';
+import { getState, resetAll, save, meUrl, newSong } from '../store.js';
+import { bandMember, bandSprite, texture, material } from '../pixels.js';
 import * as adventure from '../adventure.js';
-import { shareLogs, sessionCount, VERSION } from '../telemetry.js';
+import { shareLogs, sessionCount, VERSION, record, sessionHeader } from '../telemetry.js';
 import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
 import { labelMode } from '../labels.js';
@@ -12,8 +12,9 @@ export function home(root) {
   const st = getState();
   const me = meUrl();
 
-  // Today's adventure leads; the experiments are for free play after. (Her
-  // songs and the editor are hidden for now; old songs stay in storage.)
+  // Today's adventure leads; the experiments are for free play after, then
+  // "Make a song" and her own songs (homework songs, by: 'teacher', stay
+  // hidden; so do the band and save buttons).
   const a = adventure.peek();
   const done = (step) => !!a?.done.has(step);
   const advCard = h('a', { class: 'card adv-card', href: '#/adventure' },
@@ -39,6 +40,21 @@ export function home(root) {
       mics.some((m) => !m.label) ? h('option', { disabled: true }, '(start a piece once to see all mics)') : null);
     micSelect.disabled = false;
   }
+
+  const makeSong = h('button', {
+    class: 'card add make-song', onclick: () => {
+      const song = newSong('me');
+      record({ ...sessionHeader('make-song'), song: { id: song.id, title: song.title }, events: [[0, 'tap', { button: 'make-song' }]] });
+      location.hash = `#/song/${song.id}`;
+    },
+  }, h('div', { class: 'plus' }, '🎵'), h('div', { class: 'card-title' }, 'Make a song'));
+  const mySongs = st.songs.filter((s) => s.by === 'me').reverse().map((song) => {
+    const preview = song.notes.filter((n) => n.p != null).slice(0, 10)
+      .map((n) => h('span', { class: 'mini-block', style: `background-image:url(${material(n.p).url})` }));
+    return h('a', { class: 'card my-song', href: `#/song/${song.id}` },
+      h('div', { class: 'card-title' }, song.title),
+      h('div', { class: 'mini-strip' }, preview.length ? preview : h('span', { class: 'empty' }, '...')));
+  });
 
   let armed = false;
   const parent = h('details', { class: 'parent', ontoggle: (e) => { if (e.target.open) listMics(); } },
@@ -111,6 +127,8 @@ export function home(root) {
           c.img ? h('img', { class: 'exp-sprite', src: c.img }) : h('div', { class: 'plus' }, c.icon),
           h('div', { class: 'card-title' }, e.title));
       }),
+      makeSong,
+      mySongs,
     ),
     h('div', { class: 'ground', style: `background-image:url(${texture('grass')})` })));
 }

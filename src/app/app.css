@@ -92,6 +92,8 @@ button { font: inherit; color: inherit; }
 .mini-sprite { height: 32px; }
 .card.add { align-items: center; justify-content: center; background: rgba(198, 198, 198, 0.7); }
 .card.add .plus { font-family: var(--pixel); font-size: 48px; }
+.card.make-song .plus { font-size: 56px; }
+.card.make-song .card-title { font-size: 20px; }
 .ground { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background-size: 48px 48px; image-rendering: pixelated; border-top: 3px solid #000; pointer-events: none; }
 .parent { position: relative; color: #fff; }
 .parent summary { list-style: none; cursor: pointer; font-size: 22px; opacity: 0.5; padding: 8px; }

@@ -295,9 +295,11 @@ As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note; mi
 - Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
   the first block's letter as the one clue, no "next" column, no staff
   letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.
-- Hidden for now (files kept, routes still work): her songs, "New song", the
-  editor, play and band screens, the ⚙︎ "Add homework song", and the 💾 save
-  buttons in Build!/Copy me.
+- MAKE A SONG (2026-10-08, she asked to make her own song): home shows a
+  "🎵 Make a song" card (newSong('me') → editor, logged as a `make-song`
+  record) and her own songs (by: 'me', newest first) after the experiments.
+  Hidden still (files kept, routes work): homework songs on home, the ⚙︎
+  "Add homework song", and the 💾 save buttons in Build!/Copy me.
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
   Copy me GROWN-UP STEP (2026-10-05, pedagogy: the mic missed phrases she
