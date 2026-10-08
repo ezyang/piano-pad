@@ -21,6 +21,7 @@ import { renderBand } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { labelMode } from '../labels.js';
+import { heard } from '../mic-off.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 // Height in blocks: C..B = 1..7 in any octave (octave slips in detection
@@ -302,7 +303,7 @@ export function world(root) {
       return;
     }
     listenerOff?.();
-    listenerOff = engine.onNote(onNote);
+    listenerOff = engine.onNote(heard(onNote));
   }
 
   return () => {

@@ -18,6 +18,7 @@ import { rhythmReview, scoreLearn, scoreGo, scoreBeat, beatGrade } from '../scor
 import * as log from '../telemetry.js';
 import { labelMode, fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
+import { heard } from '../mic-off.js';
 
 const MODES = [['learn', '🐢', 'Learn'], ['go', '🏃', 'Keep going'], ['beat', '🥁', 'Beat']];
 const FIX_WINDOW = 1.5; // s: a correct replay of a just-missed note counts as fixing it
@@ -145,7 +146,7 @@ export function play(root, id) {
       tStart: engine.now(),
       strict: st.strictOctave !== false,
       lo: Math.min(...t.map((i) => staff.laid[i].p)), hi: Math.max(...t.map((i) => staff.laid[i].p)),
-      off: engine.onNote(onNote),
+      off: engine.onNote(heard(onNote)),
     };
     log.startSession('practice', {
       song: { id: song.id, title: song.title, by: song.by, clef: resolveClef(song), bpm: song.bpm, notes: song.notes },

@@ -6,6 +6,7 @@ import { engine } from '../engine.js';
 import { testKeyboard } from '../keyboard.js';
 import * as log from '../telemetry.js';
 import { renderNote } from '../../synth.js';
+import { heard } from '../mic-off.js';
 
 const TOOLS = [
   { id: 'ta', notes: (p) => [{ d: 1, p }] },
@@ -108,13 +109,13 @@ export function editor(root, id, extra) {
     history.push(JSON.stringify(song.notes));
     writing = { played: [], base: song.notes.length, tStart: engine.now() };
     log.startSession('write', { song: { id: song.id, title: song.title, by: song.by } });
-    writing.off = engine.onNote((n) => {
+    writing.off = engine.onNote(heard((n) => {
       if (n.time < writing.tStart) return;
       writing.played.push(n);
       song.notes.push({ d: 1, p: n.midi }); // placeholder rhythm until done
       redraw();
       flash(track.blocks[track.blocks.length - 1], 'pop');
-    });
+    }));
     writeBtn.textContent = '✓ Done';
     writeBtn.classList.add('recording');
     cancelBtn.style.display = '';

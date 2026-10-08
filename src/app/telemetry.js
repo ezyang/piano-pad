@@ -13,6 +13,7 @@
 import { engine, detectorOptions } from './engine.js';
 import { getState } from './store.js';
 import { player, mergePlayer } from './player.js';
+import { micOff } from './mic-off.js';
 
 const KEY = 'pianopad.logs';
 const MAX_BYTES = 1_500_000; // localStorage is ~5 MB on Safari; leave room for songs
@@ -134,18 +135,22 @@ export function startSession(kind, info) {
   unsubs.push(engine.onRaw((e) => {
     // Audio-clock times, relative to the session's start on that clock.
     const t = (x) => Math.round((x - current.ctxT0) * 1000);
+    const mo = micOff() ? { micOff: true } : {}; // the grown-ups' mic switch is off: not judged (mic-off.js)
     if (e.type === 'mic-restart') event('mic-restart');
-    else if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1), ...(e.via ? { via: e.via } : {}) });
+    else if (e.type === 'onset') event('onset', { at: t(e.time), seen: t(e.detectedTime), flux: +e.flux.toFixed(1), ...(e.via ? { via: e.via } : {}), ...mo });
     else if (e.type === 'pitch') {
       event('pitch', {
         at: t(e.time), seen: t(e.detectedTime), midi: e.midi, f0: e.f0 ? +e.f0.toFixed(1) : 0,
         clarity: +(e.clarity ?? 0).toFixed(2), ok: e.accepted, ...(e.method ? { method: e.method } : {}), ...(e.why ? { why: e.why } : {}), ...(e.voice !== undefined ? { voice: e.voice } : {}),
         ...(e.reject ? { reject: e.reject } : {}), ...(e.via ? { via: e.via } : {}), ...(e.expected ? { expected: true } : {}), ...(e.vp != null ? { vp: +(+e.vp).toFixed(2) } : {}),
+        ...mo,
       });
     }
   }));
   if (getState().recordAudio !== false && engine.stream) startAudio(current);
-  const sim = (midi) => event('sim', { midi });
+  // Started with the grown-ups' mic switch off: say so up front (mic-off.js).
+  if (micOff()) event('mic', { off: true, at: 0, by: 'start' });
+  const sim = (midi) => event('sim', { midi, ...(micOff() ? { micOff: true } : {}) });
   engine.simListeners.add(sim);
   unsubs.push(() => engine.simListeners.delete(sim));
   levelTimer = setInterval(() => {

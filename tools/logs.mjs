@@ -32,9 +32,23 @@ const brief = (s) => {
     s.guest ? `guest ${s.guest}${s.band?.includes(s.guest) ? ' (came)' : ''}` : '',
     s.drawn && Object.keys(s.drawn).length ? `drawn ${Object.entries(s.drawn).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     silent ? 'NO MIC INPUT (-120 dB)' : '',
-    count('mic') ? `mic events ${count('mic')} (${ev.filter((e) => e[1] === 'mic').map((e) => `${e[2].state}:${e[2].action}${e[2].ok ? '✓' : ''}`).join(' ')})` : '',
+    // The grown-ups' mic switch (mic-off.js): { off } events; the time it was off.
+    ev.some((e) => e[1] === 'mic' && e[2].off != null) ? `MIC OFF ${Math.round(micOffMs(s) / 1000)}s` : '',
+    ev.some((e) => e[1] === 'mic' && e[2].off == null) ? `mic events (${ev.filter((e) => e[1] === 'mic' && e[2].off == null).map((e) => `${e[2].state}:${e[2].action}${e[2].ok ? '✓' : ''}`).join(' ')})` : '',
   ].join('  ');
 };
+
+// How long the grown-ups' mic switch was off in a session (ms).
+function micOffMs(s) {
+  let total = 0, since = null;
+  for (const [t, type, d] of s.events ?? []) {
+    if (type !== 'mic' || d.off == null) continue;
+    if (d.off && since == null) since = t;
+    else if (!d.off && since != null) { total += t - since; since = null; }
+  }
+  if (since != null) total += (s.duration ?? since) - since;
+  return total;
+}
 
 if (which == null) {
   sessions.forEach((s, i) => console.log(String(i).padStart(3), brief(s)));

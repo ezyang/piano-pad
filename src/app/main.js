@@ -9,6 +9,7 @@ import { calibrate } from './screens/calibrate.js';
 import { adventure } from './screens/adventure.js';
 import { texture } from './pixels.js';
 import './mic-health.js'; // notices a dead mic, recovers, else a grown-up badge
+import './mic-off.js'; // the grown-ups' double-tap mic switch
 
 const ROUTES = { '': home, song: editor, play, band, me, calibrate, adventure, ...Object.fromEntries(EXPERIMENTS.map((e) => [e.id, e.screen])) };
 const root = document.getElementById('app');

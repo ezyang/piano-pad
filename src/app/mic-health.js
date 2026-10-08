@@ -20,6 +20,7 @@
 import { h } from './dom.js';
 import { engine } from './engine.js';
 import { event } from './telemetry.js';
+import { micOff } from './mic-off.js';
 
 const TICK_MS = 500;
 const SILENT_MS = 3000;
@@ -70,7 +71,7 @@ async function settles() {
 
 // One recovery attempt. by: 'auto' | 'tap'.
 async function recover(state, by) {
-  if (busy) return;
+  if (busy || micOff()) return;
   busy = true;
   tries++;
   showBadge(true);
@@ -114,8 +115,9 @@ function healthy() {
 let zeroSince = 0;
 function tick() {
   if (busy) return;
-  if (!engine.listening || !engine.stream) {
-    // Nobody is listening: nothing to warn about. Start over next time.
+  if (!engine.listening || !engine.stream || micOff()) {
+    // Nobody is listening (or the grown-ups switched the mic off,
+    // mic-off.js): nothing to warn about. Start over next time.
     zeroSince = 0; badSince = 0;
     if (!dead) hideBadge();
     else { dead = false; tries = 0; hideBadge(); }

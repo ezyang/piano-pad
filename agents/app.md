@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note):
+As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -267,6 +267,31 @@ As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note):
   uploaded session files. After a reopen the audio clock restarts (later
   detector times in that session are off) and the session's MediaRecorder
   copy stops at the old stream.
+- MIC SWITCH (2026-10-08, parent: a 2-year-old sibling plinks on the piano
+  or a second instrument while she practices, and those notes were judged
+  as hers). `src/app/mic-off.js` (imported by main.js): a small round 🎤
+  button, BOTTOM RIGHT (top right has screens' buttons, e.g. Copy me's ⏭),
+  shown whenever `engine.listening` except on calibrate. A DOUBLE TAP
+  (2 pointerdowns < 450 ms) toggles; a single tap only flashes a "double
+  tap" hint. Off = a dark pill, red border, crossed-out 🎤, "mic off".
+  Taps on it don't reach the screen. While off every note is dropped by
+  `heard(fn)`, the wrapper all screens now use around their
+  `engine.onNote` listener (adventure, echo, world, play, editor; not
+  calibrate, audio's), sim/test-keyboard notes included. The mic stays
+  connected and the detector runs (reconnecting makes a phantom note);
+  nothing in engine.js changed. On: notes whose attack is before the
+  switch-on time (same context) are dropped, and `onMicToggle(fn)`
+  listeners run: homework rhythm pieces clear the half-heard bar
+  (entries, wrong, the unheard-end timer) on either switch. Grown-up
+  step/back work as usual. mic-health.js treats off as nobody listening
+  (no checks, retries or badge). MEMORY ONLY, ON after a reload: it's for
+  one practice, and a mic left off by mistake would look like a broken app
+  (or a dead mic) the next day; off does carry across screens until then.
+  Logs: `mic` events { off: true|false, at (ms on the detector-event clock),
+  by: 'double-tap' } (a session started while off begins with { off: true,
+  at: 0, by: 'start' }); onset/pitch/sim events while off carry `micOff:
+  true`; the audio recording keeps running (times stay aligned) and the
+  off stretches are those marks. logs.mjs shows "MIC OFF <n>s".
 - Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
   the first block's letter as the one clue, no "next" column, no staff
   letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.

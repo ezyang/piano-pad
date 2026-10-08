@@ -21,6 +21,7 @@ import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
 import { jewelTurn, gem, PAIR } from '../jewels.js';
 import { bunnyHouse } from '../bunny.js';
+import { heard, onMicToggle } from '../mic-off.js';
 
 const member = bandMember;
 const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
@@ -295,7 +296,7 @@ function piece(root, id) {
     if (myGen !== gen) return;
     adv.startStep(step, { grain, labels });
     const ps = seq.map((x) => x.p);
-    session = { cur: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(onNote) };
+    session = { cur: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)) };
     log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(song.repeat || song.twice ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}),
       song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
     showCurrent();
@@ -553,6 +554,15 @@ function piece(root, id) {
     session.cur = to;
     showCurrent();
   }
+  // The grown-ups' mic switch (mic-off.js): a rhythm bar half-heard before
+  // it went off would be timed across the gap, so start the bar over, and
+  // don't let the "one short at the end" timer pass a bar while it's off.
+  const offMicToggle = onMicToggle(() => {
+    if (!session || !rhythm) return;
+    clearTimeout(endTimer);
+    entries = [];
+    wrong = false;
+  });
   // Two-finger tap: on; two-finger swipe right: back.
   let swipe = null;
   const xs = (e) => [...e.touches].reduce((s, t) => s + t.clientX, 0) / e.touches.length;
@@ -627,6 +637,7 @@ function piece(root, id) {
   } else begin();
   return () => {
     gen++;
+    offMicToggle();
     if (bunnying) { const stats = bunnying.quit(); if (stats) adv.bunny('quit', step, stats); bunnying = null; }
     removeEventListener('keydown', onKey);
     clearTimeout(endTimer);

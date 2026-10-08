@@ -27,6 +27,7 @@ import * as log from '../telemetry.js';
 import { labelMode, labelFor, fingerFor, handFor } from '../labels.js';
 import { createHand } from '../hand.js';
 import { grownupGestures } from '../grownup.js';
+import { heard } from '../mic-off.js';
 
 const PARTNERS = [
   { id: 'slime', voice: 'chip' },
@@ -418,7 +419,7 @@ export function echo(root) {
       return;
     }
     listenerOff?.();
-    listenerOff = engine.onNote(onNote);
+    listenerOff = engine.onNote(heard(onNote));
   }
 
   return () => {
