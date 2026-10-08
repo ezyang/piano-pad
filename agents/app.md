@@ -237,6 +237,25 @@ As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note; mi
   step 'party'): `play` { piece, by: 'tap' | 'auto' }, `played` { piece, by,
   how: 'end' | 'left', soundMs (tap → sound), ignored (count), taps? [[ms
   after the play, 'play' | piece key]] }.
+  PARTY HARMONY (2026-10-08, parent: the band should play harmony, not all
+  the tune): the party's renders pass `{ boost, arrange: true }` and the
+  band plays an arrangement from `arrange.js`: piano and the guest (chip /
+  meow / horn / xylo) keep the tune on top (the kids sing along with the
+  note names); Froggy's bass plays chord roots (beat 1; a chord held a bar
+  plays root then fifth on beat 3), C2..B2 and always under the tune;
+  Buzzy's music box plays a smooth line of diatonic thirds/sixths under
+  the tune (a chord tone when the tune is on one), -3 dB, an octave up
+  when the guest sings up there (chip/meow/xylo), resting below A2; drums
+  unchanged. Chords: `pickChords` picks I / IV / V / V7 per half bar
+  (2 beats; pieces are 4/4, no pickups) in `keyOf(song)` (song.key, else G
+  for an F♯ key signature or F♯ notes, else C), scoring how long each
+  chord tone sounds (half-bar downbeat counts double), a lean to I and to
+  staying put, ending on I from V. Per-piece override: `chords: ['I', 'V7',
+  ...]` on the piece (one per half bar; band-render passes sharps/key/
+  chords to the worker). `test/arrange.mjs` pins Ode's and Zebra's charts
+  (run by npm test). Other renderBand uses (the model bar, hellos, Build,
+  hidden band screen) stay unison. Render ~1.6-2.3 s per piece on a laptop
+  (no slower than before); party RMS about -11 dB as before.
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).
   Logs: one `adventure` session (start/finish/quit/pick events), plus a
   `homework` session per piece (`step`, `song.id`), tagged `adventure: <id>`.

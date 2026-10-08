@@ -664,7 +664,9 @@ function piece(root, id) {
 //     soundMs: tap → sound starting (null if it never did), ignored: taps
 //     while it played, taps: their [ms after the play, 'play' | piece id]
 const BOOST = 6; // dB, through a clean limiter (instruments.js)
-const partyAudio = (a, song) => bandAudio(song, a.band.map((id) => member(id).instrument), engine.ctx.sampleRate, { boost: BOOST });
+// The party band plays an arrangement (arrange.js: bass on the chords,
+// music box a third under the tune), not everyone on the tune.
+const partyAudio = (a, song) => bandAudio(song, a.band.map((id) => member(id).instrument), engine.ctx.sampleRate, { boost: BOOST, arrange: true });
 function warmParty(a) { if (engine.ctx) partyAudio(a, PIECES[adv.STEPS.at(-2)]); }
 function party(root) {
   const a = adv.current();

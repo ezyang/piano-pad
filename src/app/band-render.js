@@ -25,7 +25,7 @@ function getWorker() {
 }
 
 export function bandAudio(song, members, sr, opts = {}) {
-  const s = { notes: song.notes, bpm: song.bpm };
+  const s = { notes: song.notes, bpm: song.bpm, sharps: song.sharps, key: song.key, chords: song.chords };
   const key = JSON.stringify([s, members, sr, opts]);
   if (!cache.has(key)) {
     const local = () => renderBand(s, members, sr, opts);

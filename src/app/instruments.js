@@ -1,6 +1,7 @@
 // Offline band rendering: the song played by each unlocked band member.
 import { renderNote, midiToHz, mulberry32 } from '../synth.js';
 import { layout, totalBeats } from './music.js';
+import { arrange } from './arrange.js';
 
 function addTone(out, start, sr, len, f, amp, decay, shape) {
   const n = Math.min(out.length - start, Math.round(len * sr));
@@ -88,24 +89,45 @@ function drums(out, sr, beats, beat, t0, rng) {
 // Mix levels: brings each instrument alone to about -22 dB RMS.
 const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8 };
 
+// Voices that play the tune an octave up (the guests and Blobby's chip).
+const HIGH_TUNE = ['chip', 'meow', 'xylo'];
+// The music box's harmony sits a little under the tune voices.
+const HARMONY_GAIN = 0.7;
+const BOX_LOW = 45; // A2
+
 // members: array of instrument names. Returns {audio, lead} where lead is
 // the time (s) before the first beat. opts.boost (dB): louder, through a
 // look-ahead peak limiter instead of the tanh (for the party, which has to
-// carry over a talking room on iPad speakers).
-export function renderBand(song, members, sr, { boost = 0 } = {}) {
+// carry over a talking room on iPad speakers). opts.arrange: a band
+// arrangement (arrange.js; the party) instead of everyone on the tune: the
+// piano and the guest play the tune, the bass the chords' roots (and
+// fifths), the music box a third under the tune (an octave up when a
+// guest sings the tune up there, so the tune stays on top); drums as ever.
+// song may carry `sharps`, `key`, `chords` for arrange.js.
+export function renderBand(song, members, sr, { boost = 0, arrange: arranged = false } = {}) {
   const beat = 60 / song.bpm;
   const lead = 0.3;
   const beats = Math.ceil(totalBeats(song.notes) / 4) * 4 || 4;
   const out = new Float32Array(Math.ceil((lead + beats * beat + 2) * sr));
   const rng = mulberry32(5);
   const laid = layout(song.notes).filter((n) => n.p != null);
+  const parts = arranged ? arrange(song) : null;
+  const boxUp = members.some((m) => HIGH_TUNE.includes(m)) ? 12 : 0;
   for (const inst of members) {
     // Each instrument renders into its own buffer and is mixed at a fixed
     // level, so any one of them alone is about equally loud.
     const buf = new Float32Array(out.length);
+    const at = (n) => [lead + n.start * beat, n.d * beat];
     if (inst === 'drums') drums(buf, sr, beats, beat, lead, rng);
-    else for (const n of laid) {
-      const t = lead + n.start * beat, len = n.d * beat;
+    else if (parts && inst === 'bass') for (const n of parts.bass) {
+      const [t, len] = at(n);
+      renderNote(buf, Math.round(t * sr), { midi: n.p, vel: 0.8, dur: len * 0.9 }, sr, rng);
+    } else if (parts && inst === 'musicbox') for (const n of parts.harmony) {
+      if (n.p + boxUp < BOX_LOW) continue; // too low for a music box: it rests
+      const [t, len] = at(n);
+      addTone(buf, Math.round(t * sr), sr, len + 0.4, midiToHz(n.p + boxUp), 0.12 * HARMONY_GAIN, 0.35, 'bell');
+    } else for (const n of laid) {
+      const [t, len] = at(n);
       const s = Math.round(t * sr);
       if (inst === 'piano') renderNote(buf, s, { midi: n.p, vel: 0.7, dur: len * 0.95 }, sr, rng);
       else if (inst === 'bass') renderNote(buf, s, { midi: n.p - 24, vel: 0.8, dur: len * 0.9 }, sr, rng);
