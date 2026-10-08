@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-07 (jewel removal):
+As of 2026-10-08 (bunny house before Zebra):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -61,6 +61,22 @@ As of 2026-10-07 (jewel removal):
   finger numbers above as printed, label rows); `twice` = played twice with
   no sign drawn (Train and Ode since 2026-10-04, Sea 2026-10-07; logs
   `repeat: true, twice: true`).
+  BUNNY HOUSE (2026-10-08, pedagogy: the teacher's Zebra goal this week
+  is hand shape, a "tall round bunny house": curved fingers, high
+  knuckle, room underneath). A reminder ritual, never a check: pieces
+  with `bunny: true` (only Zebra) open with `bunny.js` over the page
+  BEFORE the mic/session starts: "Make a bunny house!", a pixel scene
+  (pixels.js `bunnyHouseUrl`: side view of an arched hand, two
+  fingertips on the keys, high knuckle; `bunnyUrl` bunny waiting on the
+  keys beside it; positions in `BUNNY_HOUSE`) and a big ✓. Any tap on
+  the panel → the bunny hops under the hand (CSS `bunny-hop`),
+  `renderBunnyHop` (two boings + bell sparkle), sparkles, and after
+  1.5 s the piece's normal begin(). No timer, no failure. Shown every
+  time the Zebra page opens (leave and come back = again; replays too).
+  A grown-up step skips it at once. Logs (adventure session step
+  events, adventure.js `bunny()`): start { step: 'bunny', before }, finish
+  { before, ms (shown → tap), by?: 'grownup' }, or quit { before, ms }
+  if she leaves first. Drop `bunny` from Zebra when the goal moves on.
   SEA (2026-10-07, pedagogy): pre-staff, LH line then RH line, NOT C
   position: left THUMB on C3 walking down (C3=1 B2=2 A2=3 G2=4 F2=5), right
   thumb on middle C. Pieces may carry `position: { R: {midi: f}, L: {...} }`

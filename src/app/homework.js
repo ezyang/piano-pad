@@ -9,7 +9,8 @@
 // `gem`: the jewel it earns in the adventure (pixels.js GEMS); without one
 // a piece gets a gem by its place in this list. `position`: where the hands
 // sit, { R: {midi: finger}, L: {...} } (labels.js; default C position), for
-// finger numbers the book doesn't print and the ✋.
+// finger numbers the book doesn't print and the ✋. `bunny`: the bunny house
+// (a hand-shape reminder, bunny.js) before it in the adventure.
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -39,6 +40,7 @@ export const PIECES = {
     id: 'zebra',
     title: 'Homework: Zebra',
     gem: 'gold', by: 'teacher', bpm: 80, clef: 'treble', sharps: ['F'], repeat: true, rhythm: true, pitched: true,
+    bunny: true, // the teacher's hand-shape goal this week: a tall round bunny house (bunny.js)
     notes: fingers([
       ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m1
       ...lh([...n(1, 62, 64), ...n(2, 62)]), // m2

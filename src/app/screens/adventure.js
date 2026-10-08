@@ -20,6 +20,7 @@ import { createHand } from '../hand.js';
 import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
 import { jewelTurn, gem, PAIR } from '../jewels.js';
+import { bunnyHouse } from '../bunny.js';
 
 const member = bandMember;
 const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
@@ -225,7 +226,7 @@ function piece(root, id) {
   const rhythm = !!song.rhythm;
   const grain = rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(st.feedback) ? st.feedback : 'note';
   const labels = ['book', 'letters', 'first', 'fingers'].includes(st.bookLabels) ? st.bookLabels : 'book';
-  let session = null, finished = false, gen = 0, jeweling = null;
+  let session = null, finished = false, gen = 0, jeweling = null, bunnying = null;
   const jewel = jewelOf(id);
 
   const pageBox = h('div', { class: 'staff-box book-box' });
@@ -503,6 +504,7 @@ function piece(root, id) {
   // The grown-up's step: a bar (rhythm pieces), or one note / the rest of
   // the bar / the whole piece at the grain.
   function grownupStep() {
+    if (bunnying?.open) { bunnying.close('grownup'); return; } // skips the bunny house
     if (jeweling?.open) { jeweling.close('grownup'); return; } // ends the jewel turn (placing it if she hadn't)
     if (!session || session.cur >= N) return;
     if (session.between === 'on') { endBetween(); return; }
@@ -614,9 +616,18 @@ function piece(root, id) {
     }, 1600);
   }
 
-  begin();
+  // The bunny house first (pieces with `bunny`: Zebra), every time the piece
+  // opens: a hand-shape reminder, a tap, the bunny hops in, then the piece.
+  if (song.bunny) {
+    adv.bunny('start', step);
+    bunnying = bunnyHouse(stageEl, {
+      tap: (stats) => adv.bunny('finish', step, stats),
+      then: () => { bunnying = null; if (screen.isConnected) begin(); },
+    });
+  } else begin();
   return () => {
     gen++;
+    if (bunnying) { const stats = bunnying.quit(); if (stats) adv.bunny('quit', step, stats); bunnying = null; }
     removeEventListener('keydown', onKey);
     clearTimeout(endTimer);
     clearBetween();

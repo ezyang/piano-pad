@@ -270,3 +270,54 @@ export const GUESTS = [
 ];
 // Any band member or guest, by id.
 export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id);
+
+// --- The bunny house (adventure.js, before Zebra; 2026-10-08): the
+// teacher's "tall round bunny house" hand. A bunny, and a hand seen from
+// the side over the keys: fingertip down on a key, the finger curving up
+// to a high knuckle, the back of the hand and the wrist level, so there's
+// a tall round room underneath for the bunny. BUNNY_HOUSE gives the scene's
+// size and where the bunny waits (outside, on the keys) and hides (under
+// the hand), in its pixels.
+const BUNNY_P = { k: '#3b2415', w: '#ffffff', p: '#ff8fb3', e: '#1b1b1b' };
+const BUNNY_ART = [
+  '.kk...kk.',
+  '.kwk.kwk.',
+  '.kpk.kpk.',
+  '.kpk.kpk.',
+  '.kwkkkwk.',
+  'kwwwwwwwk',
+  'kwewwwewk',
+  'kpwwpwwpk',
+  '.kwwwwwk.',
+  'kwwwwwwwk',
+  'kwwwwwwwk',
+  '.kkkkkkk.',
+];
+export const bunnyUrl = () => sprite(BUNNY_ART, BUNNY_P, 'bunny');
+export const BUNNY_HOUSE = { w: 48, h: 28, bunny: { w: 9, h: 12 }, out: { x: 37, y: 10 }, in: { x: 13, y: 10 } };
+export function bunnyHouseUrl() {
+  const { w: W, h: H } = BUNNY_HOUSE, KEYS = 22;
+  return tex('bunny-house', (g) => {
+    // The keys: white keys with grey gaps, black keys at the back.
+    g.fillStyle = '#3b2415'; g.fillRect(0, KEYS, W, H - KEYS);
+    for (let x = 0; x < W; x += 6) { g.fillStyle = '#ffffff'; g.fillRect(x + 1, KEYS + 1, 5, H - KEYS - 1); g.fillStyle = '#d9d9d9'; g.fillRect(x + 1, H - 1, 5, 1); }
+    for (let x = 0, i = 0; x < W; x += 6, i++) if (i % 7 !== 2 && i % 7 !== 6) { g.fillStyle = '#1b1b1b'; g.fillRect(x + 4, KEYS + 1, 4, 3); }
+    // The hand: thick curves (fingertips → knuckle → wrist → arm), filled,
+    // shaded underneath, outlined. A second finger peeks out behind.
+    const curve = (out, a, b, c, d, n, r0, r1) => { for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; out.push([u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1], r0 + (r1 - r0) * t]); } return out; };
+    const back = curve([], [4.5, 20.6], [3.5, 11], [7, 3.5], [15, 3.5], 40, 1.5, 2.2);
+    const front = curve([], [8.5, 20.6], [7.5, 12], [10, 5], [17, 4.5], 40, 1.6, 2.4);
+    curve(front, [17, 4.5], [22, 4.3], [27, 6], [31, 6.8], 30, 2.6, 3.0); // the back of the hand
+    curve(front, [31, 6.8], [36, 7.2], [42, 6], [W + 2, 5.5], 30, 3.0, 3.2); // wrist and arm
+    front.push([16, 4.2, 2.8]); // the knuckle, the house's roof
+    const inside = (pts) => (x, y) => x >= 0 && y >= 0 && x < W && y < KEYS && pts.some(([cx, cy, r]) => (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r);
+    const F = inside(front), B = inside(back), any = (x, y) => F(x, y) || B(x, y);
+    for (let y = 0; y < KEYS; y++) for (let x = 0; x < W; x++) {
+      if (F(x, y)) px(g, x, y, !(F(x, y + 1) && F(x, y + 2)) ? '#d89c6c' : !F(x, y - 1) ? '#ffdcb8' : '#f2c79b');
+      else if (B(x, y)) px(g, x, y, F(x + 1, y) ? '#7a4a2a' : '#d89c6c');
+      else if (any(x - 1, y) || any(x + 1, y) || any(x, y - 1) || any(x, y + 1)) px(g, x, y, '#7a4a2a');
+    }
+    for (const [x, y] of [[7, 19], [7, 20], [3, 19], [3, 20]]) px(g, x, y, '#ffe6e0'); // nails
+    for (const [x, y] of [[9, 12], [10, 12], [12, 7], [12, 8]]) px(g, x, y, '#c68857'); // finger joints
+  }, W, H);
+}

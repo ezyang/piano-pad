@@ -150,6 +150,13 @@ export function endJewel(how, stats) {
   event(how === 'finish' ? 'finish' : 'quit', { step: 'jewel', after, color, turn, ...stats });
 }
 
+// The bunny house (bunny.js): a hand-shape reminder before a piece with
+// `bunny` (Zebra, since 2026-10-08), every time it opens. Step events with
+// step 'bunny' (never in `done`): start { before }, then finish { before,
+// ms, by? } when she taps (ms: shown → tap; by: 'grownup' for a grown-up's
+// step), or quit { before, ms } if she leaves first.
+export function bunny(how, before, data = {}) { current(); event(how, { step: 'bunny', before, ...data }); }
+
 // Anything else worth a line in the adventure's log (e.g. a skip).
 export function note(what, data = {}) { current(); event(what, data); }
 
