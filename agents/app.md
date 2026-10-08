@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-07:
+As of 2026-10-07 (jewel removal):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -142,11 +142,20 @@ As of 2026-10-07:
   with sparkles, then taps again for the second. Tapping one of the new
   gems picks it up (gold pulsing outline), the next empty cell she taps
   moves it there; with both placed, tapping an empty cell moves the last
-  one placed. Cells with an older jewel are refused (shake). Big ✓ (dim
+  one placed. REMOVING OLDER GEMS (2026-10-07, pedagogy: she asked to
+  delete gems, had replayed a piece to fix one): tapping a jewel from an
+  earlier turn poofs it off (`.gem-poof` float + grey sparkle), the cell
+  is its plain character pixel again and free for a new gem. Undo: the
+  freed cell keeps a dashed outline in the old gem's colour (`.gem-ghost`)
+  until her next tap elsewhere; tapping it then brings the same gem back.
+  Only once per cell per turn (remove → back → remove → the next tap puts
+  a new gem there), so she can't loop. Removals are optional, don't count
+  toward the pair, and are saved with the placements (at ✓/quit). Big ✓ (dim
   and shakes the waiting gem until both are placed), or a grown-up step
   (places any unplaced ones on random free cells of her). Every finish
-  earns a pair, replays too: the replay loop is wanted (she replayed a
-  piece to fix a misplaced gem), and there is deliberately NO UNDO.
+  earns a pair, replays too (the replay loop is wanted). New gems are
+  final once the turn ends (no undo of a finished turn; she can remove
+  them on a later turn).
   GEMS (2026-10-06, parent: block
   colours read as planks/stone, not jewels): each piece earns a real gem,
   `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond,
@@ -187,7 +196,8 @@ As of 2026-10-07:
   turns that earned any).
   Logs (adventure session, step events): `step: 'jewel'` start { after,
   color, turn }, finish { after, color, turn, cells: [first, second], ms,
-  moves, by?: 'grownup' }, quit (same; a null in cells = not placed, not
+  moves, removed: [{ i, m }] (earlier jewels taken off and not put back;
+  since 2026-10-07), by?: 'grownup' }, quit (same; a null in cells = not placed, not
   kept; placed ones are kept). Before 2026-10-06 one `cell` instead of
   `cells`. color is the gem name (9041ed3 logs: the Build block name).
   The session carries `jewels: { piece: gems }` (two per turn now);

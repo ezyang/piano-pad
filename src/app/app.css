@@ -555,6 +555,10 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .cell.gem-new.gem-sel { outline: 5px solid var(--gold); animation: gem-sel 0.7s ease-in-out infinite alternate; z-index: 2; }
 @keyframes gem-sel { from { transform: scale(1.15); } to { outline-color: #fff; transform: scale(1); } }
 .gem-pop { animation: gem-pop 0.5s ease-out; }
+/* An earlier jewel she just removed: its outline stays a moment (tap = bring it back); the poof floats off. */
+.cell.gem-ghost { outline: 3px dashed var(--c); outline-offset: -5px; z-index: 1; }
+.gem-poof { position: absolute; pointer-events: none; z-index: 3; animation: gem-poof 0.55s ease-out forwards; }
+@keyframes gem-poof { 0% { transform: scale(1); opacity: 1; } 40% { transform: scale(1.5); opacity: 0.8; filter: grayscale(0.4) brightness(1.4); } 100% { transform: scale(2.1) translateY(-14px); opacity: 0; filter: grayscale(1) brightness(2); } }
 @keyframes gem-pop { 0% { transform: scale(2.2); } 60% { transform: scale(0.85); } 100% { transform: scale(1); } }
 .jewel-turn { flex-direction: column; gap: 14px; padding: 14px; background: #1c1430; z-index: 20; }
 .jewel-head { display: flex; align-items: center; gap: 22px; }
