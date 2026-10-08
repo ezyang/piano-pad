@@ -57,7 +57,7 @@ for (const [t, type, d] of events) {
     case 'onset': console.log(at, 'onset', `flux ${d.flux}`, `(+${d.seen - d.at}ms)`); break;
     case 'pitch': console.log(at, d.ok ? 'PITCH' : 'pitch(rejected)', nm(d.midi), `${d.f0}Hz`, `clarity ${d.clarity}`, `(+${d.seen - d.at}ms)`,
       d.why ? `why r1=${nm(d.why.r1)} old=${d.why.old != null ? nm(d.why.old) : '-'} sp=${d.why.sp != null ? nm(d.why.sp) : '-'}` : ''); break;
-    case 'judge': console.log(at, '  →', d.grade, d.k != null ? `#${d.k}` : '', `want ${nm(d.want)} got ${nm(d.got)}`, d.err != null ? `err ${d.err}ms` : ''); break;
+    case 'judge': console.log(at, '  →', d.grade, d.k != null ? `#${d.k}` : '', `want ${nm(d.want)} ${d.by === 'grownup' ? 'by grown-up' : `got ${nm(d.got)}`}`, d.err != null ? `err ${d.err}ms` : ''); break;
     case 'level': console.log(at, 'level', `${d.min}..${d.max} dB (mean ${d.mean})`); break;
     case 'expect': console.log(at, 'expect', `beat ${Math.round(d.beatSec * 1000)}ms`, 'at', d.times.join(' ')); break;
     default: console.log(at, type, JSON.stringify(d));

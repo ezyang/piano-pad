@@ -2,9 +2,12 @@
 //   🦜 Copy me — the partner plays a phrase; she plays it back. Phrases start
 //      at one note and grow slowly as she succeeds. There's no time limit and
 //      it never moves on by itself: misses replay the phrase (slower after
-//      six), and ⏭ skips (a notch easier). When the mic misses what she
-//      played, a grown-up's two-finger tap (→) on her turn counts it as a
-//      win, same as homework (grownup.js). A round of Copy me is GOAL 💎:
+//      six), and ⏭ skips (a notch easier). When the mic misses a note she
+//      played, a grown-up's two-finger tap (→) on her turn fills in just
+//      that note (the current one), as if it had been heard; the round is
+//      won only when that was the last note, same as a homework step
+//      (grownup.js). A touch that began during the call or between rounds
+//      does nothing, even if it lifts on her turn. A round of Copy me is GOAL 💎:
 //      empty slots fill in as she goes, and the last one plays a short
 //      party ending ("🎉 The end!"), then 🏠 or ▶ again.
 //   💬 Answer me — the partner asks, she answers with anything; her turn ends
@@ -69,7 +72,7 @@ export function echo(root) {
   // Start a notch below where she left off, to warm up.
   let level = Math.max(0, Math.min(LEVELS.length - 1, (st.echoLevel ?? 0) - 1));
   let streak = 0, gems = 0, ended = false, sessionAt = performance.now();
-  let round = null; // { notes, k, wrong, replays, state: 'call'|'turn'|'done', heard: [] }
+  let round = null; // { notes, k, wrong, replays, state: 'call'|'turn'|'done', heard: [], turnAt, helped: Set of k filled by a grown-up }
   let quietUntil = 0, silenceTimer = 0, listenerOff = null, callRaf = 0, alive = true;
   const timers = new Set();
   const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); if (alive) fn(); }, ms); timers.add(t); };
@@ -121,7 +124,7 @@ export function echo(root) {
     if (!alive) return;
     const lvl = LEVELS[level];
     const notes = mode === 'copy' ? phrase(lvl.len, lvl.pool) : phrase(3 + Math.floor(Math.random() * 2), POOL);
-    round = { notes, k: 0, wrong: 0, replays: 0, state: 'call', heard: [] };
+    round = { notes, k: 0, wrong: 0, replays: 0, state: 'call', heard: [], turnAt: Infinity, helped: new Set() };
     log.event('call', { notes: notes.map((n) => n.p), level: mode === 'copy' ? level : undefined });
     partnerBubble.replaceChildren(...notes.map((n) => block(n.p, 'hidden')));
     myBubble.replaceChildren(...(mode === 'copy' ? notes.map(() => block(null, 'slot')) : []));
@@ -166,6 +169,7 @@ export function echo(root) {
   function turn() {
     if (!round) return;
     round.state = 'turn';
+    round.turnAt = performance.now();
     scene.classList.add('your-turn');
     if (mode === 'copy') showHand(round.notes[0].p);
     if (mode === 'copy' && staff) staff.mark(0, 'current');
@@ -202,9 +206,17 @@ export function echo(root) {
       if (round.wrong === 3 || round.wrong === 6) replay(round.wrong === 6 ? BPM * 0.7 : BPM);
       return;
     }
+    advance();
+  }
+
+  // The current note is done (heard, or a grown-up's step): fill it, move
+  // the staff marker and hand on, and win the round after the last one.
+  function advance() {
     fill(round.k);
     round.k++;
-    if (round.k < round.notes.length) { staff?.mark(round.k, 'current'); showHand(round.notes[round.k].p); } else { showHand(null); success(); }
+    if (round.k < round.notes.length) { staff?.mark(round.k, 'current'); showHand(round.notes[round.k].p); return; }
+    showHand(null);
+    success(round.helped.size ? { by: 'grownup', helped: [...round.helped], heard: round.notes.length - round.helped.size } : undefined);
   }
 
   // Note k of the phrase is done: its block drops into her bubble.
@@ -216,21 +228,21 @@ export function echo(root) {
     staff?.burst(k);
   }
 
-  // A grown-up step: on her turn, the round counts as a win exactly as if
-  // she'd played it (the mic missed it); during the call, or between
-  // rounds, it's ignored. In answer mode it ends her answer now, if she's
-  // played anything.
-  function grownupStep() {
-    if (!round || round.state !== 'turn') return;
+  // A grown-up step: on her turn, the CURRENT note counts as heard (the mic
+  // missed it) and the phrase moves on one note, like a homework step; the
+  // round is won only if it was the last note. During the call, between
+  // rounds, or for a touch that began before her turn, it's ignored. In
+  // answer mode it ends her answer now, if she's played anything.
+  function grownupStep({ since = performance.now() } = {}) {
+    if (!round || round.state !== 'turn' || since < round.turnAt) return;
     if (mode === 'answer') {
       if (!round.heard.length) return;
       log.event('answer-end', { heard: round.heard.length, by: 'grownup' });
       return endAnswer();
     }
-    const heard = round.k;
-    while (round.k < round.notes.length) fill(round.k++);
-    showHand(null);
-    success({ by: 'grownup', heard });
+    round.helped.add(round.k);
+    log.event('judge', { k: round.k, want: round.notes[round.k].p, grade: 'grownup', by: 'grownup' });
+    advance();
   }
 
   function success(extra) {
@@ -319,6 +331,7 @@ export function echo(root) {
     if (ended || !round || round.state !== 'turn') return;
     round.replays++;
     round.k = 0;
+    round.helped.clear(); // the phrase starts over, so do the grown-up's fills
     myBubble.replaceChildren(...round.notes.map(() => block(null, 'slot')));
     drawStaff(round.notes);
     call(bpm).then(() => round?.state === 'call' && turn());

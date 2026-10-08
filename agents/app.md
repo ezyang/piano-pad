@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-08 (bunny house before Zebra):
+As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -278,11 +278,19 @@ As of 2026-10-08 (bunny house before Zebra):
   Copy me GROWN-UP STEP (2026-10-05, pedagogy: the mic missed phrases she
   played and ⏭ dropped her a level): the homework gestures, now shared in
   `grownup.js` (`grownupGestures(el, { step, back })`; adventure.js still
-  has its own copy). On her turn a two-finger tap / → counts the round as
-  a win exactly like playing it (remaining blocks drop in, 💎, streak,
-  level-up, same celebration); ignored during the call and between rounds;
-  swipe/← does nothing there. Logs `round { ok: true, level, by:
-  'grownup', heard: <notes she'd got> }`. Answer me: a step ends her
+  has its own copy). ONE NOTE PER STEP (2026-10-08, parent: a tap that
+  filled the whole phrase handed her unearned 💎): on her turn a two-finger
+  tap / → counts only the CURRENT note as heard (`advance()`, the same path
+  as a heard note: block drops in, staff marker and ✋ move on), and wins
+  the round only if it was the last note. Ignored during the call and
+  between rounds, and for a touch that BEGAN before her turn (grownup.js
+  passes `{ since }` = finger-down time; echo ignores since < round.turnAt;
+  before this, two fingers held through the call fired on lift and won the
+  round). A replay clears the round's grown-up fills. Swipe/← does nothing
+  there. Logs each fill as `judge { k, want, grade: 'grownup', by:
+  'grownup' }`; a win with any grown-up fill logs `round { ok: true, level,
+  by: 'grownup', helped: [k...], heard: <notes the mic got> }` (before
+  2026-10-08 `heard` = notes before the one tap that won). Answer me: a step ends her
   answer now if she's played anything (else ignored), logs `answer-end {
   heard, by: 'grownup' }`.
   Copy me FINISH LINE (2026-10-05, pedagogy + parent: 💎 piled up forever
