@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-12 (rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -109,14 +109,25 @@ As of 2026-10-08 (bunny house before Zebra; Copy me grown-up step = one note; mi
   readings dropped (prefer misses to false advances).
   RHYTHM pieces (`rhythm`; Zebra is also `pitched`) go bar by bar, gated by
   scoring.js `barRhythm` at her own tempo (ta-a ≥ 1.4× ta, ti ≤ 0.8× ta, same
-  lengths within 2×), judged as the next bar's first note times the last;
-  pitched: a wrong letter fails the bar ('wrong-note'). An off bar → the band
-  plays it with the rhythm words lit, she tries again. A missed note passes
-  as 'unheard' (next note is the one after it, or `missedNote` timing); the
-  last bar one short passes after 3 s ('unheard-end'). Logs (kind
-  `homework`): `grain`, `labels`, `rhythm`, `pitched`, `repeat`; judge
-  `by: detector | grownup`; `bar` events (`iois` ms, `ok`, `why`,
-  `unheard`, `by`); `model` events.
+  lengths within 2×), judged as the next bar's first note times the last,
+  OR (2026-10-12) if she stops at the bar line, all m notes heard and no
+  onset for 1.5× the last note's length at her tempo (≥ 700 ms, ≤ 3 s:
+  ≈ 1 s after a ta, ≈ 2 s after a ta-a), on the m-1 intervals she played
+  (`why: 'paused'`). Before this, every bar sat after her last note until
+  the next bar's first; on 10/12 the grown-up tapped every bar and turned
+  the mic off ("not hearing her"). The judging is `src/app/rhythm-bars.js`
+  (pure; `test/rhythm-bars.mjs` replays that session bar by bar, no taps).
+  Each note turns green as it's heard (cleared when the band models).
+  Pitched: a wrong letter fails the bar ('wrong-note'; a wrong letter then
+  a 3 s stop → model), except before the bar's first note (`why:
+  'before-bar'`) or the letter just heard again (`why: 'echo'`: a ringing
+  B4 came back as B3). An off bar → the band plays it with the rhythm
+  words lit, she tries again. A missed note passes as 'unheard' (next note
+  is the one after it, or `missedNote` timing); one short then a 3 s stop
+  passes ('unheard-end' at the end of a time through, 'unheard-paused'
+  mid-piece). Logs (kind `homework`): `grain`, `labels`, `rhythm`,
+  `pitched`, `repeat`; judge `by: detector | grownup`; `bar` events
+  (`iois` ms, `ok`, `why`, `unheard`, `paused`, `by`); `model` events.
   BETWEEN THE TWO TIMES (2026-10-05, parent via pedagogy: going straight
   into "2nd time" felt harsh): a piece played twice (`repeat`/`twice`)
   pauses after the first time for a small celebration (smaller than the
