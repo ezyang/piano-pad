@@ -231,7 +231,7 @@ export function defaultCharacter() {
 // Band members (after the player herself).
 const P = { k: '#1b1b1b', w: '#ffffff', g: '#5fc24a', G: '#3c8a2e', y: '#ffd84a', o: '#ff9a2e', s: '#9aa6b2', S: '#6b7680', r: '#e8433a', p: '#ff8fb3', b: '#2f7de1', c: '#55e0d6', l: '#9a5cc6', L: '#c9a0ea', O: '#c4651a', n: '#2b3a67', B: '#1f4fa0' };
 export const BAND = [
-  { id: 'piano', name: 'You!', instrument: 'piano' },
+  { id: 'piano', name: 'Princess', instrument: 'piano' },
   {
     id: 'frog', name: 'Froggy', instrument: 'bass',
     art: ['..........', '.ww....ww.', '.wk.gg.kw.', '.gggggggg.', 'gggggggggg', 'gGrrrrrrGg', 'gGGGGGGGGg', 'gggggggggg', '.gg....gg.', 'GG......GG'],
