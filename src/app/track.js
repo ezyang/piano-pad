@@ -99,6 +99,8 @@ function head(x, filled) {
 const stem = (x) => svg('line', { x1: x + 6.5, x2: x + 6.5, y1: HEAD_Y - 2, y2: 6, class: 'stem' });
 const syl = (x, text) => svg('text', { x, y: 70, class: 'syl' }, text);
 
+const TIED = { 0.5: 'a', 1: 'a', 2: 'a-a', 3: 'a-a-a', 4: 'a-a-a-a' };
+
 function drawGroup(g, x) {
   const out = svg('g', { class: 'glyph' });
   const n = g.notes[0];
@@ -120,7 +122,13 @@ function drawGroup(g, x) {
     if (d < 4) out.append(stem(cx));
     if (d === 0.5) out.append(svg('path', { d: `M${cx + 6.5} 6 q10 8 6 20`, class: 'flag' }));
     if (d === 3) out.append(svg('circle', { cx: cx + 14, cy: HEAD_Y, r: 2.2, class: 'dot' }));
-    out.append(syl(cx, SYLLABLE[d] ?? 'ta'));
+    // A piece tied over from the bar before is the rest of the same note:
+    // "ta | a" for a ta-a across the bar line.
+    out.append(syl(cx, n.tieFrom ? TIED[d] ?? 'a' : SYLLABLE[d] ?? 'ta'));
+    if (n.tieTo) {
+      const cx2 = x(n.start + d) + 18, y = HEAD_Y + 8;
+      out.append(svg('path', { d: `M${cx + 3} ${y} Q${(cx + cx2) / 2} ${y + 12} ${cx2 - 3} ${y}`, class: 'tie' }));
+    }
   }
   return out;
 }

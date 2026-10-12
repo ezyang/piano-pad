@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-12 (rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -330,6 +330,24 @@ As of 2026-10-12 (rhythm bars pass on a pause; bunny house before Zebra; Copy me
   record) and her own songs (by: 'me', newest first) after the experiments.
   Hidden still (files kept, routes work): homework songs on home, the ⚙︎
   "Add homework song", and the 💾 save buttons in Build!/Copy me.
+  BARS ARE REAL 4/4 (2026-10-12, parent: "bars aren't grouped
+  correctly" in the song editor). Before, staff.js put each note in the
+  bar it STARTED in (a ta-a on beat 4 made a 5-beat bar and a 3-beat one
+  after it), the editor's rhythm line drew bar lines through such notes,
+  and quantize let a lone ti (or a rushed note) shift everything after it
+  off the beat. Now: music.js `pieces()`/`bars()` split a note that
+  crosses a bar line into TIED pieces (display only: stored notes,
+  playback and scoring still see one note; the first piece is note i, so
+  mark/show/burst/span work as before). Every bar = 4 beats (last may be
+  short). Editor rhythm line: "ta" ⌒ "a" for a tied ta-a (continuation
+  syllables a / a-a / a-a-a); the pitch blocks still run across the line.
+  staff.js draws tied heads + tie arcs (across a line break: an arc out to
+  the line's end / in from its start). ti-ti pairs only beam on the beat,
+  so they never straddle a bar. quantize(played, offset): starts snap to
+  the grid, a ti stays a ti only in an on-beat pair (a lone ti → ta), the
+  last note fills its bar (was always ta-a); the editor passes the beats
+  already in the song as `offset`. Homework pieces have no crossings
+  (test/music.mjs checks). Build!'s staff is all ta's (unchanged).
 - Experiments: "Build!" (`world.js`: melody contour → building, blueprints)
   and "Copy me!" (`echo.js`: call-and-response, copy/answer modes).
   Copy me GROWN-UP STEP (2026-10-05, pedagogy: the mic missed phrases she
@@ -382,6 +400,9 @@ As of 2026-10-12 (rhythm bars pass on a pause; bunny house before Zebra; Copy me
   --use-fake-ui-for-media-stream --use-fake-device-for-media-stream
   --use-file-for-fake-audio-capture=<file.wav>
   --disable-features=AudioServiceOutOfProcess,AudioServiceSandbox`
+  (add `--disable-audio-output` when timing matters, e.g. Play to write:
+  without it the AudioContext clock barely moves in headless Chrome, so
+  every simulated note gets the same time)
   (without the last flag headless Chrome on the Mac delivers all-zero mic
   input whatever the file, which mic-health.js now reports as a dead mic;
   use a quiet-noise wav for normal tests, an all-zero one to test the

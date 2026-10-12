@@ -127,7 +127,7 @@ export function editor(root, id, extra) {
     engine.listen(false);
     song.notes.splice(writing.base);
     if (keep && writing.played.length) {
-      const q = quantize(writing.played);
+      const q = quantize(writing.played, song.notes.reduce((a, n) => a + n.d, 0)); // song.notes is back to the first `base` notes
       log.endSession({ kept: true, notes: q.notes, bpm: q.bpm });
       song.notes.push(...q.notes);
       if (writing.base === 0) song.bpm = Math.min(120, Math.max(50, q.bpm));

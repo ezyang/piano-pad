@@ -47,8 +47,44 @@ export function rowsFor(notes, clef = 'treble') {
 }
 export const rowOf = (rows, p) => rows.indexOf(isSharp(p) ? p - 1 : p);
 
+// Bars are 4/4 from beat 0. A note that crosses a bar line is drawn as two
+// (or more) tied pieces, so every bar holds exactly 4 beats: a ta-a on beat
+// 4 is "ta" before the line, tied to "a" after it. Only the drawing splits;
+// the stored note (and playback, scoring) stays one note. Each piece is a
+// standard length (4, 3, 2, 1, 0.5). Returns [{start, d, i, tieTo, tieFrom}]
+// for laid-out note i.
+export const BAR = 4;
+const EPS = 1e-9;
+export function pieces(n, i = 0) {
+  const out = [];
+  let t = n.start, left = n.d;
+  while (left > EPS) {
+    const barEnd = (Math.floor(t / BAR + EPS) + 1) * BAR;
+    let room = Math.min(left, barEnd - t);
+    while (room > EPS) {
+      const d = [4, 3, 2, 1, 0.5].find((x) => x <= room + EPS && (x < 3 || t % 1 < EPS)) ?? room;
+      out.push({ start: t, d, i, tieFrom: out.length > 0 });
+      t += d; room -= d; left -= d;
+    }
+  }
+  out.forEach((p, k) => { p.tieTo = k < out.length - 1; });
+  return out;
+}
+
+// Pieces grouped into bars: [[piece, ...], ...], each bar 4 beats (the last
+// may be short).
+export function bars(laid) {
+  const out = [];
+  laid.forEach((n, i) => {
+    for (const p of pieces(n, i)) (out[Math.floor(p.start / BAR + EPS)] ??= []).push(p);
+  });
+  return out.filter(Boolean);
+}
+
 // Group notes for notation: consecutive ti's starting on a half-beat grid pair
-// up as beamed "ti-ti". Returns [{kind, notes: [laid-out notes]}].
+// up as beamed "ti-ti" (a pair on the beat never crosses a bar line). Notes
+// that cross a bar line come as tied pieces (see pieces()). Returns
+// [{kind, notes: [{...note, start, d, tieTo, tieFrom}]}].
 export function notationGroups(laid) {
   const groups = [];
   for (let i = 0; i < laid.length; i++) {
@@ -56,16 +92,22 @@ export function notationGroups(laid) {
     if (n.d === 0.5 && nx && nx.d === 0.5 && n.p != null && nx.p != null && n.start % 1 === 0) {
       groups.push({ kind: 'titi', notes: [n, nx] });
       i++;
-    } else {
-      groups.push({ kind: n.p == null ? 'rest' : SYLLABLE[n.d] ?? 'ta', notes: [n] });
+      continue;
+    }
+    for (const pc of pieces(n, i)) {
+      groups.push({ kind: n.p == null ? 'rest' : SYLLABLE[pc.d] ?? 'ta', notes: [{ ...n, ...pc }] });
     }
   }
   return groups;
 }
 
 // Turn freely played notes [{time (s), midi}] into song notes. The typical gap
-// between notes becomes one beat; every gap snaps to the nearest rhythm.
-export function quantize(played) {
+// between notes becomes one beat; each note's start snaps to the half-beat
+// grid (so rounding never piles up). Then, so the bars come out as real 4/4:
+// a ti only stays a ti as half of a ti-ti pair on the beat (a lone ti
+// becomes a ta, which keeps everything after it on the beat), and the last
+// note fills its bar. `offset` = beats already in the song before these.
+export function quantize(played, offset = 0) {
   if (!played.length) return { notes: [], bpm: 80 };
   const iois = [];
   for (let i = 1; i < played.length; i++) iois.push(played[i].time - played[i - 1].time);
@@ -73,15 +115,31 @@ export function quantize(played) {
   let beat = usable.length ? usable[usable.length >> 1] : 0.75;
   // Prefer a beat that makes the common gap a "ta" at a sane tempo.
   beat = Math.min(1.2, Math.max(0.4, beat));
-  const notes = played.map((p, i) => {
-    if (i === played.length - 1) return { d: 2, p: p.midi };
-    const r = iois[i] / beat;
+  const snap = (r) => {
     let best = 1, err = Infinity;
     for (const d of DURATIONS) {
       const e = Math.abs(Math.log(r / d));
       if (e < err) { err = e; best = d; }
     }
-    return { d: best, p: p.midi };
-  });
+    return best;
+  };
+  const ds = iois.map((x) => snap(x / beat));
+  const notes = [];
+  let t = offset;
+  for (let i = 0; i < played.length; i++) {
+    let d;
+    if (i === played.length - 1) d = BAR - (((t % BAR) + BAR) % BAR) || BAR;
+    else if (ds[i] === 0.5) {
+      if (t % 1 < EPS && ds[i + 1] === 0.5 && i + 1 < played.length - 1) {
+        notes.push({ d: 0.5, p: played[i].midi }, { d: 0.5, p: played[i + 1].midi });
+        t += 1; i++;
+        continue;
+      }
+      d = 1;
+    } else d = ds[i];
+    if (i === played.length - 1 && d % 1) d = 1; // the song's off the beat (an old song): a ta to end
+    notes.push({ d, p: played[i].midi });
+    t += d;
+  }
   return { notes, bpm: Math.round(60 / beat) };
 }

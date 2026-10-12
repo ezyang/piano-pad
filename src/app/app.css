@@ -119,6 +119,7 @@ button { font: inherit; color: inherit; }
 .rhythm-line .beam { stroke: var(--ink); stroke-width: 6; }
 .rhythm-line .rest { stroke: var(--ink); stroke-width: 3.5; fill: none; stroke-linejoin: round; }
 .rhythm-line .dot { fill: var(--ink); }
+.rhythm-line .tie { stroke: var(--ink); stroke-width: 2.4; fill: none; stroke-linecap: round; }
 .rhythm-line .bar { stroke: var(--paper-line); stroke-width: 3; }
 .rhythm-line .staffline { stroke: var(--paper-line); stroke-width: 1.5; opacity: 0.5; }
 .rhythm-line .syl { font-family: var(--small); font-size: 15px; fill: #6b5433; text-anchor: middle; }
@@ -251,6 +252,7 @@ button { font: inherit; color: inherit; }
 .staff .stem, .staff .flag { stroke: var(--ink); stroke-width: 2.2; fill: none; }
 .staff .beam { stroke: var(--ink); }
 .staff .dot { fill: var(--ink); }
+.staff .tie { stroke: var(--ink); stroke-width: 2; fill: none; stroke-linecap: round; }
 .staff .acc { font-family: 'Noto Music', serif; fill: var(--ink); text-anchor: middle; }
 .staff .clef-glyph, .staff .rest-glyph { font-family: 'Noto Music', serif; fill: var(--ink); }
 .staff .rest-glyph { dominant-baseline: middle; }

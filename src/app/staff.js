@@ -7,7 +7,7 @@
 // Only `visible` systems show at once. show(i) pages so the line with note i
 // is on screen with (when there's room) the next line below it: a discrete
 // line-by-line step, never motion tied to time.
-import { layout, isSharp } from './music.js';
+import { layout, isSharp, bars as barsOf } from './music.js';
 import { labelFor } from './labels.js';
 import { h, svg } from './dom.js';
 
@@ -74,12 +74,9 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   const barGap = s * 0.9;
   const sharps = song.sharps ?? [];
   const clefW = s * 4.4 + sharps.length * s * 1.1;
-  const bars = [];
-  laid.forEach((n, i) => {
-    const b = Math.floor(n.start / 4);
-    (bars[b] ??= { notes: [] }).notes.push(i);
-  });
-  const barList = bars.filter(Boolean).map((b) => ({ ...b, w: b.notes.reduce((a, i) => a + space(laid[i].d), 0) + barGap }));
+  // Bars of exactly 4 beats: a note across a bar line is drawn as tied
+  // pieces (music.js pieces()), the first one being "the" note i.
+  const barList = barsOf(laid).map((ps) => ({ pieces: ps, w: ps.reduce((a, p) => a + space(p.d), 0) + barGap }));
   const avail = width - clefW - s * 1.5;
   const systems = [];
   for (const b of barList) {
@@ -97,10 +94,11 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     let cx = clefW;
     const barXs = [];
     for (const b of sys.bars) {
-      for (const i of b.notes) {
-        headXs[i] = cx + s * 0.9;
-        systemOf[i] = si;
-        cx += space(laid[i].d) * stretch;
+      for (const pc of b.pieces) {
+        pc.x = cx + s * 0.9;
+        pc.sys = si;
+        if (!pc.tieFrom) { headXs[pc.i] = pc.x; systemOf[pc.i] = si; }
+        cx += space(pc.d) * stretch;
       }
       cx += barGap * stretch * 0.45;
       barXs.push(cx);
@@ -153,31 +151,47 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     }
   }
 
+  const piecesOf = laid.map(() => []);
+  for (const b of barList) for (const pc of b.pieces) piecesOf[pc.i].push(pc);
+  const tails = laid.map(() => []); // groups of the tied-over pieces, by note
   let restStaff = staves[0];
-  laid.forEach((n, i) => {
-    const g = groups[i], hx = headXs[i];
+  laid.forEach((n, i) => piecesOf[i].forEach((pc, k) => {
+    let g = groups[i];
+    if (k > 0) {
+      g = svg('g', { class: 'n' + (n.p == null ? ' rest' : '') });
+      tails[i].push({ g, sys: pc.sys });
+    }
+    const hx = pc.x, d = pc.d;
     if (n.p == null) {
-      for (let k = 0; k < n.d; k++) {
-        g.append(svg('text', { x: hx + (k * space(n.d)) / n.d, y: restStaff.bottom - 1.5 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
+      const count = Math.max(1, Math.floor(d));
+      for (let r = 0; r < count; r++) {
+        g.append(svg('text', { x: hx + (r * space(d)) / count, y: restStaff.bottom - 1.5 * s, class: 'rest-glyph', 'font-size': s * 3.2 }, '\u{1D13D}'));
       }
       return;
     }
     restStaff = staffOf(n.p);
     const y = yOf(n.p);
     ledgers(g, n.p, hx);
-    g.append(svg('circle', { cx: hx, cy: y, r: s * 1.15, class: 'halo' }));
-    if (isSharp(n.p)) g.append(svg('text', { x: hx - s * 1.3, y: y + s * 0.45, class: 'acc', 'font-size': s * 1.5 }, '♯'));
-    g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: n.d >= 2 ? 'head hollow' : 'head' }));
+    if (k === 0) g.append(svg('circle', { cx: hx, cy: y, r: s * 1.15, class: 'halo' }));
+    if (k === 0 && isSharp(n.p)) g.append(svg('text', { x: hx - s * 1.3, y: y + s * 0.45, class: 'acc', 'font-size': s * 1.5 }, '♯'));
+    g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: d >= 2 ? 'head hollow' : 'head' }));
     const up = stemUp(n);
     const sx = up ? hx + s * 0.62 : hx - s * 0.62, sy = up ? y - s * 3.4 : y + s * 3.4;
-    if (n.d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
-    if (n.d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
-    if (n.d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
+    if (d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
+    if (d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
+    if (d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
+    // Tie to the next piece (on the far side of the head from the stem);
+    // across a line break, out to the line's end / in from its start.
+    const next = piecesOf[i][k + 1], tieY = y + (up ? s * 0.75 : -s * 0.75), bow = up ? s * 0.9 : -s * 0.9;
+    const tie = (x1, x2) => g.append(svg('path', { d: `M${x1} ${tieY} Q${(x1 + x2) / 2} ${tieY + bow} ${x2} ${tieY}`, class: 'tie' }));
+    if (next) tie(hx + s * 0.5, next.sys === pc.sys ? next.x - s * 0.5 : hx + s * 2.6);
+    if (k > 0 && piecesOf[i][k - 1].sys !== pc.sys) tie(hx - s * 2.6, hx - s * 0.5);
+    if (k > 0) return; // labels and fingers once, on the note itself
     label(g, n.p, hx, letterY, n.f, n.d);
     const f = typeof fingersAbove === 'function' ? fingersAbove(i) : fingersAbove ? n.f : null;
     if (f != null && n.hand === 'L') g.append(svg('text', { x: hx, y: Math.max(staffOf(n.p).bottom + 2 * s, y + s * (n.d < 4 ? 3.4 : 0.5)) + s * 1.6, class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
     else if (f != null) g.append(svg('text', { x: hx, y: Math.min(staffOf(n.p).bottom - 5.4 * s, y - s * 4.2), class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
-  });
+  }));
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];
     const up = a.hand ? stemUp(a) : (step(a.p) + step(b.p)) / 2 < REF[staffOf(a.p).clef] + 4;
@@ -189,6 +203,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     groups[i + 1].append(svg('line', { x1: bx, x2: bx, y1: by, y2: beamY, class: 'stem' }));
   }
   groups.forEach((g, i) => svgs[systemOf[i]].append(g));
+  tails.forEach((ts) => ts.forEach(({ g, sys }) => svgs[sys].append(g)));
   svgs.forEach((r, k) => r.append(fxs[k]));
   const bgs = svgs.map((r) => { const g = svg('g', { class: 'bg' }); r.prepend(g); return g; });
 
@@ -202,7 +217,9 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     targets: laid.map((n, i) => i).filter((i) => laid[i].p != null),
     // state: current | hit | perfect | good | ok | wrong | miss | fixed | '' (clear)
     mark(i, state) {
-      groups[i].setAttribute('class', 'n' + (laid[i].p == null ? ' rest' : '') + (state ? ' ' + state : ''));
+      const cls = 'n' + (laid[i].p == null ? ' rest' : '') + (state ? ' ' + state : '');
+      groups[i].setAttribute('class', cls);
+      for (const t of tails[i]) t.g.setAttribute('class', cls);
     },
     // Show the note she actually played, faintly, beside note i.
     ghost(i, midi) {
