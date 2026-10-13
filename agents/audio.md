@@ -640,3 +640,16 @@ As of 2026-09-26:
   those notes and will come back if detection is weak. Relevant: classic
   dsp handles < lowDspBelow 57; the voice check (_drift, < midi 60) and the
   voiceLoudDb/-Vp override (153e893); Kong transcribes speech as low notes.
+- **Oct 12 LH F2-C3 check (pedagogy: "not recognized").** Not the
+  detector's limit for firm notes: Ode LH as written (E3-C3, Kong vel
+  44-77, -33..-42 dB) caught 28/30 (2 misses = voice/verifier on D3/C3
+  over a ringing note). Ode's mic was off from the start (`mic by:start`),
+  so the app never listened. Sea 2nd time (49.7 s on): the sounds were
+  soft short pokes (-44..-54 dB, Kong vel 20-48, dur <0.1 s, with
+  D#5/E5 energy), and pitches near F3/G3 then B2/A2/A#2/C#3, not a clean
+  C3 B2 A2; the detector's pitches mostly agree with Kong but the verifier
+  (vp<0.5) and the voice check reject them. All recordings, replay, Kong
+  single notes vel>=40: C3-B3 356/503 (71%), F2-B2 9/25 (little data).
+  One C4 read as C3 (Ode 75.9, dsp octave-down). Grown-up taps are rough
+  (some don't line up with a strike); use Kong/mp4. Scripts: scratch/tl.mjs
+  (timeline Kong/pitch/judge), rcat.mjs ISO=1 (single notes only).
