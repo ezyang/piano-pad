@@ -122,10 +122,11 @@ export function pick(id) {
 // Jewels (jewels.js): after a homework piece (every time she finishes it,
 // replays too) she places a pair of jewels on her character. Logged as step
 // events with step 'jewel' (never in `done`): start { after, color, turn },
-// then finish { after, color, turn, cells, ms, moves, by? } (✓; by:
-// 'grownup' for a grown-up's step, which places any she hadn't), or quit
-// with the same fields if she leaves (a null in cells: not placed, not
-// kept). color: the gem name (pixels.js GEMS: gold, ruby, diamond, emerald,
+// then finish { after, color, turn, cells, unplaced, ms, moves, removed }
+// (her ✓, any time: cells are the ones she placed, unplaced how many she
+// didn't; since 2026-10-13. Before that cells had a null for an unplaced
+// one, and by: 'grownup' meant a grown-up's step placed them), or quit
+// with the same fields if she leaves. color: the gem name (pixels.js GEMS: gold, ruby, diamond, emerald,
 // amethyst, sapphire; logs before the gems have a Build block name:
 // planks, stone ...); cells: [first, second], indexes in her 10x14 grid
 // (logs before 2026-10-06 have one `cell`); moves: times she moved one
@@ -153,8 +154,8 @@ export function endJewel(how, stats) {
 // The bunny house (bunny.js): a hand-shape reminder before a piece with
 // `bunny` (Zebra, since 2026-10-08), every time it opens. Step events with
 // step 'bunny' (never in `done`): start { before }, then finish { before,
-// ms, by? } when she taps (ms: shown → tap; by: 'grownup' for a grown-up's
-// step), or quit { before, ms } if she leaves first.
+// ms } when she taps (ms: shown → tap; logs before 2026-10-13 may have by:
+// 'grownup', a grown-up's step that skipped it), or quit { before, ms } if she leaves first.
 export function bunny(how, before, data = {}) { current(); event(how, { step: 'bunny', before, ...data }); }
 
 // Anything else worth a line in the adventure's log (e.g. a skip).

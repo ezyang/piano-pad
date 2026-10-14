@@ -13,8 +13,9 @@ import { renderBunnyHop } from './instruments.js';
 
 const HOP_MS = 1500; // the tap → the piece starting
 
-// tap({ ms, by? }) when she taps (ms: shown → the tap; by: 'grownup' for a
-// grown-up's step, which skips the hop), then() once the bunny is home.
+// tap({ ms }) when she taps (ms: shown → the tap), then() once the bunny is
+// home. A grown-up's step (two-finger tap, →) doesn't skip it (2026-10-13);
+// two fingers on the panel are a normal tap (the first one lands first).
 // quit() for leaving before her tap: returns { ms } (null after the tap).
 export function bunnyHouse(parent, { tap, then }) {
   const t0 = Date.now();
@@ -28,11 +29,9 @@ export function bunnyHouse(parent, { tap, then }) {
   parent.append(box);
   let state = 'waiting', timer = 0; // waiting → hopping → over
 
-  const tapped = (by) => {
+  const tapped = () => {
     if (state !== 'waiting') return;
-    const ms = Date.now() - t0;
-    tap(by === 'grownup' ? { ms, by } : { ms });
-    if (by === 'grownup') { state = 'over'; box.remove(); then(); return; }
+    tap({ ms: Date.now() - t0 });
     state = 'hopping';
     box.classList.add('hopping');
     bunny.classList.add('hop-in');
@@ -45,11 +44,9 @@ export function bunnyHouse(parent, { tap, then }) {
     }, 750);
     timer = setTimeout(() => { state = 'over'; box.remove(); then(); }, HOP_MS);
   };
-  box.addEventListener('pointerdown', (e) => { if (!e.isPrimary) return; tapped('tap'); });
+  box.addEventListener('pointerdown', (e) => { if (e.isPrimary) tapped(); });
 
   return {
-    get open() { return state === 'waiting'; },
-    close: (by) => tapped(by),
     quit() {
       clearTimeout(timer);
       box.remove();

@@ -7,8 +7,11 @@
 // a cell and the first pops in with sparkles, then the second is ready, tap
 // again. Tapping one of the new gems picks it up (gold outline) and the
 // next empty cell she taps moves it there; with both placed, tapping an
-// empty cell moves the last one placed. The big ✓ (lit once both are
-// placed) or a grown-up's step finishes. No palette. Gems placed on
+// empty cell moves the last one placed. The big ✓ finishes, any time
+// (2026-10-13, parent: with 0 or 1 placed the rest simply aren't placed;
+// the waiting gem keeps bobbing, the ✓ bobs once both are on). A grown-up's
+// step (two-finger tap, →) does nothing here: she's choosing. A tap is one
+// finger: two fingers on the board place and remove nothing. No palette. Gems placed on
 // earlier turns can be REMOVED (2026-10-07, she asked to delete gems): a tap
 // poofs one away and the cell is plain again, free for a new gem. Changed
 // her mind? Tapping it again straight away brings it back (once: the next
@@ -28,8 +31,9 @@ export const gem = (m, cls = '') => h('span', { class: 'gem ' + cls, style: jewe
 // How many gems a turn gives.
 export const PAIR = 2;
 
-// done({ ms, cells, moves, removed, by? }) when it's over (✓, or close('grownup'),
-// which places any she hasn't). cells: [first, second], null = not placed.
+// done({ ms, cells, unplaced, moves, removed }) when she taps ✓. cells: the
+// ones she placed (first, second; fewer if she finished early), unplaced:
+// how many she didn't.
 // removed: [{ i, m }] the earlier jewels she took off (and didn't bring back).
 // quit() for leaving: keeps the ones she placed and returns the same
 // stats, without calling done.
@@ -63,7 +67,7 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
     waiting.forEach((w, i) => { w.classList.toggle('placed', placed[i] != null); w.classList.toggle('next', i === k); });
   };
   showWaiting();
-  const doneBtn = h('button', { class: 'btn primary huge jewel-done', onclick: () => (nextUp() >= 0 ? flash(waiting[nextUp()], 'shake', 400) : close()) }, '✓');
+  const doneBtn = h('button', { class: 'btn primary huge jewel-done', onclick: () => close() }, '✓');
   const box = h('div', { class: 'overlay jewel-turn' },
     h('div', { class: 'jewel-head' }, h('div', { class: 'jewel-icon' }, icon), h('div', { class: 'jewel-pair' }, waiting)),
     h('div', { class: 'jewel-body' }, board, doneBtn));
@@ -131,10 +135,36 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
     const next = nextUp();
     put(next >= 0 ? next : n - 1, i);
   }
-  board.addEventListener('pointerdown', (e) => {
+  // One finger down and up is a tap: the cell is the one under it as it
+  // came down, acted on as it lifts. Another finger down anywhere meanwhile
+  // (hers resting, or a grown-up's two-finger tap) and nothing happens.
+  // Fingers already down when the turn opened never came down here, so
+  // they count for nothing either.
+  const fingers = new Set();
+  let pending = null, multi = false;
+  const onDown = (e) => {
+    fingers.add(e.pointerId);
+    if (fingers.size > 1) { multi = true; pending = null; return; }
+    multi = false;
+    pending = null;
+    if (!board.contains(e.target)) return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    if (el?.classList.contains('cell') && board.contains(el)) tapCell(+el.dataset.i);
-  });
+    if (el?.classList.contains('cell') && board.contains(el)) pending = +el.dataset.i;
+  };
+  const onUp = (e) => {
+    if (!fingers.delete(e.pointerId)) return;
+    const i = pending;
+    pending = null;
+    if (e.type === 'pointerup' && !multi && i != null) tapCell(i);
+  };
+  addEventListener('pointerdown', onDown, true);
+  addEventListener('pointerup', onUp, true);
+  addEventListener('pointercancel', onUp, true);
+  const unlisten = () => {
+    removeEventListener('pointerdown', onDown, true);
+    removeEventListener('pointerup', onUp, true);
+    removeEventListener('pointercancel', onUp, true);
+  };
 
   // The board as big as fits above the ✓.
   const fit = () => {
@@ -154,33 +184,19 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
     for (const i of placed) if (i != null) st.jewels.push({ i, m });
     save();
   };
-  const stats = () => ({ ms: Date.now() - t0, cells: [...placed], moves, removed: [...gone.values()].map(({ i, m }) => ({ i, m })) });
+  const stats = () => ({ ms: Date.now() - t0, cells: placed.filter((i) => i != null), unplaced: placed.filter((i) => i == null).length, moves, removed: [...gone.values()].map(({ i, m }) => ({ i, m })) });
 
-  // A grown-up's step places the ones she hasn't: somewhere on her (not on
-  // another jewel), else anywhere free.
-  function autoPlace() {
-    for (let k = nextUp(); k >= 0; k = nextUp()) {
-      const free = (i) => !old.has(i) && !placed.includes(i);
-      const all = st.character.map((v, i) => i);
-      const on = all.filter((i) => st.character[i] >= 0 && free(i));
-      const pool = on.length ? on : all.filter(free);
-      if (!pool.length) return;
-      put(k, pool[Math.floor(Math.random() * pool.length)]);
-    }
-  }
-
-  function close(how = 'tap') {
+  function close() {
     if (over) return;
-    if (how === 'grownup') autoPlace();
     over = true;
+    unlisten();
     keep();
     box.remove();
-    done({ ...stats(), ...(how === 'grownup' ? { by: 'grownup' } : {}) });
+    done(stats());
   }
 
   return {
-    close,
-    quit() { if (over) return null; over = true; keep(); box.remove(); return stats(); },
+    quit() { if (over) return null; over = true; unlisten(); keep(); box.remove(); return stats(); },
     get open() { return !over; },
   };
 }

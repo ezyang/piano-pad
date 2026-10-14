@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-13 (grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -73,9 +73,11 @@ As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a
   `renderBunnyHop` (two boings + bell sparkle), sparkles, and after
   1.5 s the piece's normal begin(). No timer, no failure. Shown every
   time the Zebra page opens (leave and come back = again; replays too).
-  A grown-up step skips it at once. Logs (adventure session step
+  A grown-up step (→) does nothing there (2026-10-13; it used to skip
+  it); a two-finger touch on the panel is a normal tap (pointerdown,
+  primary finger). Logs (adventure session step
   events, adventure.js `bunny()`): start { step: 'bunny', before }, finish
-  { before, ms (shown → tap), by?: 'grownup' }, or quit { before, ms }
+  { before, ms (shown → tap); older logs may have by: 'grownup' }, or quit { before, ms }
   if she leaves first. Drop `bunny` from Zebra when the goal moves on.
   SEA (2026-10-07, pedagogy): pre-staff, LH line then RH line, NOT C
   position: left THUMB on C3 walking down (C3=1 B2=2 A2=3 G2=4 F2=5), right
@@ -105,6 +107,11 @@ As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a
   a TWO-FINGER SWIPE RIGHT (←) steps back (2026-10-04, parent asked): to
   the start of a half-played bar, else one step back at the grain; the
   page is redrawn; logs a `back` event { from, to, by: 'grownup' }.
+  The step/back work only while the piece is on (`session`): before it
+  (bunny house) and after it (jewel turn, guest reveal, Party button) they
+  do nothing (2026-10-13, parent: a two-finger tap took her out of placing
+  her gems). Two fingers on those panels act as one normal tap at most
+  (bunny, reveal) or nothing (jewel board, Party, band pick buttons).
   The right letter (any octave) advances; no look-ahead, no ghosts, voice
   readings dropped (prefer misses to false advances).
   RHYTHM pieces (`rhythm`; Zebra is also `pitched`) go bar by bar, gated by
@@ -177,9 +184,15 @@ As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a
   until her next tap elsewhere; tapping it then brings the same gem back.
   Only once per cell per turn (remove → back → remove → the next tap puts
   a new gem there), so she can't loop. Removals are optional, don't count
-  toward the pair, and are saved with the placements (at ✓/quit). Big ✓ (dim
-  and shakes the waiting gem until both are placed), or a grown-up step
-  (places any unplaced ones on random free cells of her). Every finish
+  toward the pair, and are saved with the placements (at ✓/quit). Big ✓ ends
+  it ANY TIME (2026-10-13, parent): with 0 or 1 placed the rest are just
+  not placed, no scolding; the waiting gem keeps bobbing as the hint, and
+  the ✓ bobs (`.ready`) once both are on. A grown-up step (two-finger tap,
+  →) does nothing in the turn (it used to place the rest and end it). A
+  board tap is ONE finger: jewels.js tracks pointers on window, picks the
+  cell on pointerdown and acts on pointerup, and any second finger down
+  meanwhile cancels it (no place, no remove); fingers down before the turn
+  opened count for nothing. Every finish
   earns a pair, replays too (the replay loop is wanted). New gems are
   final once the turn ends (no undo of a finished turn; she can remove
   them on a later turn).
@@ -222,10 +235,12 @@ As of 2026-10-12 (song editor bars are real 4/4 with ties; rhythm bars pass on a
   `step: 'costume'`). Counts are memory-only (`a.jewels` gems, `a.pairs`
   turns that earned any).
   Logs (adventure session, step events): `step: 'jewel'` start { after,
-  color, turn }, finish { after, color, turn, cells: [first, second], ms,
+  color, turn }, finish { after, color, turn, cells: the ones placed (first,
+  second; 0-2 entries), unplaced: n, ms,
   moves, removed: [{ i, m }] (earlier jewels taken off and not put back;
-  since 2026-10-07), by?: 'grownup' }, quit (same; a null in cells = not placed, not
-  kept; placed ones are kept). Before 2026-10-06 one `cell` instead of
+  since 2026-10-07) }, quit (same; placed ones are kept). Before
+  2026-10-13 cells was always two long with null = not placed, no
+  `unplaced`, and by: 'grownup' meant a grown-up's step auto-placed them. Before 2026-10-06 one `cell` instead of
   `cells`. color is the gem name (9041ed3 logs: the Build block name).
   The session carries `jewels: { piece: gems }` (two per turn now);
   logs.mjs shows it.

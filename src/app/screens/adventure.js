@@ -469,10 +469,11 @@ function piece(root, id) {
   }
 
   // The grown-up's step: a bar (rhythm pieces), or one note / the rest of
-  // the bar / the whole piece at the grain.
+  // the bar / the whole piece at the grain. Only while the piece is on:
+  // before it (the bunny house) and after it (the jewel turn, the guest's
+  // welcome) there's no session, and a step does nothing (2026-10-13,
+  // parent: a two-finger tap took her out of placing her gems).
   function grownupStep() {
-    if (bunnying?.open) { bunnying.close('grownup'); return; } // skips the bunny house
-    if (jeweling?.open) { jeweling.close('grownup'); return; } // ends the jewel turn (placing it if she hadn't)
     if (!session || session.cur >= N) return;
     if (session.between === 'on') { endBetween(); return; }
     hideSetup();
