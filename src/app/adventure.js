@@ -26,6 +26,7 @@
 // always Blobby, 'slime'), and the finish of Ode that brings it has
 // joined: <id>.
 import * as log from './telemetry.js';
+import { characterSnapshot } from './store.js';
 
 export const STEPS = ['zebra', 'sea', 'ode', 'party'];
 export const PICKING = ['zebra', 'sea']; // finishing these earns a pick
@@ -77,6 +78,9 @@ function event(what, data = {}) {
   adv.log.done = [...adv.done];
   adv.log.band = adv.band;
   adv.log.jewels = { ...adv.jewels };
+  // Her picture as it is now (store.js characterSnapshot: { grid: text,
+  // jewels }), an off-device backup: the ⚙︎ "Restore her picture" takes it.
+  adv.log.character = characterSnapshot();
   log.record(adv.log);
 }
 

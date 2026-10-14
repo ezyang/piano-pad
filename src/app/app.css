@@ -203,11 +203,23 @@ button { font: inherit; color: inherit; }
 .swatch-btn.on { outline: 4px solid var(--gold); outline-offset: 2px; }
 .me-stand { display: flex; flex-direction: column; align-items: center; }
 .me-preview { width: 80px; height: 112px; }
+.me-undo { font-size: 30px; min-width: 88px; margin-left: 12px; }
+.me-undo.dim { opacity: 0.4; }
+.me-undo.nope { animation: shake 0.4s; }
+/* The wipes: under the preview, well away from the board, palette and ✓. */
+.me-wipes { display: flex; gap: 20px; margin-top: 32px; }
+.me-wipes .btn.armed.arming { opacity: 0.6; }
 
 @media (max-width: 800px) {
   .seg { font-size: 13px; padding: 4px 8px; }
   .song-title, .title-input { font-size: 14px; }
-  .me-body { flex-direction: column; }
+  .me-body { flex-direction: column; gap: 16px; }
+  /* Portrait: the palette beside her preview, the wipes under the preview. */
+  .me-side { display: grid; grid-template-areas: 'pal stand' 'pal wipes'; gap: 12px 32px; align-items: end; }
+  .me-side .palette { grid-area: pal; }
+  .me-stand { grid-area: stand; }
+  .me-wipes { grid-area: wipes; margin-top: 12px; }
+  .me .song-title { display: none; }
   .board { height: auto; width: min(100%, 360px); }
 }
 
@@ -346,7 +358,7 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .bp-icon { font-size: 28px; align-self: center; }
 .bp-mini { display: flex; align-items: flex-end; gap: 1px; height: 34px; }
 .bp-mini span { width: 5px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
-.btn.armed { background: #e8433a; color: #fff; }
+.btn.armed { background: #e8433a; color: #fff; transition: opacity 0.3s; }
 .card.world-card { background-size: 48px 48px; image-rendering: pixelated; align-items: center; justify-content: center; box-shadow: inset 3px 3px 0 rgba(255,255,255,0.35), inset -3px -3px 0 rgba(0,0,0,0.35); }
 .card.world-card .card-title { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 18px; }
 .card.world-card .plus { font-size: 44px; }
@@ -623,3 +635,4 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
   100% { transform: translate(var(--hop-x), 0); } }
 .btn.primary.bunny-ok { min-width: 160px; font: 64px/1 system-ui, sans-serif; padding: 14px 40px; }
 .bunny-house.hopping .bunny-ok { opacity: 0.4; }
+.restore-box { font-family: ui-monospace, Menlo, monospace; font-size: 16px; line-height: 1.2; width: 14em; display: block; margin: 6px 0; }

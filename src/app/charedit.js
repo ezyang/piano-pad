@@ -2,13 +2,15 @@
 // the Me screen (screens/me.js; the adventure's drawing turns used it until
 // 2026-10-06). It edits her real character (store.js `pianopad.character`)
 // and saves after every stroke; keep() saves now (call it on leaving).
+// onStroke() runs after each drag that changed something (the Me
+// screen's undo).
 // Her jewels (jewels.js) show on the board; painting a jewel's cell (any
 // colour, the eraser too) removes that jewel.
 import { h } from './dom.js';
 import { getState, save } from './store.js';
 import { CHAR_W, CHAR_PALETTE, characterUrl, jewelStyle } from './pixels.js';
 
-export function characterEditor({ color = 6 } = {}) {
+export function characterEditor({ color = 6, onStroke = () => {} } = {}) {
   const st = getState();
   const grid = [...st.character];
   const start = [...grid];
@@ -43,7 +45,7 @@ export function characterEditor({ color = 6 } = {}) {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     return el?.classList.contains('cell') && board.contains(el) ? +el.dataset.i : null;
   };
-  const up = () => { if (!painting) return; painting = false; if (changed) strokes++; keep(); };
+  const up = () => { if (!painting) return; painting = false; if (changed) strokes++; keep(); if (changed) onStroke(); };
   board.addEventListener('pointerdown', (e) => { painting = true; changed = false; board.setPointerCapture(e.pointerId); paint(cellAt(e)); });
   board.addEventListener('pointermove', (e) => { if (painting) paint(cellAt(e)); });
   board.addEventListener('pointerup', up);

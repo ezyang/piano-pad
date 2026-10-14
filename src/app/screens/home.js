@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { getState, resetAll, save, meUrl, newSong } from '../store.js';
+import { getState, resetAll, save, meUrl, newSong, charText, parseCharacter, restoreCharacter } from '../store.js';
 import { bandMember, bandSprite, texture, material } from '../pixels.js';
 import * as adventure from '../adventure.js';
 import { shareLogs, sessionCount, VERSION, record, sessionHeader } from '../telemetry.js';
@@ -11,6 +11,7 @@ import { isGrownup, setGrownup } from '../player.js';
 export function home(root) {
   const st = getState();
   const me = meUrl();
+  const meImg = h('img', { src: me, class: 'me-sprite' });
 
   // Today's adventure leads; the experiments are for free play after, then
   // "Make a song" and her own songs (homework songs, by: 'teacher', stay
@@ -57,6 +58,26 @@ export function home(root) {
   });
 
   let armed = false;
+
+  // ⚙︎ Restore her picture: paste a grid (store.js text format, a JSON
+  // array, or a log's `character` snapshot). The box starts with her
+  // current picture, so a grown-up can see the format or copy it out.
+  // The old picture goes into the history first (↩️ on Me brings it back).
+  const restoreBox = h('textarea', { class: 'restore-box', rows: 14, cols: 24, spellcheck: false, autocapitalize: 'off', autocomplete: 'off' });
+  const restoreMsg = h('div', { class: 'hint' });
+  const restore = h('details', { class: 'restore', ontoggle: (e) => { if (e.target.open) { restoreBox.value = charText(st.character).split('/').join('\n'); restoreMsg.textContent = 'Her picture now: 14 rows of 10, a colour number (0-9, a-f) or . for clear. Paste a picture (or a log\u2019s "character": {...}) and tap Restore.'; } } },
+    h('summary', {}, '🖼 Restore her picture'),
+    restoreBox,
+    h('button', {
+      class: 'menu-btn', onclick: () => {
+        const c = parseCharacter(restoreBox.value);
+        if (!c) { restoreMsg.textContent = 'That isn\u2019t a picture: it needs 14 rows of 10 (0-9, a-f, or .), or a log\u2019s "character".'; return; }
+        restoreCharacter(c);
+        meImg.src = meUrl();
+        restoreMsg.textContent = `Restored${c.jewels ? ` (with ${c.jewels.length} jewels)` : ' (her jewels kept)'}. The old one is in ↩️ on her Me screen.`;
+      },
+    }, 'Restore'),
+    restoreMsg);
   const parent = h('details', { class: 'parent', ontoggle: (e) => { if (e.target.open) listMics(); } },
     h('summary', {}, '⚙︎'),
     h('div', { class: 'parent-menu' },
@@ -100,6 +121,7 @@ export function home(root) {
         e.title)),
       h('a', { href: '#/calibrate' }, '🎯 Calibrate the ears (labeled recordings for tuning)'),
       h('a', { href: 'jig.html' }, 'Detector jig'),
+      restore,
       h('button', {
         onclick: (e) => {
           if (!armed) { armed = true; e.target.textContent = 'Tap again to erase everything'; return; }
@@ -117,7 +139,7 @@ export function home(root) {
     h('header', { class: 'home-head' },
       h('h1', {}, 'Piano Pad'),
       h('a', { class: 'me-btn', href: '#/me', title: 'Make your character' },
-        h('img', { src: me, class: 'me-sprite' }), h('span', {}, 'Me')),
+        meImg, h('span', {}, 'Me')),
       parent),
     h('div', { class: 'cards' },
       advCard,

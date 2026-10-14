@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-13 (grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
@@ -440,4 +440,42 @@ As of 2026-10-13 (grown-up step does nothing outside the piece: jewel turn, bunn
   key `pianopad.character`, kept across versions/clean slates/"Reset all
   data", mirrored into the blob for old versions. Her jewels likewise
   (`pianopad.jewels`, 2026-10-06). The editor (`me.js`)
-  saves after every stroke and on leaving; wipes (👑, 🧽) take two taps.
+  saves after every stroke and on leaving.
+- HER PICTURE IS RECOVERABLE (2026-10-13, pedagogy: she wiped a picture
+  she'd drawn over many sessions, through the "Clear?" confirm, and
+  nothing could bring it back). store.js keeps a history,
+  `pianopad.characterHistory` = [{ t, grid: text, jewels }], oldest first,
+  the last 40 DISTINCT versions (a repeat moves to the end), kept like the
+  character (not touched by resets). Remembered when Me opens, before
+  every wipe, at a ↩️ from the newest, and when she leaves Me (also by the
+  ⚙︎ restore, before and after). Me's ↩️ (header, next to the title; dim
+  when there's nothing earlier, shakes) steps back through this visit's
+  strokes and wipes, then the history, so it undoes a 👑/🧽 even after a
+  reload. Lossless: a stroke after going back appends (emacs-style), it
+  never truncates. Undo restores the grid; jewels in the old version come
+  back if their cell is free, current jewels stay. No redo button (↩️
+  further reaches the newer ones after any new stroke).
+  WIPES moved off the header (they sat beside ✓) to under the preview
+  (portrait: right of the palette, under the preview), and the confirming
+  tap counts only 0.8 s after arming (`ARM_MS`; a quick double tap does
+  nothing; armed for 4 s).
+  TEXT FORMAT (store.js `charText`/`parseCharacter`): CHAR_H=14 rows of
+  CHAR_W=10 chars, top row first, each a CHAR_PALETTE index in base 36
+  (0-9, a-f today) or '.' = clear, rows joined by '/' (pasting: newlines,
+  spaces or commas also fine). parseCharacter also takes a JSON array of
+  140 indices or a log's `character` object. Palette (pixels.js): 0
+  #000000 black, 1 #ffffff white, 2 #f2c79b light skin, 3 #c68857 tan,
+  4 #7a4a2a brown, 5 #3b2415 dark brown, 6 #e8433a red, 7 #ff8fb3 pink,
+  8 #ffd84a yellow, 9 #5fc24a green, a #2f7de1 blue, b #9a5cc6 purple,
+  c #8a8a8a grey, d #55e0d6 aqua, e #ff9a2e orange, f #2b2b2b near-black.
+  OFF-DEVICE BACKUP: the adventure session record carries `character` =
+  { grid: <text>, jewels: [{ i, m }] } (store.js `characterSnapshot`),
+  refreshed at every adventure event (so it's her picture as of the last
+  one). Leaving Me after any stroke/wipe/undo records a `me` session
+  { strokes, pixels, jewelsGone?, wipes: ['clear'|'default'], undos,
+  duration, character } (logs.mjs shows strokes/wipes/undos).
+  RESTORE (grown-ups): ⚙︎ → "🖼 Restore her picture": a textarea filled
+  with her current picture in the text format; paste a grid (or a log's
+  whole `"character": {...}` value, which restores its jewels too; a bare
+  grid keeps her jewels) → Restore. The old one goes to the history
+  (↩️ on Me brings it back).

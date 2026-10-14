@@ -29,6 +29,7 @@ const brief = (s) => {
     r.aborted ? 'aborted' : r.stars != null ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '',
     count('error') ? `ERRORS ${count('error')}` : '',
     s.jewels && Object.keys(s.jewels).length ? `jewels ${Object.entries(s.jewels).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
+    s.kind === 'me' ? `strokes ${s.strokes ?? 0}${s.wipes?.length ? ` wipes ${s.wipes.join(',')}` : ''}${s.undos ? ` undos ${s.undos}` : ''}` : '',
     s.guest ? `guest ${s.guest}${s.band?.includes(s.guest) ? ' (came)' : ''}` : '',
     s.drawn && Object.keys(s.drawn).length ? `drawn ${Object.entries(s.drawn).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     silent ? 'NO MIC INPUT (-120 dB)' : '',

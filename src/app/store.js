@@ -10,7 +10,7 @@
 // Build block names, shown as gems: pixels.js gemName), in the order
 // she earned them; kept across clean slates and resets, mirrored into the
 // blob. Painting over a jewel's cell removes it (charedit.js).
-import { defaultCharacter, characterUrl, CHAR_W, CHAR_H } from './pixels.js';
+import { defaultCharacter, characterUrl, CHAR_W, CHAR_H, CHAR_PALETTE } from './pixels.js';
 import { PIECES } from './homework.js';
 
 const KEY = 'pianopad.v1';
@@ -75,4 +75,71 @@ export function deleteSong(id) {
 export function resetAll() {
   state = { ...fresh(), character: state.character, jewels: state.jewels };
   save();
+}
+
+// --- Her character's history (2026-10-13: she wiped a picture she'd spent
+// many sessions on, with no way back). `pianopad.characterHistory` holds
+// her last HISTORY_MAX distinct versions, oldest first: [{ t, grid: text,
+// jewels }], grid in the text format below. The Me screen remembers the
+// picture when it opens, before every wipe and when she leaves, and its ↩️
+// steps back through them (screens/me.js). Like the character itself, it's
+// kept across clean slates and resets.
+// Text format (also in the logs and the ⚙︎ "Restore her picture"): CHAR_H
+// rows of CHAR_W characters, top row first, each a CHAR_PALETTE index in
+// base 36 (0-9, a-f today; g-z if the palette grows) or '.' for clear,
+// rows joined by '/' (newlines and spaces are fine when pasting).
+const HISTORY_KEY = 'pianopad.characterHistory';
+const HISTORY_MAX = 40;
+
+export const charText = (grid) => Array.from({ length: CHAR_H }, (_, y) =>
+  grid.slice(y * CHAR_W, (y + 1) * CHAR_W).map((v) => (v < 0 ? '.' : v.toString(36))).join('')).join('/');
+
+// A grid from the text format, a JSON array of indices, or a log's
+// `character` snapshot ({ grid, jewels }); null if it isn't one.
+// Returns { grid, jewels? }.
+export function parseCharacter(input) {
+  const s = String(input ?? '').trim();
+  try {
+    const j = JSON.parse(s);
+    if (isCharacter(j)) return { grid: j };
+    if (j && typeof j === 'object' && !Array.isArray(j)) {
+      const g = isCharacter(j.grid) ? j.grid : parseCharacter(j.grid)?.grid;
+      if (g) return { grid: g, ...(isJewels(j.jewels) ? { jewels: j.jewels } : {}) };
+      return null;
+    }
+    if (typeof j === 'string') return parseCharacter(j);
+  } catch { /* not JSON: the text format */ }
+  const rows = s.split(/[\s/,]+/).filter(Boolean);
+  if (rows.length !== CHAR_H || rows.some((r) => r.length !== CHAR_W || !/^[0-9a-z.]+$/i.test(r))) return null;
+  const grid = rows.join('').split('').map((ch) => (ch === '.' ? -1 : parseInt(ch, 36)));
+  return grid.every((v) => v < CHAR_PALETTE.length) ? { grid } : null;
+}
+
+// What the logs carry: { grid: text, jewels }.
+export const characterSnapshot = () => ({ grid: charText(state.character), jewels: state.jewels.map((j) => ({ ...j })) });
+
+const sameJewels = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+export function characterHistory() {
+  try {
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    return Array.isArray(h) ? h.filter((e) => parseCharacter(e?.grid) && isJewels(e.jewels)) : [];
+  } catch { return []; }
+}
+// Add the current picture (or the given one) as the newest version; the
+// same version seen before moves to the end instead.
+export function rememberCharacter(grid = state.character, jewels = state.jewels) {
+  const text = charText(grid);
+  const h = characterHistory().filter((e) => !(e.grid === text && sameJewels(e.jewels, jewels)));
+  h.push({ t: new Date().toISOString(), grid: text, jewels: jewels.map((j) => ({ ...j })) });
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(-HISTORY_MAX))); } catch { /* storage unavailable */ }
+}
+
+// Replace her picture (the grown-ups' restore); the old one is remembered
+// first, so ↩️ on the Me screen can bring it back.
+export function restoreCharacter({ grid, jewels }) {
+  rememberCharacter();
+  state.character = [...grid];
+  if (jewels) state.jewels = jewels.map((j) => ({ ...j }));
+  save();
+  rememberCharacter();
 }
