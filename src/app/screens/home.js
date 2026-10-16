@@ -20,7 +20,7 @@ export function home(root) {
   const done = (step) => !!a?.done.has(step);
   const advCard = h('a', { class: 'card adv-card', href: '#/adventure' },
     h('div', { class: 'card-title' }, 'Today’s adventure'),
-    h('div', { class: 'adv-mini' }, [['zebra', '🦓'], ['sea', '🌊'], ['ode', '🎶'], ['party', '🎉']].map(([step, icon]) =>
+    h('div', { class: 'adv-mini' }, [['reading', '🐿️'], ['sea', '🌊'], ['cats', '🐱'], ['party', '🎉']].map(([step, icon]) =>
       h('span', {}, done(step) ? '✅' : icon))),
     h('div', { class: 'mini-band' }, (a?.band ?? ['piano']).map((id) => (h('img', { class: 'mini-sprite', src: id === 'piano' ? me : bandSprite(bandMember(id)) })))));
 

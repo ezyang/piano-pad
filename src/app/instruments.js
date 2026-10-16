@@ -204,7 +204,7 @@ export function renderYay(sr) {
   return out;
 }
 
-// The bunny hopping into its house (before Zebra): two little boings, then
+// The bunny hopping into its house (before Reading): two little boings, then
 // a sparkly "home!" (about a second).
 export function renderBunnyHop(sr) {
   const out = new Float32Array(Math.round(1.4 * sr));

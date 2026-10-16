@@ -1,4 +1,4 @@
-// Rhythm pieces (Zebra), bar by bar: the judging, apart from the screen
+// Rhythm pieces (Reading, Zebra), bar by bar: the judging, apart from the screen
 // (adventure.js piece() owns the page, the band's model and the grown-up's
 // step), so it can be replayed in tests (test/rhythm-bars.mjs).
 //

@@ -1,11 +1,12 @@
 // Today's adventure: a short practice with a beginning and an end, the same
 // path every day so she does all the material (the parent's call). This
-// week's homework, easiest melody first:
-//   Zebra → Sea → Ode → party
-// (Zebra → Train → Ode 2026-09-30..10-07; Train is in the party now, with
-// the other earlier homework.)
-// Each step unlocks the next. Finishing Zebra and then Sea each lets her
-// pick a band member (Froggy, Beep Bot or Buzzy); Ode brings the headliner,
+// week's homework:
+//   Reading → Sea → Cats → party
+// (Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14;
+// Zebra, Train and Ode are in the party now, with the other earlier
+// homework.)
+// Each step unlocks the next. Finishing Reading and then Sea each lets her
+// pick a band member (Froggy, Beep Bot or Buzzy); Cats brings the headliner,
 // a surprise guest (Blobby, Kitty, Sparky or Waddles: GUESTS), and the party
 // waits for it. "Finished"
 // means she got to the end, never how well she played. Build! and Copy me
@@ -23,20 +24,21 @@
 // 'adventure' (step start / finish / quit and pick events), rewritten as it
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
 // The guest: session `guest` and open { guest } (drawn; before 2026-10-06
-// always Blobby, 'slime'), and the finish of Ode that brings it has
+// always Blobby, 'slime'), and the finish of the last piece (Ode until
+// 2026-10-14, Cats since) that brings it has
 // joined: <id>.
 import * as log from './telemetry.js';
 import { characterSnapshot } from './store.js';
 
-export const STEPS = ['zebra', 'sea', 'ode', 'party'];
-export const PICKING = ['zebra', 'sea']; // finishing these earns a pick
+export const STEPS = ['reading', 'sea', 'cats', 'party'];
+export const PICKING = ['reading', 'sea']; // finishing these earns a pick
 // The last piece brings a surprise guest, a different one from the last
 // adventure's (2026-10-06: she asked why it was always Blobby). Drawn when
 // the adventure starts, kept secret on the map (⭐) until it joins; the one
 // she met is remembered in LAST_GUEST (lost on a clean slate, which is fine).
 export const GUESTS = ['slime', 'cat', 'dragon', 'penguin'];
 const LAST_GUEST = 'pianopad.lastGuest';
-const HEADLINING = 'ode';
+const HEADLINING = STEPS.at(-2); // the last piece
 function drawGuest() {
   let last = null;
   try { last = localStorage.getItem(LAST_GUEST); } catch { /* none */ }
@@ -59,7 +61,7 @@ export function current() {
       t0, touched: t0,
       done: new Set(),
       band: ['piano'],
-      guest: drawGuest(), // the headliner, a secret until Ode is done
+      guest: drawGuest(), // the headliner, a secret until the last piece is done
       active: null, // step in progress
       joined: null, // band member to welcome on the map
       jewels: {}, // piece → jewels earned after it (jewels.js; two a turn)
@@ -156,7 +158,7 @@ export function endJewel(how, stats) {
 }
 
 // The bunny house (bunny.js): a hand-shape reminder before a piece with
-// `bunny` (Zebra, since 2026-10-08), every time it opens. Step events with
+// `bunny` (Zebra 2026-10-08..14, Reading since), every time it opens. Step events with
 // step 'bunny' (never in `done`): start { before }, then finish { before,
 // ms } when she taps (ms: shown → tap; logs before 2026-10-13 may have by:
 // 'grownup', a grown-up's step that skipped it), or quit { before, ms } if she leaves first.

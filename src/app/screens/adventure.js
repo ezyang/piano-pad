@@ -29,10 +29,10 @@ const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
 const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
 
 const STOPS = {
-  zebra: ['🦓', 'Zebra'], sea: ['🌊', 'Sea'], ode: ['🎶', 'Ode'], party: ['🎉', 'Party!'],
-  train: ['🚂', 'Train'], g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
+  reading: ['🐿️', 'Reading'], sea: ['🌊', 'Sea'], cats: ['🐱', 'Cats'], party: ['🎉', 'Party!'],
+  zebra: ['🦓', 'Zebra'], ode: ['🎶', 'Ode'], train: ['🚂', 'Train'], g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
 };
-const PARTY = ['zebra', 'sea', 'ode', 'train', 'g', 'stairs', 'updown'];
+const PARTY = ['reading', 'sea', 'cats', 'zebra', 'ode', 'train', 'g', 'stairs', 'updown'];
 // The jewel a piece earns: its gem (homework.js `gem`, pixels.js pieceGem).
 const jewelOf = (id) => pieceGem(PIECES[id], Object.keys(PIECES).indexOf(id));
 
@@ -195,8 +195,8 @@ export function bookPage(song, width, height, labels = 'book') {
 }
 
 // --- a piece, played the whole way ---
-// She plays the page's notes in order (twice through, if it has a repeat
-// sign). A note counts on the right letter in any octave; no look-ahead, no
+// She plays the page's notes in order (two or three times through, if it
+// is repeated). A note counts on the right letter in any octave; no look-ahead, no
 // ghosts, since a missed note is better than a false advance now that a
 // grown-up can step it on: a TWO-FINGER TAP (or → on a computer) advances
 // one step. The ✋ only shows how the hands start (a set-up banner), then
@@ -204,7 +204,7 @@ export function bookPage(song, width, height, labels = 'book') {
 //   Melody pieces follow the feedback grain (⚙︎ st.feedback): 'note' (the
 //   next note glows, played ones turn green), 'bar' (the current bar is
 //   highlighted and turns done), 'piece' (nothing until the end).
-//   Rhythm pieces (`rhythm`: Zebra) go bar by bar: a bar passes when its
+//   Rhythm pieces (`rhythm`: Reading, Zebra) go bar by bar: a bar passes when its
 //   rhythm is roughly right at her own tempo (scoring.js barRhythm) and, if
 //   `pitched`, every note was the right one. A bar's last note is timed by
 //   the next bar's first, so a bar is judged as the next one starts, or,
@@ -215,13 +215,14 @@ export function bookPage(song, width, height, labels = 'book') {
 //   she plays is the one after it (a different letter), or the timing shows
 //   one interval spanning two notes (scoring.js missedNote), the bar passes
 //   as 'unheard'.
-// A piece played twice: when the first time through ends, a short
-// celebration ("Yay! One more time!": her character cheers, the first of two
-// stars fills, a little ta-da) for BETWEEN_MS or until she taps, then the
-// second time. Notes are ignored meanwhile; the stars (⭐☆) stay in the
+// A piece played more than once (a `repeat` sign or `twice`: 2 times;
+// `times: n`): when a time through ends (not the last), a short celebration
+// ("Yay! One more time!" / "Yay! 2 more times!": her character cheers, a
+// star fills, a little ta-da) for BETWEEN_MS or until she taps, then the
+// next time. Notes are ignored meanwhile; the stars (⭐☆☆) stay in the
 // header. Smaller than the end-of-piece celebration on purpose. For rhythm
-// pieces the first time's last bar is judged like the piece's last bar (it
-// doesn't wait for the second time's first note).
+// pieces a time's last bar is judged like the piece's last bar (it doesn't
+// wait for the next time's first note).
 const BETWEEN_MS = 2600;
 function piece(root, id) {
   const a = adv.current();
@@ -260,7 +261,8 @@ function piece(root, id) {
   // The notes in the order she plays them: { i: note on the page, p, d, bar, pass }.
   const pageBars = Math.ceil(totalBeats(song.notes) / 4);
   const seq = [];
-  for (let pass = 0; pass < (song.repeat || song.twice ? 2 : 1); pass++) {
+  const times = song.times ?? (song.repeat || song.twice ? 2 : 1);
+  for (let pass = 0; pass < times; pass++) {
     for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / 4 + 1e-9) }); }
   }
   const N = seq.length;
@@ -271,10 +273,12 @@ function piece(root, id) {
   bars.forEach((ks, b) => { for (const k of ks) barIndexOf[k] = b; });
   const want = (k) => seq[k].p;
   let barRect = null, doneRects = [];
-  const twice = seq.at(-1).pass > 0;
+  const again = times > 1;
   const passEnd = (k) => k + 1 >= N || seq[k + 1].pass !== seq[k].pass; // k: the last note of a time through
-  // The header: ☆☆ the first time, ⭐☆ 2nd time, ⭐⭐ when done (n: stars earned).
-  const setStars = (n, text = '') => passLabel.replaceChildren(...(twice ? [h('span', { class: 'adv-pass-stars' }, '⭐'.repeat(n) + '☆'.repeat(2 - n)), text] : []));
+  // The header: ☆☆ the first time, ⭐☆ 2nd time, ⭐⭐ when done (n: stars
+  // earned; one star per time through, ☆☆☆ for three).
+  const setStars = (n, text = '') => passLabel.replaceChildren(...(again ? [h('span', { class: 'adv-pass-stars' }, '⭐'.repeat(n) + '☆'.repeat(times - n)), text] : []));
+  const nth = (pass) => ['', '2nd', '3rd'][pass] ?? `${pass + 1}th`;
   setStars(0);
 
   function showStart() {
@@ -298,8 +302,8 @@ function piece(root, id) {
     if (myGen !== gen) return;
     adv.startStep(step, { grain, labels });
     const ps = seq.map((x) => x.p);
-    session = { cur: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)) };
-    log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(song.repeat || song.twice ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}),
+    session = { cur: 0, cheered: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)) };
+    log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(again ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}), ...(song.times ? { times } : {}),
       song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
     showCurrent();
   }
@@ -320,8 +324,8 @@ function piece(root, id) {
     if (k >= N) { engine.expect?.(null); hideSetup(); return; }
     engine.expect?.([want(k)]); // labels the detector's readings of the expected note (piano-audio)
     if (k > 0 && seq[k].pass !== seq[k - 1].pass) {
-      if (!session.between) { celebrateBetween(); return; }
-      secondTime();
+      if (session.cheered < seq[k].pass) { celebrateBetween(seq[k].pass); return; }
+      nextTime(seq[k].pass);
     }
     showSetup(k);
     if (grain === 'note') { page.mark(seq[k].i, 'current'); page.show(seq[k].i); }
@@ -331,30 +335,32 @@ function piece(root, id) {
       page.show(seq[ks[0]].i);
     }
   }
-  // Back to the top for the repeat: clear the page's marks.
-  function secondTime() {
+  // Back to the top for the next time: clear the page's marks.
+  function nextTime(pass) {
     for (const r of doneRects) r.remove();
     doneRects = [];
     for (const i of page.targets) page.mark(i, '');
-    setStars(1, '2nd time');
+    setStars(pass, `${nth(pass)} time`);
     flash(passLabel, 'pop', 400);
   }
-  // The first time through is done: celebrate a little, then the second.
-  // session.between: unset → 'on' (showing) → 'done'.
+  // A time through is done (`pass` of them): celebrate a little, then the
+  // next. session.between is 'on' while it shows; session.cheered counts
+  // the times celebrated.
   let betweenBox = null, betweenTimer = 0;
-  function celebrateBetween() {
+  function celebrateBetween(pass) {
     session.between = 'on';
     engine.expect?.(null);
     hideSetup();
-    log.event('between', { pass: 1, of: 2 });
+    log.event('between', { pass, of: times });
+    const left = times - pass;
     const sprite = memberImg(a, 'piano', 'adv-between-sprite');
     const star = h('span', { class: 'adv-between-star' }, '⭐');
     betweenBox = h('div', { class: 'adv-between', onclick: () => endBetween() },
       sprite,
-      h('div', { class: 'adv-between-stars' }, star, h('span', { class: 'adv-between-todo' }, '☆')),
-      h('div', { class: 'adv-between-text' }, 'Yay! One more time!'));
+      h('div', { class: 'adv-between-stars' }, '⭐'.repeat(pass - 1), star, h('span', { class: 'adv-between-todo' }, '☆'.repeat(left))),
+      h('div', { class: 'adv-between-text' }, left === 1 ? 'Yay! One more time!' : `Yay! ${left} more times!`));
     stageEl.append(betweenBox);
-    setStars(1);
+    setStars(pass);
     flash(sprite, 'cheer', 1500);
     hop();
     if (engine.ctx) engine.play(renderYay(engine.ctx.sampleRate));
@@ -373,7 +379,8 @@ function piece(root, id) {
   function endBetween() {
     if (!session || session.between !== 'on') return;
     clearBetween();
-    session.between = 'done';
+    session.between = null;
+    session.cheered = seq[session.cur].pass;
     showCurrent();
   }
   function barDone() {
@@ -508,8 +515,8 @@ function piece(root, id) {
     doneRects = [];
     for (const i of page.targets) page.mark(i, '');
     const pass = seq[to].pass;
-    if (!pass) session.between = null; // back into the first time: celebrate its end again
-    setStars(pass, pass ? '2nd time' : '');
+    session.cheered = Math.min(session.cheered, pass); // back into an earlier time: celebrate its end again
+    setStars(pass, pass ? `${nth(pass)} time` : '');
     if (grain === 'note') for (let j = 0; j < to; j++) { if (seq[j].pass === pass) page.mark(seq[j].i, 'hit'); }
     else if (grain === 'bar') {
       for (let b = 0; b < barIndexOf[to]; b++) {
@@ -558,7 +565,7 @@ function piece(root, id) {
     log.endSession({ completed: true });
     adv.finishStep(step, { grain, labels });
     for (const i of page.targets) page.mark(i, 'hit');
-    if (twice) { setStars(2); flash(passLabel, 'pop', 400); }
+    if (again) { setStars(times); flash(passLabel, 'pop', 400); }
     engine.play(renderJingle(engine.ctx.sampleRate));
     const r = pageBox.getBoundingClientRect();
     for (let j = 0; j < 4; j++) setTimeout(() => sparkle(pageBox, r.width * (0.2 + 0.6 * Math.random()), r.height * (0.15 + 0.5 * Math.random()), ['#ffd84a', '#ff8fb3', '#55e0d6', '#5fc24a'], 16), j * 180);
@@ -592,7 +599,7 @@ function piece(root, id) {
     }, 1600);
   }
 
-  // The bunny house first (pieces with `bunny`: Zebra), every time the piece
+  // The bunny house first (pieces with `bunny`: Reading), every time the piece
   // opens: a hand-shape reminder, a tap, the bunny hops in, then the piece.
   if (song.bunny) {
     adv.bunny('start', step);

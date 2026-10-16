@@ -5,12 +5,17 @@
 // hand?: 'R' | 'L' (stems and fingers drawn the book's way). `setup` is how
 // each hand starts (shown before that hand plays): from note index `at`,
 // which hand, which finger goes where. `repeat`: a printed repeat sign;
-// `twice`: played twice anyway (no sign; repetition is the practice).
+// `twice`: played twice anyway (no sign; repetition is the practice);
+// `times: n`: played n times (no sign; the book says "play three times").
 // `gem`: the jewel it earns in the adventure (pixels.js GEMS); without one
 // a piece gets a gem by its place in this list. `position`: where the hands
 // sit, { R: {midi: finger}, L: {...} } (labels.js; default C position), for
 // finger numbers the book doesn't print and the ✋. `bunny`: the bunny house
 // (a hand-shape reminder, bunny.js) before it in the adventure.
+// `fingersOnly`: the book prints finger numbers and no letters, so under
+// the 'book' labels the pre-staff heads are blank (book.js). `key`: the
+// tonic's pitch class for the party's chords (arrange.js; default C, or G
+// with an F sharp).
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -31,27 +36,19 @@ const LEFT = { hand: 'left', finger: 5, text: 'Left hand: pinky on C' };
 const RIGHT = { hand: 'right', finger: 1, text: 'Right hand: thumb on C' };
 
 export const PIECES = {
-  // --- this week (lesson of 2026-10-07: Zebra and Ode kept, Sea new) ---
-  // Hands take turns near middle C: the right hand plays G A B (finger 2 on
-  // G), the left hand D E (finger 3 on D, between the two black keys). A
-  // real treble staff with one sharp (no F appears); repeated (played twice).
-  // Rhythm-gated like the G song, and the pitch must be right too.
-  zebra: {
-    id: 'zebra',
-    title: 'Homework: Zebra',
-    gem: 'gold', by: 'teacher', bpm: 80, clef: 'treble', sharps: ['F'], repeat: true, rhythm: true, pitched: true,
-    bunny: true, // the teacher's hand-shape goal this week: a tall round bunny house (bunny.js)
-    notes: fingers([
-      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m1
-      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m2
-      ...rh([...n(0.5, 69, 69, 69, 69), ...n(1, 69, 69)]), // m3
-      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m4
-      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m5 = m1
-      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m6 = m4
-      ...rh([...n(2, 71), ...n(1, 69, 69)]), // m7
-      ...rh(n(4, 67)), // m8
-    ], { 0: 2, 6: 3, 7: 2, 8: 3, 9: 2, 15: 3, 18: 2, 24: 3, 27: 4, 28: 3, 30: 2 }),
-    setup: [{ at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 2 }], text: 'Left hand: finger 3 on D. Right hand: finger 2 on G.' }],
+  // --- this week (lesson of 2026-10-14: Sea kept, Reading and Cats new) ---
+  // A left-hand reading exercise: the book prints only finger numbers (no
+  // letters, no staff), so the point is reading the numbers. Finger 3 on
+  // the G below middle C (F3=4 G3=3 A3=2). Played three times. Rhythm-gated
+  // like Zebra, pitch too. It ends on F, so the party harmonises it in F.
+  reading: {
+    id: 'reading',
+    title: 'Homework: Reading',
+    gem: 'emerald', times: 3, by: 'teacher', bpm: 80, clef: 'grand', rhythm: true, pitched: true, fingersOnly: true, key: 5,
+    bunny: true, // the teacher still stresses the hand shape: a tall round bunny house (bunny.js)
+    position: { R: {}, L: { 52: 5, 53: 4, 55: 3, 57: 2, 59: 1 } },
+    notes: lh(fingers([...n(1, 55, 55, 57, 57), ...n(1, 53, 57), ...n(2, 53)], [3, 3, 2, 2, 4, 2, 4])),
+    setup: [{ at: 0, hand: 'left', finger: 3, text: 'Left hand: finger 3 on the G below middle C' }],
   },
   // Hands take turns, but NOT in C position: the left THUMB is on the C
   // below middle C and the left hand walks DOWN from there (C3=1 B2=2 A2=3
@@ -68,7 +65,55 @@ export const PIECES = {
     ],
     setup: [{ at: 0, hand: 'left', finger: 1, text: 'Left hand: thumb on the C below middle C' }, { at: 15, ...RIGHT }],
   },
-  // C position, left hand first.
+  // Hands take turns, thumbs next-door neighbours: the left thumb on the B
+  // below middle C (G3=3 A3=2 B3=1), the right thumb on middle C (C4..F4 =
+  // 1..4). The book marks RH 1 at the start of each line and LH 3 on the
+  // first G. Played twice.
+  cats: {
+    id: 'cats',
+    title: 'Homework: Cats',
+    gem: 'amethyst', twice: true, by: 'teacher', bpm: 80, clef: 'grand',
+    position: { R: { 60: 1, 62: 2, 64: 3, 65: 4 }, L: { 55: 3, 57: 2, 59: 1 } },
+    // The party's chords (arrange.js): the left hand's G G A B walks up to
+    // C over V (the picker put IV, a B over F, under the A B).
+    chords: ['I', 'I', 'V', 'IV', 'V', 'V', 'I', 'I', 'I', 'I', 'V', 'IV', 'V', 'V', 'I', 'I'],
+    notes: fingers([
+      ...rh([...n(1, R.C, R.D, R.E, R.E), ...n(1, R.D, R.E), ...n(2, R.F)]),
+      ...lh(n(1, 55, 55, 57, 59)),
+      ...rh([...n(1, R.C, R.D), ...n(2, R.E)]),
+      ...rh([...n(1, R.C, R.D, R.E, R.E), ...n(1, R.D, R.E), ...n(2, R.F)]),
+      ...lh(n(1, 55, 55, 57, 59)),
+      ...rh([...n(1, R.C, R.C), ...n(2, R.C)]),
+    ], { 0: 1, 7: 3, 14: 1 }),
+    setup: [
+      { at: 0, hands: [{ hand: 'left', finger: 1 }, { hand: 'right', finger: 1 }], text: 'Thumbs are neighbours: left thumb on B, right thumb on middle C.' },
+      { at: 7, hand: 'left', finger: 3, text: 'Left hand: finger 3 on G' },
+    ],
+  },
+
+  // --- earlier homework (the party can still play these) ---
+  // (Zebra: 2026-09-30..10-14.)
+  // Hands take turns near middle C: the right hand plays G A B (finger 2 on
+  // G), the left hand D E (finger 3 on D, between the two black keys). A
+  // real treble staff with one sharp (no F appears); repeated (played twice).
+  // Rhythm-gated like the G song, and the pitch must be right too.
+  zebra: {
+    id: 'zebra',
+    title: 'Homework: Zebra',
+    gem: 'gold', by: 'teacher', bpm: 80, clef: 'treble', sharps: ['F'], repeat: true, rhythm: true, pitched: true,
+    notes: fingers([
+      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m1
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m2
+      ...rh([...n(0.5, 69, 69, 69, 69), ...n(1, 69, 69)]), // m3
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m4
+      ...rh([...n(0.5, 67, 67, 67, 67), ...n(1, 67, 67)]), // m5 = m1
+      ...lh([...n(1, 62, 64), ...n(2, 62)]), // m6 = m4
+      ...rh([...n(2, 71), ...n(1, 69, 69)]), // m7
+      ...rh(n(4, 67)), // m8
+    ], { 0: 2, 6: 3, 7: 2, 8: 3, 9: 2, 15: 3, 18: 2, 24: 3, 27: 4, 28: 3, 30: 2 }),
+    setup: [{ at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 2 }], text: 'Left hand: finger 3 on D. Right hand: finger 2 on G.' }],
+  },
+  // (Ode: 2026-09-30..10-14.) C position, left hand first.
   ode: {
     id: 'ode',
     title: 'Homework: Ode',
@@ -82,7 +127,6 @@ export const PIECES = {
     setup: [{ at: 0, ...LEFT }, { at: 15, ...RIGHT }],
   },
 
-  // --- earlier homework (the party can still play these) ---
   // (Train: this week's 2026-09-30..10-07.)
   // C position, right hand first. The whole notes are counted "(2 - 3 - 4)".
   train: {

@@ -18,6 +18,13 @@ assert.equal(names(PIECES.zebra), 'I I I I V V I I I I I I I V I I');
 for (const c of arrange(PIECES.zebra).harmony.concat(arrange(PIECES.zebra).bass)) assert.notEqual(pitchClass(c.p), 5, 'no F natural in G');
 assert.ok(arrange(PIECES.zebra).harmony.some((n) => pitchClass(n.p) === 6), 'F sharp under the A');
 
+// Reading ends on F, so it's harmonised in F: C for the G's, F after.
+assert.equal(keyOf(PIECES.reading), 5);
+assert.equal(names(PIECES.reading), 'V I I I');
+// Cats (C): its own chart, the left hand's G G A B over V.
+assert.equal(keyOf(PIECES.cats), 0);
+assert.equal(names(PIECES.cats), 'I I V IV V V I I I I V IV V V I I');
+
 // A per-piece override wins.
 assert.deepEqual(pickChords({ ...PIECES.g, chords: ['I', 'IV'] }).map((c) => c.name), ['I', 'IV']);
 

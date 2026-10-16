@@ -271,7 +271,7 @@ export const GUESTS = [
 // Any band member or guest, by id.
 export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id);
 
-// --- The bunny house (adventure.js, before Zebra; 2026-10-08): the
+// --- The bunny house (adventure.js, before Reading; 2026-10-08): the
 // teacher's "tall round bunny house" hand. A bunny, and a hand seen from
 // the side over the keys: fingertip down on a key, the finger curving up
 // to a high knuckle, the back of the hand and the wrist level, so there's

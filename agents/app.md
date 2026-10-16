@@ -42,29 +42,51 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
-  homework in a fixed order (since 2026-10-07): Zebra → Sea → Ode → party
-  (2026-09-30..10-07 it was Zebra → Train → Ode; Train is now with the
-  earlier homework, in the party's buttons),
+  homework in a fixed order (since 2026-10-15): Reading → Sea → Cats →
+  party (2026-09-30..10-07 Zebra → Train → Ode; 10-07..14 Zebra → Sea →
+  Ode; Zebra, Ode and Train are now earlier homework, in the party's
+  buttons, keeping their gems),
   each unlocking the next (`#/adventure/piece/<id>`, `#/adventure/party`).
-  Finishing Zebra and Sea each gives a "Who joins your band?" pick
-  (Froggy / Beep Bot / Buzzy); Ode brings the SURPRISE GUEST (below). The
-  party plays Ode first;
-  buttons switch to any piece (the earlier Train / G / Stairs / Up and Down too),
-  then free Build! / Copy me. New homework = new PIECES + adventure.js STEPS.
+  Finishing the first two pieces (adventure.js PICKING) each gives a "Who
+  joins your band?" pick (Froggy / Beep Bot / Buzzy); the last piece
+  (STEPS.at(-2), now Cats) brings the SURPRISE GUEST (below). The
+  party plays the last piece first;
+  buttons (screens/adventure.js PARTY: this week's in map order, then
+  Zebra / Ode / Train / G / Stairs / Up and Down) switch to any piece,
+  then free Build! / Copy me. New homework = new PIECES + adventure.js
+  STEPS/PICKING + STOPS/PARTY in screens/adventure.js + home.js's mini map.
+  READING (2026-10-15, pedagogy): a left-hand-only reading exercise, 2
+  bars (G3 G3 A3 A3 | F3 A3 F3-half), finger 3 on G3 (`position` L
+  F3=4 G3=3 A3=2, R empty). The book prints ONLY finger numbers (no
+  letters, no staff): pre-staff with `fingersOnly`, so under 'book'
+  labels the heads are blank and every note shows its printed finger
+  (3 3 2 2 | 4 2 4); the other label modes show letters as usual.
+  book.js: a hand with no notes gets no row, and a piece shorter than a
+  line spreads its bars over the width. Rhythm-gated + pitched like
+  Zebra (bar grain). `times: 3` (the book: "play three times"). Party
+  chords in F (`key: 5`: it ends on F; in C the picker can't end on I).
+  CATS (2026-10-15): pre-staff, hands take turns, thumbs next-door
+  neighbours (LH G3=3 A3=2 B3=1, RH C4..F4 = 1..4), book fingers RH 1 at
+  each line's start (notes 0, 14) and LH 3 on the first G (7); set-up
+  banners: both thumbs at 0, LH finger 3 on G at 7. `twice`. Its party
+  chords are pinned (`chords`: V under the LH's G G A B; the picker put
+  IV under A B).
   Pieces (parent: she'd become dependent on prompts, so the app is a bridge
   to the paper book): drawn like her book, pre-staff (`book.js`: letter in
   the head, RH row above LH, whole notes counted "(2 - 3 - 4)") or a real
   staff (staff.js: `sharps` key signature, `repeat` sign = played twice,
   finger numbers above as printed, label rows); `twice` = played twice with
-  no sign drawn (Train and Ode since 2026-10-04, Sea 2026-10-07; logs
-  `repeat: true, twice: true`).
-  BUNNY HOUSE (2026-10-08, pedagogy: the teacher's Zebra goal this week
-  is hand shape, a "tall round bunny house": curved fingers, high
-  knuckle, room underneath). A reminder ritual, never a check: pieces
-  with `bunny: true` (only Zebra) open with `bunny.js` over the page
+  no sign drawn (Train and Ode since 2026-10-04, Sea 2026-10-07, Cats; logs
+  `repeat: true, twice: true`); `times: n` = played n times (Reading, 3;
+  logs `repeat: true, times: 3`).
+  BUNNY HOUSE (2026-10-08, pedagogy: the teacher's goal is hand shape,
+  a "tall round bunny house": curved fingers, high knuckle, room
+  underneath). A reminder ritual, never a check: pieces with `bunny:
+  true` (Zebra 2026-10-08..14; since 2026-10-15 only Reading, the first
+  piece) open with `bunny.js` over the page
   BEFORE the mic/session starts: "Make a bunny house!", a pixel scene
   (pixels.js `bunnyHouseUrl`: side view of an arched hand, two
   fingertips on the keys, high knuckle; `bunnyUrl` bunny waiting on the
@@ -72,13 +94,13 @@ As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎
   the panel → the bunny hops under the hand (CSS `bunny-hop`),
   `renderBunnyHop` (two boings + bell sparkle), sparkles, and after
   1.5 s the piece's normal begin(). No timer, no failure. Shown every
-  time the Zebra page opens (leave and come back = again; replays too).
+  time the piece's page opens (leave and come back = again; replays too).
   A grown-up step (→) does nothing there (2026-10-13; it used to skip
   it); a two-finger touch on the panel is a normal tap (pointerdown,
   primary finger). Logs (adventure session step
   events, adventure.js `bunny()`): start { step: 'bunny', before }, finish
   { before, ms (shown → tap); older logs may have by: 'grownup' }, or quit { before, ms }
-  if she leaves first. Drop `bunny` from Zebra when the goal moves on.
+  if she leaves first. Drop `bunny` from Reading when the goal moves on.
   SEA (2026-10-07, pedagogy): pre-staff, LH line then RH line, NOT C
   position: left THUMB on C3 walking down (C3=1 B2=2 A2=3 G2=4 F2=5), right
   thumb on middle C. Pieces may carry `position: { R: {midi: f}, L: {...} }`
@@ -135,19 +157,21 @@ As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎
   mid-piece). Logs (kind `homework`): `grain`, `labels`, `rhythm`,
   `pitched`, `repeat`; judge `by: detector | grownup`; `bar` events
   (`iois` ms, `ok`, `why`, `unheard`, `paused`, `by`); `model` events.
-  BETWEEN THE TWO TIMES (2026-10-05, parent via pedagogy: going straight
-  into "2nd time" felt harsh): a piece played twice (`repeat`/`twice`)
-  pauses after the first time for a small celebration (smaller than the
-  end): a gold-framed panel over the page with her
-  character cheering, the first of two stars filling (⭐☆), a
-  two-note ta-da (`renderYay`), "Yay! One more time!"; 2.6 s
-  (`BETWEEN_MS`) or her tap, then the second time. Notes are ignored
+  BETWEEN THE TIMES (2026-10-05, parent via pedagogy: going straight
+  into "2nd time" felt harsh): a piece played more than once (`repeat`/
+  `twice`/`times`) pauses after each time but the last for a small
+  celebration (smaller than the end): a gold-framed panel over the page
+  with her character cheering, a star filling (⭐☆, ⭐☆☆ / ⭐⭐☆ for
+  three), a two-note ta-da (`renderYay`), "Yay! One more time!" (or
+  "Yay! 2 more times!"); 2.6 s (`BETWEEN_MS`) or her tap, then the next
+  time (`session.cheered` counts the times celebrated). Notes are ignored
   meanwhile (judge `why: 'between'`); a grown-up step skips it, a back
-  cancels it (it plays again when the first time ends again). Header
-  stars: ☆☆ → ⭐☆ "2nd time" → ⭐⭐ at the end. Rhythm pieces judge the
+  cancels it (it plays again when that time ends again). Header
+  stars: ☆☆ → ⭐☆ "2nd time" → ⭐⭐ at the end (☆☆☆ ... "3rd time" for three). Rhythm pieces judge the
   first time's last bar like the piece's last bar (no waiting for the
   next note). At the piece grain a grown-up step goes to the end of the
-  current time through. Logs a `between` event { pass: 1, of: 2 }.
+  current time through. Logs a `between` event { pass, of } (pass = times
+  done so far).
   The band lives in memory only (`src/app/adventure.js`).
   SURPRISE GUEST (2026-10-06, pedagogy: she asked "why is it always
   Blobby at the end?"). The headliner is drawn per adventure from
@@ -160,11 +184,12 @@ As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎
   The three voices are in instruments.js (`guestNote`, GAIN matched to
   about the others' solo level). Map: the 4th slot is a bobbing ⭐ box (no
   silhouette) until it joins. Reveal (`welcome` in screens/adventure.js,
-  after Ode's jewel turn, or on the map if she left early): "Who's
+  after the last piece's jewel turn (Cats; Ode until 2026-10-14), or on
+  the map if she left early): "Who's
   coming?" over a wiggling ⭐ with a drum roll (`renderDrumroll`), at 1.8 s
   (or her tap) the guest pops in, "<Name> is here!" + its hello line, a
   ta-da and C-E-G-C on its own instrument, then 🎉 Party!. Logs: adventure
-  session `guest`, `open { guest }`, and the Ode `finish` that brings it
+  session `guest`, `open { guest }`, and the last piece's `finish` (Ode until 10-14, Cats since) that brings it
   has `joined: <id>`; logs.mjs shows "guest <id> (came)".
   JEWELS IN PAIRS (2026-10-06, pedagogy + parent). After each homework
   piece's finish (jingle, her cheer), a JEWEL TURN (`jewels.js`, overlay
@@ -199,7 +224,8 @@ As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎
   GEMS (2026-10-06, parent: block
   colours read as planks/stone, not jewels): each piece earns a real gem,
   `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond,
-  Sea sapphire;
+  Sea sapphire, Reading emerald, Cats amethyst (the cycle is used up; the
+  next new piece repeats one, gold or ruby);
   a piece without one gets GEM_NAMES[its index in PIECES % 6] (gold, ruby,
   diamond, emerald, amethyst, sapphire), `pieceGem` in pixels.js. GEMS
   holds 5 tones per gem (table c, facets l top / s left / m right / d
@@ -278,7 +304,8 @@ As of 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎
   chord tone sounds (half-bar downbeat counts double), a lean to I and to
   staying put, ending on I from V. Per-piece override: `chords: ['I', 'V7',
   ...]` on the piece (one per half bar; band-render passes sharps/key/
-  chords to the worker). `test/arrange.mjs` pins Ode's and Zebra's charts
+  chords to the worker). `test/arrange.mjs` pins Ode's, Zebra's,
+  Reading's (F: V I I I) and Cats' (pinned on the piece) charts
   (run by npm test). Other renderBand uses (the model bar, hellos, Build,
   hidden band screen) stay unison. Render ~1.6-2.3 s per piece on a laptop
   (no slower than before); party RMS about -11 dB as before.

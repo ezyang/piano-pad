@@ -1,6 +1,7 @@
-// The bunny house: a few seconds before Zebra in the adventure (2026-10-08,
-// pedagogy: the teacher's goal for Zebra this week is hand shape, a "tall
-// round bunny house": curved fingers, high knuckle, room underneath). The
+// The bunny house: a few seconds before a piece with `bunny` in the
+// adventure (Zebra 2026-10-08, Reading since 10-14; pedagogy: the teacher's
+// goal is hand shape, a "tall round bunny house": curved fingers, high
+// knuckle, room underneath). The
 // app can't see her hands, so this is a reminder ritual, never a check:
 // a picture of the arched hand over the keys with a bunny waiting beside
 // it, "Make a bunny house!", and when her hand is ready she taps (the
