@@ -1,5 +1,5 @@
 // The bunny house: a few seconds before a piece with `bunny` in the
-// adventure (Zebra 2026-10-08, Reading since 10-14; pedagogy: the teacher's
+// adventure (Zebra 2026-10-08, Reading 10-15, Dot since 10-23; pedagogy: the teacher's
 // goal is hand shape, a "tall round bunny house": curved fingers, high
 // knuckle, room underneath). The
 // app can't see her hands, so this is a reminder ritual, never a check:

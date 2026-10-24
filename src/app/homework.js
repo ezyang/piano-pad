@@ -15,7 +15,10 @@
 // `fingersOnly`: the book prints finger numbers and no letters, so under
 // the 'book' labels the pre-staff heads are blank (book.js). `key`: the
 // tonic's pitch class for the party's chords (arrange.js; default C, or G
-// with an F sharp).
+// with an F sharp). `beats`: beats per bar, 3 for 3/4 (default 4): bar
+// lines every 3 beats, and the party band plays a waltz. A dotted half is
+// d: 3. `dyn` on a note: the dynamic printed there ('mf', 'f'); data only
+// for now (not drawn, not judged).
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -36,7 +39,49 @@ const LEFT = { hand: 'left', finger: 5, text: 'Left hand: pinky on C' };
 const RIGHT = { hand: 'right', finger: 1, text: 'Right hand: thumb on C' };
 
 export const PIECES = {
-  // --- this week (lesson of 2026-10-14: Sea kept, Reading and Cats new) ---
+  // --- this week (lesson of 2026-10-21: 3/4 time and the dotted half note,
+  // counted "1-2-3"; Dot and Bell new) ---
+  // Left hand line, then right hand line. The left hand as in Sea (thumb on
+  // the C below middle C, walking down: C3=1 B2=2 A2=3 G2=4), the right
+  // thumb on middle C. A printed repeat sign: played twice.
+  dot: {
+    id: 'dot',
+    title: 'Homework: Dot',
+    gem: 'topaz', beats: 3, repeat: true, by: 'teacher', bpm: 80, clef: 'grand',
+    bunny: true, // the teacher still stresses the hand shape: a tall round bunny house (bunny.js)
+    position: { R: { 60: 1, 62: 2, 64: 3, 65: 4, 67: 5 }, L: { 48: 1, 47: 2, 45: 3, 43: 4, 41: 5 } },
+    // The party's chords, one per bar (3/4): the left hand walks down to G
+    // over V and back up (the picker put IV, with a B over F, under C B A).
+    chords: ['I', 'V', 'V', 'I', 'I', 'V7', 'I', 'I'],
+    notes: [
+      // The book prints 1 on the first C; the teacher pencilled 4 on the first G.
+      ...lh(fingers([...n(1, 48, 47, 45), ...n(3, 43), ...n(1, 43, 45, 47), ...n(3, 48)], { 0: 1, 3: 4 })),
+      ...rh(fingers([...n(1, R.C, R.D, R.E), ...n(1, R.F, R.G, R.F), ...n(2, R.E), ...n(1, R.D), ...n(3, R.C)], { 0: 1 })),
+    ],
+    setup: [{ at: 0, hand: 'left', finger: 1, text: 'Left hand: thumb on the C below middle C' }, { at: 8, hand: 'right', finger: 1, text: 'Right hand: thumb on middle C' }],
+  },
+  // Hands take turns, thumbs next-door neighbours as in Cats (left thumb on
+  // B, right thumb on middle C). Right hand from G (finger 5) down, the
+  // left hand's G (finger 3) G, G A B, and the right hand's C to end. The
+  // first line is marked mf, the left hand f (`dyn`). A printed repeat sign.
+  bell: {
+    id: 'bell',
+    title: 'Homework: Bell',
+    gem: 'rose', beats: 3, repeat: true, by: 'teacher', bpm: 80, clef: 'grand',
+    position: { R: { 60: 1, 62: 2, 64: 3, 65: 4, 67: 5 }, L: { 55: 3, 57: 2, 59: 1 } },
+    notes: fingers([
+      ...rh([...n(1, R.G, R.F, R.E), ...n(1, R.F, R.E, R.D), ...n(1, R.E, R.D, R.C), ...n(3, R.D)]).map((x, i) => (i === 0 ? { ...x, dyn: 'mf' } : x)),
+      ...lh([...n(3, 55, 55), ...n(1, 55, 57, 59)]).map((x, i) => (i === 0 ? { ...x, dyn: 'f' } : x)),
+      ...rh(n(3, R.C)),
+    ], { 0: 5, 3: 4, 6: 3, 10: 3, 15: 1 }),
+    setup: [
+      { at: 0, hand: 'right', finger: 5, text: 'Right hand: finger 5 on G' },
+      { at: 10, hand: 'left', finger: 3, text: 'Left hand: finger 3 on G' },
+    ],
+  },
+
+  // --- earlier homework (the party can still play these) ---
+  // (Reading, Sea, Cats: 2026-10-15..21; Sea also 10-07..14.)
   // A left-hand reading exercise: the book prints only finger numbers (no
   // letters, no staff), so the point is reading the numbers. Finger 3 on
   // the G below middle C (F3=4 G3=3 A3=2). Played three times. Rhythm-gated
@@ -45,7 +90,6 @@ export const PIECES = {
     id: 'reading',
     title: 'Homework: Reading',
     gem: 'emerald', times: 3, by: 'teacher', bpm: 80, clef: 'grand', rhythm: true, pitched: true, fingersOnly: true, key: 5,
-    bunny: true, // the teacher still stresses the hand shape: a tall round bunny house (bunny.js)
     position: { R: {}, L: { 52: 5, 53: 4, 55: 3, 57: 2, 59: 1 } },
     notes: lh(fingers([...n(1, 55, 55, 57, 57), ...n(1, 53, 57), ...n(2, 53)], [3, 3, 2, 2, 4, 2, 4])),
     setup: [{ at: 0, hand: 'left', finger: 3, text: 'Left hand: finger 3 on the G below middle C' }],
@@ -90,8 +134,6 @@ export const PIECES = {
       { at: 7, hand: 'left', finger: 3, text: 'Left hand: finger 3 on G' },
     ],
   },
-
-  // --- earlier homework (the party can still play these) ---
   // (Zebra: 2026-09-30..10-14.)
   // Hands take turns near middle C: the right hand plays G A B (finger 2 on
   // G), the left hand D E (finger 3 on D, between the two black keys). A

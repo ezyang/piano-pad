@@ -19,13 +19,13 @@
 // Same interface as staff.js where the pieces need it:
 // { el, laid, targets, mark(i, state), show(i), span(i0, i1, cls) }.
 import { svg } from './dom.js';
-import { layout, letter } from './music.js';
+import { layout, letter, meter } from './music.js';
 import { C_POSITION } from './labels.js';
 
 const NAT = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]; // steps above C in its octave
-const BEATS = 4;
 
 export function createBook(song, { width = 800, height = 800, labels = 'book' } = {}) {
+  const BEATS = meter(song); // 4, or 3 for a 3/4 piece (`beats: 3`)
   const firsts = new Set((song.setup ?? []).map((x) => x.at));
   const setupFinger = new Map((song.setup ?? []).map((x) => [x.at, x]));
   const laid = layout(song.notes);
@@ -44,6 +44,7 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
   const reach = (hand) => Math.max(4 - dip(hand), ...lifts(hand));
   const rhUp = reach(true), lhUp = reach(false), rhDown = dip(true), lhDown = dip(false);
   const hasRH = laid.some((n) => n.p != null && rh(n.p));
+  const hasLH = laid.some((n) => n.p != null && !rh(n.p));
   // Vertical metrics, in head radii. A line, top to bottom: right-hand
   // finger numbers and stems (up), the right hand's row, a gap, the left
   // hand's row, its stems (down) and finger numbers.
@@ -80,7 +81,14 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     for (let k = 0; k <= count; k++) {
       const x = 6 + k * barW;
       fg.append(svg('line', { x1: x, x2: x, y1, y2, class: 'bl' }));
-      if (line * perLine + k === nBars) fg.append(svg('line', { x1: x - 5, x2: x - 5, y1, y2, class: 'bl' }));
+      if (line * perLine + k === nBars) {
+        fg.append(svg('line', { x1: x - 5, x2: x - 5, y1, y2, class: 'bl' }));
+        // A printed repeat sign (`repeat`): two dots before the double bar, in each row.
+        if (song.repeat) for (const c of [hasRH ? rhC - 2 * step : null, hasLH ? lhC - 2 * step : null]) {
+          if (c == null) continue;
+          for (const dy of [-1.1, 1.1]) fg.append(svg('circle', { cx: x - 5 - r * 0.7, cy: top + c + dy * r * 0.75, r: r * 0.22, class: 'rdot' }));
+        }
+      }
     }
   }
 
@@ -101,8 +109,14 @@ export function createBook(song, { width = 800, height = 800, labels = 'book' } 
     g.append(svg('circle', { cx: x, cy: hy, r: r * 1.45, class: 'halo' }));
     const sx = up ? x + r * 0.92 : x - r * 0.92;
     if (n.d < 4) g.append(svg('line', { x1: sx, x2: sx, y1: hy, y2: up ? hy - stem : hy + stem, class: 'stem' }));
-    // A whole note is counted through on the page: "(2 - 3 - 4)".
+    // A whole note is counted through on the page: "(2 - 3 - 4)"; a dotted
+    // half gets its dot, and "2 - 3" over the beats it holds (the teacher
+    // pencils that in).
     if (n.d === 4) g.append(svg('text', { x: x + beatW * 1.9, y: hy + r * 0.4, class: 'count', 'font-size': r * 1.05 }, '(2 - 3 - 4)'));
+    if (n.d === 3) {
+      g.append(svg('circle', { cx: x + r * 1.55, cy: hy, r: r * 0.24, class: 'dot' }));
+      g.append(svg('text', { x: x + beatW * 1.55 + r * 0.3, y: hy + r * 0.4, class: 'count', 'font-size': r * 0.95 }, '2 - 3'));
+    }
     g.append(svg('ellipse', { cx: x, cy: hy, rx: r * 1.05, ry: r * 0.9, class: 'head' + (open ? ' open' : '') }));
     const first = firsts.has(i);
     if (labels === 'first' ? first : !(labels === 'book' && song.fingersOnly)) g.append(svg('text', { x, y: hy + r * 0.42, class: 'ltr' + (open ? ' open' : ''), 'font-size': r * 1.15 }, letter(n.p)));

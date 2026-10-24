@@ -1,6 +1,6 @@
 // Offline band rendering: the song played by each unlocked band member.
 import { renderNote, midiToHz, mulberry32 } from '../synth.js';
-import { layout, totalBeats } from './music.js';
+import { layout, totalBeats, meter } from './music.js';
 import { arrange } from './arrange.js';
 
 function addTone(out, start, sr, len, f, amp, decay, shape) {
@@ -55,11 +55,13 @@ function guestNote(out, start, sr, len, midi, kind) {
   }
 }
 
-function drums(out, sr, beats, beat, t0, rng) {
+// In 4/4 kick on 1 and 3, snare on 2 and 4; in 3/4 (perBar 3) kick on 1,
+// snare on 2 and 3, a waltz.
+function drums(out, sr, beats, beat, t0, rng, perBar = 4) {
   for (let b = 0; b < beats; b++) {
     const s = Math.round((t0 + b * beat) * sr);
-    const bar = b % 4;
-    if (bar === 0 || bar === 2) {
+    const bar = b % perBar;
+    if (bar === 0 || (perBar === 4 && bar === 2)) {
       // kick: pitch-swept sine
       const n = Math.round(0.18 * sr);
       let ph = 0;
@@ -71,7 +73,8 @@ function drums(out, sr, beats, beat, t0, rng) {
     } else {
       // snare: noise burst
       const n = Math.round(0.15 * sr);
-      for (let i = 0; i < n && s + i < out.length; i++) out[s + i] += 0.18 * (rng() * 2 - 1) * Math.exp(-i / (0.04 * sr));
+      const amp = perBar === 3 ? 0.13 : 0.18; // a waltz's pah-pah, lighter
+      for (let i = 0; i < n && s + i < out.length; i++) out[s + i] += amp * (rng() * 2 - 1) * Math.exp(-i / (0.04 * sr));
     }
     // hats on every half beat
     for (const h of [0, 0.5]) {
@@ -103,11 +106,15 @@ const BOX_LOW = 45; // A2
 // piano and the guest play the tune, the bass the chords' roots (and
 // fifths), the music box a third under the tune (an octave up when a
 // guest sings the tune up there, so the tune stays on top); drums as ever.
-// song may carry `sharps`, `key`, `chords` for arrange.js.
+// In 3/4 (song.beats 3) the arrangement is a waltz: the piano adds an
+// oom-pah-pah (arrange.js `waltz`) under the tune, the bass plays beat 1
+// only, the drums kick on 1 and tap 2 and 3.
+// song may carry `sharps`, `key`, `chords`, `beats` for arrange.js.
 export function renderBand(song, members, sr, { boost = 0, arrange: arranged = false } = {}) {
   const beat = 60 / song.bpm;
   const lead = 0.3;
-  const beats = Math.ceil(totalBeats(song.notes) / 4) * 4 || 4;
+  const perBar = meter(song);
+  const beats = Math.ceil(totalBeats(song.notes) / perBar) * perBar || perBar;
   const out = new Float32Array(Math.ceil((lead + beats * beat + 2) * sr));
   const rng = mulberry32(5);
   const laid = layout(song.notes).filter((n) => n.p != null);
@@ -118,7 +125,7 @@ export function renderBand(song, members, sr, { boost = 0, arrange: arranged = f
     // level, so any one of them alone is about equally loud.
     const buf = new Float32Array(out.length);
     const at = (n) => [lead + n.start * beat, n.d * beat];
-    if (inst === 'drums') drums(buf, sr, beats, beat, lead, rng);
+    if (inst === 'drums') drums(buf, sr, beats, beat, lead, rng, perBar);
     else if (parts && inst === 'bass') for (const n of parts.bass) {
       const [t, len] = at(n);
       renderNote(buf, Math.round(t * sr), { midi: n.p, vel: 0.8, dur: len * 0.9 }, sr, rng);
@@ -136,6 +143,11 @@ export function renderBand(song, members, sr, { boost = 0, arrange: arranged = f
       else if (inst === 'meow') guestNote(buf, s, sr, len * 0.92, n.p + 12, 'meow');
       else if (inst === 'horn') guestNote(buf, s, sr, len * 0.9, n.p, 'horn');
       else if (inst === 'xylo') guestNote(buf, s, sr, Math.min(len, 0.6) + 0.1, n.p + 12, 'xylo');
+    }
+    // The piano's oom-pah-pah (3/4 only): the oom a little firmer than the pahs.
+    if (parts && inst === 'piano') for (const w of parts.waltz) {
+      const [t] = at(w), oom = w.ps.length === 1;
+      for (const p of w.ps) renderNote(buf, Math.round(t * sr), { midi: p, vel: oom ? 0.55 : 0.35, dur: beat * (oom ? 0.8 : 0.45) }, sr, rng);
     }
     const g = GAIN[inst] ?? 1;
     for (let i = 0; i < out.length; i++) out[i] += g * buf[i];
@@ -204,7 +216,7 @@ export function renderYay(sr) {
   return out;
 }
 
-// The bunny hopping into its house (before Reading): two little boings, then
+// The bunny hopping into its house (before the first piece): two little boings, then
 // a sparkly "home!" (about a second).
 export function renderBunnyHop(sr) {
   const out = new Float32Array(Math.round(1.4 * sr));

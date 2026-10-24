@@ -1,12 +1,13 @@
 // Today's adventure: a short practice with a beginning and an end, the same
 // path every day so she does all the material (the parent's call). This
 // week's homework:
-//   Reading → Sea → Cats → party
-// (Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14;
-// Zebra, Train and Ode are in the party now, with the other earlier
-// homework.)
-// Each step unlocks the next. Finishing Reading and then Sea each lets her
-// pick a band member (Froggy, Beep Bot or Buzzy); Cats brings the headliner,
+//   Dot → Bell → party
+// (Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14,
+// Reading → Sea → Cats 2026-10-15..22; those are in the party now, with
+// the other earlier homework.)
+// Each step unlocks the next. Finishing Dot lets her pick a band member
+// (Froggy, Beep Bot or Buzzy; with three pieces the first two each gave a
+// pick); Bell, the last piece, brings the headliner,
 // a surprise guest (Blobby, Kitty, Sparky or Waddles: GUESTS), and the party
 // waits for it. "Finished"
 // means she got to the end, never how well she played. Build! and Copy me
@@ -25,13 +26,13 @@
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
 // The guest: session `guest` and open { guest } (drawn; before 2026-10-06
 // always Blobby, 'slime'), and the finish of the last piece (Ode until
-// 2026-10-14, Cats since) that brings it has
+// 2026-10-14, Cats 10-15..22, Bell since) that brings it has
 // joined: <id>.
 import * as log from './telemetry.js';
 import { characterSnapshot } from './store.js';
 
-export const STEPS = ['reading', 'sea', 'cats', 'party'];
-export const PICKING = ['reading', 'sea']; // finishing these earns a pick
+export const STEPS = ['dot', 'bell', 'party'];
+export const PICKING = ['dot']; // finishing these earns a pick (the lineup has a slot per pick)
 // The last piece brings a surprise guest, a different one from the last
 // adventure's (2026-10-06: she asked why it was always Blobby). Drawn when
 // the adventure starts, kept secret on the map (⭐) until it joins; the one
@@ -158,7 +159,7 @@ export function endJewel(how, stats) {
 }
 
 // The bunny house (bunny.js): a hand-shape reminder before a piece with
-// `bunny` (Zebra 2026-10-08..14, Reading since), every time it opens. Step events with
+// `bunny` (Zebra 2026-10-08..14, Reading 10-15..22, Dot since), every time it opens. Step events with
 // step 'bunny' (never in `done`): start { before }, then finish { before,
 // ms } when she taps (ms: shown → tap; logs before 2026-10-13 may have by:
 // 'grownup', a grown-up's step that skipped it), or quit { before, ms } if she leaves first.

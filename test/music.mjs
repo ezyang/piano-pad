@@ -1,6 +1,6 @@
 // Tests for bar grouping (4/4) and quantize: node test/music.mjs
 import assert from 'node:assert/strict';
-import { layout, bars, pieces, notationGroups, quantize, totalBeats } from '../src/app/music.js';
+import { layout, bars, pieces, notationGroups, quantize, totalBeats, meter } from '../src/app/music.js';
 import { PIECES } from '../src/app/homework.js';
 
 const sum = (ps) => ps.reduce((a, p) => a + p.d, 0);
@@ -33,11 +33,19 @@ assert.deepEqual(check([ta(), { d: 3, p: 60 }, whole(), taa(), taa()]), ['1 3', 
 assert.deepEqual(check([{ d: 0.5, p: 60 }, ta(), ta(), ta(), ta(), taa()]), ['0.5 1 1 1 0.5', '~0.5 2']);
 assert.equal(pieces({ start: 1, d: 4 }).map((p) => p.d).join(), '3,1');
 assert.ok(pieces({ start: 3, d: 2 })[0].tieTo && pieces({ start: 3, d: 2 })[1].tieFrom);
-// Homework pieces are already bar-aligned: nothing gets split.
+// Homework pieces are already bar-aligned in their own meter: nothing gets
+// split, and every bar is whole (4 beats, or 3 in 3/4).
 for (const [id, p] of Object.entries(PIECES)) {
-  check(p.notes);
-  assert.equal(bars(layout(p.notes)).flat().length, p.notes.length, `${id}: no ties`);
+  const bs = bars(layout(p.notes), meter(p));
+  assert.equal(bs.flat().length, p.notes.length, `${id}: no ties`);
+  bs.forEach((b, k) => assert.equal(sum(b), meter(p), `${id} bar ${k}`));
 }
+// 3/4: bar lines every 3 beats; a dotted half fills a bar, and one across
+// a bar line is tied (2 + 1).
+assert.deepEqual(bars(layout([ta(), ta(), ta(), { d: 3, p: 60 }, ta(), { d: 3, p: 60 }, ta(), ta()]), 3).map((b) => b.map((p) => (p.tieFrom ? '~' : '') + p.d).join(' ')),
+  ['1 1 1', '3', '1 2', '~1 1 1']);
+assert.equal(meter(PIECES.dot), 3);
+assert.equal(meter(PIECES.ode), 4);
 
 // quantize: steady quarters + a ti-ti pair + a long note. Starts land on the
 // beat grid, ti's only in on-beat pairs, the last note fills its bar.

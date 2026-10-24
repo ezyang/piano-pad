@@ -156,6 +156,8 @@ export const GEMS = {
   emerald: gemTones('#b0f8c9', '#22c96c', '#066b37'),
   amethyst: gemTones('#ebcbff', '#a95ee8', '#55208a'),
   sapphire: gemTones('#b0ccff', '#3170f4', '#102f94'),
+  topaz: gemTones('#ffd6a6', '#ff7d12', '#9a3d00'), // orange (Dot, 2026-10-23)
+  rose: gemTones('#ffd1ec', '#ff4fae', '#9b1061'), // pink (Bell, 2026-10-23)
 };
 export const GEM_NAMES = Object.keys(GEMS);
 // Jewels saved before gems (9041ed3) carry a Build block name: each becomes

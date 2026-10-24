@@ -42,23 +42,61 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
-  homework in a fixed order (since 2026-10-15): Reading → Sea → Cats →
-  party (2026-09-30..10-07 Zebra → Train → Ode; 10-07..14 Zebra → Sea →
-  Ode; Zebra, Ode and Train are now earlier homework, in the party's
-  buttons, keeping their gems),
+  homework in a fixed order (since 2026-10-23): Dot → Bell → party
+  (2026-09-30..10-07 Zebra → Train → Ode; 10-07..14 Zebra → Sea → Ode;
+  10-15..22 Reading → Sea → Cats; all of those are now earlier homework,
+  in the party's buttons, keeping their gems),
   each unlocking the next (`#/adventure/piece/<id>`, `#/adventure/party`).
-  Finishing the first two pieces (adventure.js PICKING) each gives a "Who
-  joins your band?" pick (Froggy / Beep Bot / Buzzy); the last piece
-  (STEPS.at(-2), now Cats) brings the SURPRISE GUEST (below). The
+  Finishing a PICKING piece (adventure.js; now only Dot, with two pieces)
+  gives a "Who joins your band?" pick (Froggy / Beep Bot / Buzzy); the
+  map's lineup has one slot per PICKING piece (so her, one pick, the
+  guest this week); the last piece
+  (STEPS.at(-2), now Bell) brings the SURPRISE GUEST (below). The
   party plays the last piece first;
   buttons (screens/adventure.js PARTY: this week's in map order, then
-  Zebra / Ode / Train / G / Stairs / Up and Down) switch to any piece,
+  Reading / Sea / Cats / Zebra / Ode / Train / G / Stairs / Up and Down;
+  11 buttons wrap to two rows) switch to any piece,
   then free Build! / Copy me. New homework = new PIECES + adventure.js
   STEPS/PICKING + STOPS/PARTY in screens/adventure.js + home.js's mini map.
-  READING (2026-10-15, pedagogy): a left-hand-only reading exercise, 2
+  3/4 TIME (2026-10-23, pedagogy: the lesson brought 3/4 and the dotted
+  half, counted "1-2-3", and the teacher wants a steady 1-2-3). A piece
+  with `beats: 3` (default 4; music.js `meter(song)`): bar lines every 3
+  beats in book.js and staff.js (music.js `pieces/bars(laid, bar)`), the
+  adventure's bar grain too (screens/adventure.js `perBar`). A dotted
+  half (d: 3) draws as an open head + dot (staff.js already had the dot);
+  in book.js it also gets a small "2 - 3" after it, like the whole
+  note's "(2 - 3 - 4)", in every label mode (the teacher pencils it in).
+  book.js now draws a printed `repeat` (two dots per row before the final
+  double bar); grand pieces with `twice` still have no sign. No time
+  signature is drawn anywhere. PARTY WALTZ: arrange.js picks one chord
+  per BAR in 3/4 (song.chords: one per bar), the bass plays the root on
+  beat 1 only (1 beat long), and `arrange().waltz` is the PIANO's
+  oom-pah-pah (her slot, always in the band): root on 1 (vel 0.55), a
+  closed triad on 2 and 3 (vel 0.35, short), just under the tune when the
+  bar's tune is from A3 up, else just above it. Drums in 3/4: kick on 1,
+  lighter snare on 2 and 3. 4/4 pieces are unchanged (waltz is empty).
+  band-render passes `beats` to the worker. Not done: rhythm-gating in
+  3/4 (rhythm-bars.js is 4/4-agnostic but untested there; no 3/4 piece is
+  rhythm-gated); the song editor and track.js stay 4/4. `dyn` on a note
+  ('mf', 'f'): the printed dynamic, data only (Bell has them).
+  DOT (2026-10-23): pre-staff, 3/4, `repeat`. LH line then RH line. LH as
+  in Sea (thumb on C3, C3=1 B2=2 A2=3 G2=4): C3 B2 A2 | G2. | G2 A2 B2 |
+  C3.; RH thumb on middle C: C D E | F G F | E-half D | C. Book fingers
+  LH 1 on the first C, 4 on the first G (the teacher's pencil), RH 1 on
+  its first C (note 8). Set-ups at 0 (LH thumb on the C below middle C)
+  and 8 (RH thumb on middle C). `bunny` (the bunny house moved here from
+  Reading). Party chords pinned: I V V I I V7 I I (the picker put IV
+  under C B A). Gem topaz (orange).
+  BELL (2026-10-23): pre-staff, 3/4, `repeat`, thumbs-are-neighbours as in
+  Cats (LH G3=3 A3=2 B3=1). RH G F E | F E D | E D C | D. ; LH G3. | G3. |
+  G3 A3 B3; RH C. Book fingers RH 5/4/3 (notes 0, 3, 6), LH 3 (10), RH 1
+  (15). Set-ups at 0 (RH finger 5 on G) and 10 (LH finger 3 on G).
+  `dyn`: mf on note 0, f on note 10. Picker chords: I V7 I V I I V I.
+  Gem rose (pink).
+  READING (2026-10-15, pedagogy; party only since 10-23): a left-hand-only reading exercise, 2
   bars (G3 G3 A3 A3 | F3 A3 F3-half), finger 3 on G3 (`position` L
   F3=4 G3=3 A3=2, R empty). The book prints ONLY finger numbers (no
   letters, no staff): pre-staff with `fingersOnly`, so under 'book'
@@ -85,8 +123,8 @@ As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, 
   BUNNY HOUSE (2026-10-08, pedagogy: the teacher's goal is hand shape,
   a "tall round bunny house": curved fingers, high knuckle, room
   underneath). A reminder ritual, never a check: pieces with `bunny:
-  true` (Zebra 2026-10-08..14; since 2026-10-15 only Reading, the first
-  piece) open with `bunny.js` over the page
+  true` (Zebra 2026-10-08..14; Reading 10-15..22; since 2026-10-23 only
+  Dot, the first piece) open with `bunny.js` over the page
   BEFORE the mic/session starts: "Make a bunny house!", a pixel scene
   (pixels.js `bunnyHouseUrl`: side view of an arched hand, two
   fingertips on the keys, high knuckle; `bunnyUrl` bunny waiting on the
@@ -100,7 +138,7 @@ As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, 
   primary finger). Logs (adventure session step
   events, adventure.js `bunny()`): start { step: 'bunny', before }, finish
   { before, ms (shown → tap); older logs may have by: 'grownup' }, or quit { before, ms }
-  if she leaves first. Drop `bunny` from Reading when the goal moves on.
+  if she leaves first. Drop `bunny` from Dot when the goal moves on.
   SEA (2026-10-07, pedagogy): pre-staff, LH line then RH line, NOT C
   position: left THUMB on C3 walking down (C3=1 B2=2 A2=3 G2=4 F2=5), right
   thumb on middle C. Pieces may carry `position: { R: {midi: f}, L: {...} }`
@@ -224,10 +262,14 @@ As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, 
   GEMS (2026-10-06, parent: block
   colours read as planks/stone, not jewels): each piece earns a real gem,
   `gem:` on the piece in homework.js: Zebra gold, Train ruby, Ode diamond,
-  Sea sapphire, Reading emerald, Cats amethyst (the cycle is used up; the
-  next new piece repeats one, gold or ruby);
-  a piece without one gets GEM_NAMES[its index in PIECES % 6] (gold, ruby,
-  diamond, emerald, amethyst, sapphire), `pieceGem` in pixels.js. GEMS
+  Sea sapphire, Reading emerald, Cats amethyst, Dot topaz (orange), Bell
+  rose (pink) (2026-10-23; the next new piece needs a new gem or a
+  repeat);
+  a piece without one gets GEM_NAMES[its index in PIECES % 8] (gold, ruby,
+  diamond, emerald, amethyst, sapphire, topaz, rose), `pieceGem` in
+  pixels.js (with Dot and Bell first in PIECES, Up and Down / Stairs / G
+  still come out gold / ruby / diamond). Older app versions don't know
+  topaz/rose and draw them as gold (gemName's fallback). GEMS
   holds 5 tones per gem (table c, facets l top / s left / m right / d
   bottom+rim). Every jewel shines: in the CSS (`.gem`: conic-gradient
   facets + centre table + white fleck, a sweeping shine and a twinkle) and
@@ -305,8 +347,8 @@ As of 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, 
   staying put, ending on I from V. Per-piece override: `chords: ['I', 'V7',
   ...]` on the piece (one per half bar; band-render passes sharps/key/
   chords to the worker). `test/arrange.mjs` pins Ode's, Zebra's,
-  Reading's (F: V I I I) and Cats' (pinned on the piece) charts
-  (run by npm test). Other renderBand uses (the model bar, hellos, Build,
+  Reading's (F: V I I I) and Cats' (pinned on the piece) charts, and
+  Dot's/Bell's 3/4 charts and oom-pah-pah (run by npm test). Other renderBand uses (the model bar, hellos, Build,
   hidden band screen) stay unison. Render ~1.6-2.3 s per piece on a laptop
   (no slower than before); party RMS about -11 dB as before.
   Pieces are in `src/app/homework.js` (`PIECES`; `f` = the book's printed finger, `setup` = each hand's start).

@@ -7,7 +7,7 @@
 // Only `visible` systems show at once. show(i) pages so the line with note i
 // is on screen with (when there's room) the next line below it: a discrete
 // line-by-line step, never motion tied to time.
-import { layout, isSharp, bars as barsOf } from './music.js';
+import { layout, isSharp, bars as barsOf, meter } from './music.js';
 import { labelFor } from './labels.js';
 import { h, svg } from './dom.js';
 
@@ -74,9 +74,10 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   const barGap = s * 0.9;
   const sharps = song.sharps ?? [];
   const clefW = s * 4.4 + sharps.length * s * 1.1;
-  // Bars of exactly 4 beats: a note across a bar line is drawn as tied
-  // pieces (music.js pieces()), the first one being "the" note i.
-  const barList = barsOf(laid).map((ps) => ({ pieces: ps, w: ps.reduce((a, p) => a + space(p.d), 0) + barGap }));
+  // Bars of exactly 4 beats (3 in 3/4, song.beats): a note across a bar
+  // line is drawn as tied pieces (music.js pieces()), the first one being
+  // "the" note i.
+  const barList = barsOf(laid, meter(song)).map((ps) => ({ pieces: ps, w: ps.reduce((a, p) => a + space(p.d), 0) + barGap }));
   const avail = width - clefW - s * 1.5;
   const systems = [];
   for (const b of barList) {

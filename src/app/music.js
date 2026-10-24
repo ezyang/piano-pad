@@ -47,19 +47,22 @@ export function rowsFor(notes, clef = 'treble') {
 }
 export const rowOf = (rows, p) => rows.indexOf(isSharp(p) ? p - 1 : p);
 
-// Bars are 4/4 from beat 0. A note that crosses a bar line is drawn as two
+// Bars are 4/4 from beat 0 (or `bar` beats: a 3/4 piece has `beats: 3`,
+// see meter()). A note that crosses a bar line is drawn as two
 // (or more) tied pieces, so every bar holds exactly 4 beats: a ta-a on beat
 // 4 is "ta" before the line, tied to "a" after it. Only the drawing splits;
 // the stored note (and playback, scoring) stays one note. Each piece is a
 // standard length (4, 3, 2, 1, 0.5). Returns [{start, d, i, tieTo, tieFrom}]
 // for laid-out note i.
 export const BAR = 4;
+// Beats per bar of a song: its `beats` (3 for 3/4), else 4.
+export const meter = (song) => (song?.beats > 0 ? song.beats : BAR);
 const EPS = 1e-9;
-export function pieces(n, i = 0) {
+export function pieces(n, i = 0, bar = BAR) {
   const out = [];
   let t = n.start, left = n.d;
   while (left > EPS) {
-    const barEnd = (Math.floor(t / BAR + EPS) + 1) * BAR;
+    const barEnd = (Math.floor(t / bar + EPS) + 1) * bar;
     let room = Math.min(left, barEnd - t);
     while (room > EPS) {
       const d = [4, 3, 2, 1, 0.5].find((x) => x <= room + EPS && (x < 3 || t % 1 < EPS)) ?? room;
@@ -71,12 +74,12 @@ export function pieces(n, i = 0) {
   return out;
 }
 
-// Pieces grouped into bars: [[piece, ...], ...], each bar 4 beats (the last
-// may be short).
-export function bars(laid) {
+// Pieces grouped into bars: [[piece, ...], ...], each bar 4 beats (or
+// `bar`; the last may be short).
+export function bars(laid, bar = BAR) {
   const out = [];
   laid.forEach((n, i) => {
-    for (const p of pieces(n, i)) (out[Math.floor(p.start / BAR + EPS)] ??= []).push(p);
+    for (const p of pieces(n, i, bar)) (out[Math.floor(p.start / bar + EPS)] ??= []).push(p);
   });
   return out.filter(Boolean);
 }

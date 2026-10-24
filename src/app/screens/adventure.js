@@ -8,7 +8,7 @@ import { h, flash, sparkle } from '../dom.js';
 import { getState, meUrl } from '../store.js';
 import { createStaff, systemHeight, roomBelow } from '../staff.js';
 import { createBook } from '../book.js';
-import { sameNote, outOfRange, totalBeats, layout } from '../music.js';
+import { sameNote, outOfRange, totalBeats, layout, meter } from '../music.js';
 import { rhythmBars } from '../rhythm-bars.js';
 import { bandMember, bandSprite, texture, pieceGem, jewelStyle } from '../pixels.js';
 import { engine } from '../engine.js';
@@ -29,10 +29,11 @@ const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
 const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
 
 const STOPS = {
-  reading: ['🐿️', 'Reading'], sea: ['🌊', 'Sea'], cats: ['🐱', 'Cats'], party: ['🎉', 'Party!'],
+  dot: ['🐞', 'Dot'], bell: ['🔔', 'Bell'], party: ['🎉', 'Party!'],
+  reading: ['🐿️', 'Reading'], sea: ['🌊', 'Sea'], cats: ['🐱', 'Cats'],
   zebra: ['🦓', 'Zebra'], ode: ['🎶', 'Ode'], train: ['🚂', 'Train'], g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
 };
-const PARTY = ['reading', 'sea', 'cats', 'zebra', 'ode', 'train', 'g', 'stairs', 'updown'];
+const PARTY = ['dot', 'bell', 'reading', 'sea', 'cats', 'zebra', 'ode', 'train', 'g', 'stairs', 'updown'];
 // The jewel a piece earns: its gem (homework.js `gem`, pixels.js pieceGem).
 const jewelOf = (id) => pieceGem(PIECES[id], Object.keys(PIECES).indexOf(id));
 
@@ -96,11 +97,12 @@ function greetMember(parent, box, id, then) {
   if (!then) setTimeout(() => box.remove(), guest ? 4000 : 3500);
 }
 
-// Her, her two picks (mysteries until she picks), the headliner.
+// Her, her picks (one per picking piece, adventure.js PICKING; mysteries
+// until she picks), the headliner.
 function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
   // The guest stays a ⭐ box (no silhouette) until it joins.
-  const slots = [['piano', true], [picked[0], !!picked[0]], [picked[1], !!picked[1]], [a.guest, a.band.includes(a.guest)]];
+  const slots = [['piano', true], ...adv.PICKING.map((_, k) => [picked[k], !!picked[k]]), [a.guest, a.band.includes(a.guest)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
     here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐') : h('div', { class: 'member-sprite adv-mystery' }, '?'),
     h('div', { class: 'member-name' }, here ? member(id).name : '?'),
@@ -259,11 +261,12 @@ function piece(root, id) {
   const page = bookPage(song, pageBox.clientWidth - 12, stageEl.clientHeight - 150 - buddyRow.offsetHeight, labels);
   pageBox.replaceChildren(page.el);
   // The notes in the order she plays them: { i: note on the page, p, d, bar, pass }.
-  const pageBars = Math.ceil(totalBeats(song.notes) / 4);
+  const perBar = meter(song); // 4, or 3 in 3/4
+  const pageBars = Math.ceil(totalBeats(song.notes) / perBar);
   const seq = [];
   const times = song.times ?? (song.repeat || song.twice ? 2 : 1);
   for (let pass = 0; pass < times; pass++) {
-    for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / 4 + 1e-9) }); }
+    for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / perBar + 1e-9) }); }
   }
   const N = seq.length;
   const barKs = [];
@@ -599,7 +602,7 @@ function piece(root, id) {
     }, 1600);
   }
 
-  // The bunny house first (pieces with `bunny`: Reading), every time the piece
+  // The bunny house first (pieces with `bunny`: Dot), every time the piece
   // opens: a hand-shape reminder, a tap, the bunny hops in, then the piece.
   if (song.bunny) {
     adv.bunny('start', step);
