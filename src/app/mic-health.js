@@ -10,13 +10,30 @@
 // a quiet room is around -70..-90) for SILENT_MS. Dead for SILENT_MS → try
 // to recover on our own: resume the context if that's the problem, else
 // get the mic again (engine.restartMic: new getUserMedia stream and a new
-// input node), then start over like a reload (engine.reopen: new context,
-// detector and mic; restarting the app is what cured it that evening).
-// Still dead after AUTO_TRIES → a small grown-up badge
-// "🎤✕ not hearing · tap to retry" (a tap retries; it doesn't cover or block
-// anything else). Quiet retries continue in the background with backoff.
+// input node). Still dead after AUTO_TRIES → a grown-up badge (top right)
+// "The microphone isn't hearing anything. Close the app fully (swipe it away)
+// or restart the iPad. Tap here to try again." A tap starts over like a
+// reload (engine.reopen: new context, detector and mic). Only a tap does
+// that: on iOS an automatic reopen nearly always failed (the new context
+// stays suspended without a gesture, "no stream", ~10 s with no input).
+// Quiet reacquire retries continue in the background with backoff.
+//
+// A DEAD MIC IS REMEMBERED ACROSS LOADS (2026-10-23: 10/16-10/19, 27 homework
+// sessions over 5 app loads came in as exact silence; the grown-up running
+// practice never noticed and tapped every note through, and the in-piece badge
+// got one tap). Giving up (the badge) sets localStorage DEAD_KEY = when; while
+// it's set, the home screen and the adventure map show a plain grown-up note
+// "The microphone hasn't heard anything since <day>. Close the app fully
+// (swipe it away) or restart the iPad.", and the badge comes up at once
+// inside a piece. On those two screens, after the first tap, the mic is
+// opened (engine.restartMic) just to check it. The first real input (a
+// changing level above zero, listening or not) clears it, and the note says
+// "The microphone is hearing again" for a few seconds.
+//
 // Every check that changes something is logged in the current session as a
-// `mic` event { state, muted, readyState, ctxState, action, ok, by, n }.
+// `mic` event { state, muted, readyState, ctxState, action, ok, by, n }
+// (action 'gave-up' { since } when the flag is set, 'cleared' { since } when
+// real input clears it; the session header carries `micDeadSince` while set).
 import { h } from './dom.js';
 import { engine } from './engine.js';
 import { event } from './telemetry.js';
@@ -36,6 +53,38 @@ let busy = false;
 let badge = null;
 
 const ZERO_DB = -119.9;
+const DEAD_KEY = 'pianopad.micDead'; // ISO time the mic was last given up on (see top)
+const AGAIN_MS = 4000;          // "hearing again" shows this long
+
+export function deadSince() { try { return localStorage.getItem(DEAD_KEY); } catch { return null; } }
+function setDead(state) {
+  if (deadSince()) return;
+  const since = new Date().toISOString();
+  try { localStorage.setItem(DEAD_KEY, since); } catch { /* storage unavailable */ }
+  event('mic', { state, action: 'gave-up', since });
+  drawWarn();
+}
+function clearDead() {
+  const since = deadSince();
+  if (!since) return;
+  try { localStorage.removeItem(DEAD_KEY); } catch {}
+  event('mic', { state: 'ok', action: 'cleared', since });
+  againUntil = performance.now() + AGAIN_MS;
+  drawWarn();
+}
+
+// Real input: the level is above zero and moving. engine.level starts at a
+// placeholder (-100) and keeps the last frame's value, so an input that sends
+// no frames at all looks like a frozen level; a real mic's level changes
+// every frame.
+let lastLevel = null, liveTicks = 0;
+function realInput() {
+  const L = engine.level;
+  const moving = lastLevel !== null && L !== lastLevel;
+  lastLevel = L;
+  liveTicks = moving && L > ZERO_DB && engine.stream ? liveTicks + 1 : 0;
+  return liveTicks >= 2;
+}
 
 // What the track and context say right now.
 export function micStatus() {
@@ -44,6 +93,7 @@ export function micStatus() {
 }
 
 function classify(s, silentFor) {
+  // silentFor: exact zeros, or a level that hasn't moved at all (no frames).
   if (s.readyState !== 'live') return 'ended';
   if (s.ctxState !== 'running') return 'suspended';
   if (s.muted) return 'muted';
@@ -78,12 +128,12 @@ async function recover(state, by) {
   let action = 'resume', ok = false, err;
   try {
     // A suspended context with a good track: resuming is enough (and cheap).
-    // Otherwise get the mic again; then start over like a reload (new
-    // context + mic, what fixed it on 2026-10-06), alternating after that.
-    // A tap always starts over (a tap is when iOS lets a new context run).
+    // Otherwise get the mic again. Starting over like a reload (new
+    // context + mic) only from a grown-up's tap: iOS lets a new context
+    // run only in a gesture (automatic reopens failed nearly every time).
     if (state === 'suspended' && tries === 1 && by === 'auto') {
       await within(engine.ctx?.resume(), 1500);
-    } else if (by === 'auto' && tries % 2 === 1) {
+    } else if (by === 'auto') {
       action = 'reacquire';
       if (engine.ctx && engine.ctx.state !== 'running') await within(engine.ctx.resume(), 1500);
       await within(engine.restartMic(), 5000);
@@ -101,6 +151,7 @@ async function recover(state, by) {
   else {
     nextTry = performance.now() + BACKOFF_MS[Math.min(tries, BACKOFF_MS.length - 1)];
     showBadge(false);
+    if (tries >= AUTO_TRIES) setDead(state); // given up: remember it across loads
   }
 }
 
@@ -112,9 +163,12 @@ function healthy() {
   hideBadge();
 }
 
-let zeroSince = 0;
+let zeroSince = 0, stuckSince = 0;
 function tick() {
   if (busy) return;
+  const live = realInput();
+  if (live) clearDead();
+  drawWarn();
   if (!engine.listening || !engine.stream || micOff()) {
     // Nobody is listening (or the grown-ups switched the mic off,
     // mic-off.js): nothing to warn about. Start over next time.
@@ -125,8 +179,11 @@ function tick() {
   }
   const now = performance.now();
   zeroSince = engine.level <= ZERO_DB ? (zeroSince || now) : 0;
+  stuckSince = engine.level === lastStuck ? (stuckSince || now) : 0;
+  lastStuck = engine.level;
   const s = micStatus();
-  const state = classify(s, zeroSince ? now - zeroSince : 0);
+  const quietSince = zeroSince || stuckSince;
+  const state = classify(s, quietSince ? now - quietSince : 0);
   if (state === 'ok') {
     if (dead) log('ok', 'none', true); // came back by itself
     if (dead || badge) healthy();
@@ -139,8 +196,11 @@ function tick() {
   if (now >= nextTry) recover(state, 'auto');
 }
 
+let lastStuck = null;
+
 function showBadge(trying) {
-  if (!trying && tries < AUTO_TRIES) return;
+  // Known dead since an earlier load (or earlier today): no need to wait.
+  if (!trying && tries < AUTO_TRIES && !deadSince()) return;
   if (!badge) {
     if (trying) return; // don't flash the badge for a quick automatic fix
     badge = h('button', { class: 'mic-badge', type: 'button', onclick: (e) => { e.stopPropagation(); retryTap(); } });
@@ -149,7 +209,10 @@ function showBadge(trying) {
     document.body.append(badge);
   }
   badge.classList.toggle('trying', trying);
-  badge.textContent = trying ? '🎤 trying…' : '🎤✕ not hearing · tap to retry';
+  badge.replaceChildren(...(trying ? ['🎤 Trying…'] : [
+    h('b', {}, "🎤✕ The microphone isn't hearing anything."), ' ',
+    h('span', {}, 'Close the app fully (swipe it away) or restart the iPad. Tap here to try again.'),
+  ]));
 }
 
 function hideBadge() { badge?.remove(); badge = null; }
@@ -161,6 +224,51 @@ function retryTap() {
   recover(classify(s, SILENT_MS), 'tap');
 }
 
+// --- the grown-up note on the home screen and the adventure map ---
+
+let warn = null, againUntil = 0;
+const onWarnScreen = () => {
+  const r = location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
+  return r === '' ? 'home' : r === 'adventure' ? 'map' : null;
+};
+
+// "today" / "since yesterday" / "since Friday" / "since Oct 16"
+export function sinceText(iso, now = new Date()) {
+  const d = new Date(iso);
+  if (isNaN(d)) return 'for a while';
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(now) - day(d)) / 864e5);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'since yesterday';
+  if (days < 7) return 'since ' + d.toLocaleDateString('en-US', { weekday: 'long' });
+  return 'since ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function drawWarn() {
+  const where = onWarnScreen();
+  const since = deadSince();
+  const again = !since && performance.now() < againUntil;
+  if (!where || (!since && !again)) { warn?.remove(); warn = null; return; }
+  const text = again ? '🎤 The microphone is hearing again.'
+    : `🎤 Grown-ups: the microphone hasn't heard anything ${sinceText(since)}. Close the app fully (swipe it away) or restart the iPad.`;
+  if (!warn) { warn = h('div', { class: 'mic-warn', role: 'status' }); document.body.append(warn); }
+  warn.className = `mic-warn at-${where}${again ? ' again' : ''}`;
+  if (warn.textContent !== text) warn.textContent = text;
+}
+
+// On the home screen / map with a dead mic remembered: once a tap has
+// started audio (main.js), open the mic just to check it (nobody listens to
+// it; the level alone tells, see realInput).
+addEventListener('pointerdown', () => {
+  if (!deadSince() || !onWarnScreen()) return;
+  setTimeout(async () => {
+    try { await engine.starting; } catch { return; }
+    if (deadSince() && engine.ctx && !engine.stream && !engine.acquiring && !engine.listening) engine.restartMic();
+  }, 0);
+});
+addEventListener('hashchange', () => setTimeout(drawWarn, 0));
+drawWarn();
+
 setInterval(tick, TICK_MS);
 // For testing in a browser console.
-window.__micHealth = { micStatus, tick, get state() { return { dead, tries, busy, badge: !!badge }; } };
+window.__micHealth = { micStatus, tick, deadSince, sinceText, get state() { return { dead, tries, busy, badge: !!badge, warn: warn?.textContent ?? null }; } };

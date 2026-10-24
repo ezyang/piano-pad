@@ -33,6 +33,11 @@ const brief = (s) => {
     s.guest ? `guest ${s.guest}${s.band?.includes(s.guest) ? ' (came)' : ''}` : '',
     s.drawn && Object.keys(s.drawn).length ? `drawn ${Object.entries(s.drawn).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     silent ? 'NO MIC INPUT (-120 dB)' : '',
+    // The MediaRecorder copy (telemetry.js s.recorder): no chunks = no frames
+    // from the mic at all; chunks with a -120 dB level = frames of zeros.
+    s.recorder ? (s.recorder.failed ? `REC FAILED ${s.recorder.failed}` : `rec ${s.recorder.chunks}ch ${Math.round(s.recorder.bytes / 1024)}KB${!s.recorder.chunks && (s.duration ?? 0) > 3000 ? ' (NO FRAMES)' : ''}${s.recorder.errors?.length ? ` REC ERRORS ${s.recorder.errors.join(',')}` : ''}`) : '',
+    // The grown-ups were shown the dead-mic warning (mic-health.js).
+    s.micDeadSince ? `MIC WARNING (dead since ${s.micDeadSince.slice(5, 16).replace('T', ' ')})` : '',
     // The grown-ups' mic switch (mic-off.js): { off } events; the time it was off.
     ev.some((e) => e[1] === 'mic' && e[2].off != null) ? `MIC OFF ${Math.round(micOffMs(s) / 1000)}s` : '',
     ev.some((e) => e[1] === 'mic' && e[2].off == null) ? `mic events (${ev.filter((e) => e[1] === 'mic' && e[2].off == null).map((e) => `${e[2].state}:${e[2].action}${e[2].ok ? '✓' : ''}`).join(' ')})` : '',

@@ -58,6 +58,8 @@ function store(sessions) {
   try { localStorage.setItem(KEY, json); } catch { /* full or unavailable */ }
 }
 
+const micDeadSince = () => { try { return localStorage.getItem('pianopad.micDead'); } catch { return null; } };
+
 export const loggingEnabled = () => getState().keepLogs !== false;
 
 // What the mic actually gave us. We ask for no echo cancellation, noise
@@ -100,6 +102,10 @@ export function sessionHeader(kind, id = 'p' + Date.now().toString(36) + Math.ra
       screen: [innerWidth, innerHeight, devicePixelRatio],
       standalone: matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
     },
+    // The mic was given up on in an earlier session and hasn't heard anything
+    // since (mic-health.js; the grown-ups saw the warning). Read directly to
+    // keep telemetry free of a mic-health import.
+    ...(micDeadSince() ? { micDeadSince: micDeadSince() } : {}),
   };
 }
 
@@ -246,19 +252,32 @@ export async function upload() {
 
 let audioRec = null;
 
+// s.recorder: did the MediaRecorder get any audio frames at all? { chunks
+// (with data), empty (no data), bytes, errors?: [msg], failed?: msg, state
+// (at the end) }. chunks 0 = no frames from the track (2026-10-16..19: the
+// iPad mic sent nothing); chunks > 0 with a -120 dB level = frames of zeros.
+// The last chunk arrives after the session is stored, so it's one short.
 function startAudio(s) {
   if (typeof MediaRecorder === 'undefined') return;
   const mimeType = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported(t));
   let rec;
-  try { rec = new MediaRecorder(engine.stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 96000 }); } catch { return; }
+  const R = s.recorder = { chunks: 0, empty: 0, bytes: 0 };
+  try { rec = new MediaRecorder(engine.stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 96000 }); } catch (e) { R.failed = String(e?.message ?? e).slice(0, 200); return; }
   const chunks = [];
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.ondataavailable = (e) => {
+    if (e.data.size) { chunks.push(e.data); R.chunks++; R.bytes += e.data.size; } else R.empty++;
+  };
+  rec.onerror = (e) => {
+    const msg = String(e?.error?.name ?? e?.error?.message ?? e?.type ?? 'error').slice(0, 200);
+    (R.errors ??= []).push(msg);
+    if (current === s) event('rec-error', { msg });
+  };
   rec.onstart = () => {
     // Where the recording starts on the session's audio clock (approximate;
     // detector onsets can refine the alignment).
     s.recording = { mime: rec.mimeType, startMs: Math.round(((engine.ctx?.currentTime ?? 0) - s.ctxT0) * 1000) };
   };
-  rec.start(1000);
+  try { rec.start(1000); } catch (e) { R.failed = String(e?.message ?? e).slice(0, 200); return; }
   audioRec = { rec, chunks, s };
   document.body.classList.add('rec-audio');
 }
@@ -268,6 +287,7 @@ function stopAudio(s, keep) {
   const { rec, chunks } = audioRec;
   audioRec = null;
   document.body.classList.remove('rec-audio');
+  if (s.recorder) s.recorder.state = rec.state; // 'recording' unless it stopped on its own
   rec.onstop = async () => {
     if (!keep || !chunks.length) return;
     const blob = new Blob(chunks, { type: rec.mimeType });

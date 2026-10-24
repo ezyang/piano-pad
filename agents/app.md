@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-23): Dot → Bell → party
@@ -366,16 +366,43 @@ As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, 
   audio). Restarting the app (same version) fixed it: iOS device/session
   state. `src/app/mic-health.js` (imported by main.js) checks every 0.5 s
   while `engine.listening`: dead = track ended, ctx not running, track
-  muted, or level exactly -120 for 3 s. Then: resume (suspended ctx, first
-  try only), `engine.restartMic()` (new getUserMedia + input node), then
-  `engine.reopen()` (new context + detector + mic, like a reload; added to
-  engine.js with a header line, tell audio). After 2 failed tries a grey
-  grown-up badge top right "🎤✕ not hearing · tap to retry" (a tap =
-  reopen, in a gesture); quiet retries continue (15 s, then every 60 s).
-  It hides when sound comes back or nobody is listening; never blocks.
+  muted, or level exactly -120 (or not moving at all: no frames) for 3 s.
+  Then: resume (suspended ctx, first try only), else `engine.restartMic()`
+  (new getUserMedia + input node). `engine.reopen()` (new context +
+  detector + mic, like a reload) ONLY from a grown-up's tap on the badge
+  (2026-10-23: automatic reopens failed on iOS nearly every time, ctx
+  suspended / "no stream", ~10 s lost). After 2 failed tries a grey
+  grown-up badge top right, two lines: "🎤✕ The microphone isn't hearing
+  anything. Close the app fully (swipe it away) or restart the iPad. Tap
+  here to try again."; quiet reacquire retries continue (15 s, then every
+  60 s). It hides when sound comes back or nobody is listening; never blocks.
+  DEAD MIC REMEMBERED (2026-10-23, pedagogy: 10/16-10/19, 27 homework
+  sessions over 5 loads were silent from the first second, no
+  MediaRecorder frames; the grown-up never noticed, the badge got 1 tap;
+  only a force-quit/restart fixes it). Giving up (the badge) sets
+  localStorage `pianopad.micDead` = ISO time (kept if already set).
+  While set: the home screen (fixed, bottom above the grass) and the
+  adventure map (under the header) show a cream grown-up note in system
+  sans, "🎤 Grown-ups: the microphone hasn't heard anything <today | since
+  yesterday | since Friday | since Oct 16>. Close the app fully (swipe it
+  away) or restart the iPad." (`.mic-warn`, pointer-events none, drawn by
+  mic-health.js from the hash: '' and 'adventure' only, no home.js /
+  adventure.js changes); in a piece the badge comes up at the first
+  failed try. On home/map the first tap also opens the mic
+  (`engine.restartMic()` if no stream yet) just to check it. Real input
+  (level above -120 and changing on two ticks, listening or not) clears
+  the flag and the note turns green "🎤 The microphone is hearing again."
+  for 4 s. Logs: `mic` { action: 'gave-up', since } / { action:
+  'cleared', since } and sessions started while set carry
+  `micDeadSince` (logs.mjs: "MIC WARNING (dead since ...)").
   Logs: `mic` events { state: ended|suspended|muted|silent|ok, muted,
   readyState, ctxState, action: detected|resume|reacquire|reopen|none, ok,
-  by: auto|tap, n, err? }; session `audio.track` also has muted,
+  by: auto|tap, n, err? }; session `recorder` { chunks, empty, bytes,
+  errors?, failed?, state } = the MediaRecorder copy's data chunks (0 =
+  the track sent no frames; chunks + -120 dB = frames of zeros; the last
+  chunk lands after the session is stored), `rec-error` events from its
+  onerror; logs.mjs shows "rec <n>ch <KB>" (NO FRAMES / REC ERRORS /
+  REC FAILED); session `audio.track` also has muted,
   readyState, ctxState; aborted sessions with mic events are kept;
   `tools/logs.mjs` flags "NO MIC INPUT (-120 dB)" and reads single
   uploaded session files. After a reopen the audio clock restarts (later
