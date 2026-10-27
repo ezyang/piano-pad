@@ -653,3 +653,12 @@ As of 2026-09-26:
   One C4 read as C3 (Ode 75.9, dsp octave-down). Grown-up taps are rough
   (some don't line up with a strike); use Kong/mp4. Scripts: scratch/tl.mjs
   (timeline Kong/pitch/judge), rcat.mjs ISO=1 (single notes only).
+- **F4 tuning drift (Oct 26, 56ac4e9).** An all-F Build blueprint judged F4
+  as F#4. Raw attack readings (scratch/fkey.mjs): F4 +29 (Sep 26), +32
+  (Oct 12), +76 today (p90 +103). Her real F#4s read +23..+35 (n 15,
+  little data). The net's key can't break the tie: it never outputs 66,
+  even for real F#4s. Profile tuning now {65: 80, 66: 28} (boundary F4
+  +104; E4/F4 boundary moved to E4 +90). Replay C4-B4: wrong letter
+  371 -> 355, none new. Parent has been told the piano needs tuning: AFTER
+  TUNING, re-measure with tools/tuning.mjs and reset (an in-tune F4 at
+  ~+10 would still round right, but the margin to E4 shrinks).
