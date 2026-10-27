@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-23): Dot → Bell → party
@@ -433,6 +433,19 @@ As of 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, 
   at: 0, by: 'start' }); onset/pitch/sim events while off carry `micOff:
   true`; the audio recording keeps running (times stay aligned) and the
   off stretches are those marks. logs.mjs shows "MIC OFF <n>s".
+- HEARD SHARPS LOOK SHARP (2026-10-26, pedagogy: the family piano's F4 has
+  gone sharp, the detector hears F♯, and a blueprint's wrong-note ghost sat
+  on F's line with no ♯, so it looked like an F being refused). Wherever a
+  note she played is shown, a black key carries a ♯: staff.js `ghost()`
+  draws a ♯ before the ghost head (ghost style: red, grey in homework;
+  every label mode, blueprints too; the ghost sits a bit further right to
+  make room) and its letter row already read F♯; free Build's columns (F♯
+  is as tall as F) get a small ♯ on top (`.w-sharp`, free mode only);
+  Answer me's blocks show ♯ with labels off. Unchanged: free Build's and
+  Copy me's staffs (heard notes are their song, drawn with ♯ already),
+  homework (no ghosts), play screen (uses `ghost()`), what counts as right.
+  A ghost on a key-signature staff still always shows ♯ (as the piece's
+  own F♯ notes do there), never a ♮ for a natural.
 - Build! blueprints (2026-09-29, she'd memorised the six): silhouette only,
   the first block's letter as the one clue, no "next" column, no staff
   letters, no ✋; 🎲 comes first and "🎲 New shape" follows a finished one.

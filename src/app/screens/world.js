@@ -15,7 +15,7 @@ import { getState, save, meUrl } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture } from '../pixels.js';
-import { pitchClass, quantize, layout, sameNote, outOfRange, noteName } from '../music.js';
+import { pitchClass, quantize, layout, sameNote, outOfRange, noteName, isSharp } from '../music.js';
 import { engine } from '../engine.js';
 import { renderBand } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
@@ -101,16 +101,18 @@ export function world(root) {
     const W = worldEl.clientWidth, H = worldEl.clientHeight - GROUND;
     B = Math.max(10, Math.min(64, Math.floor((W * 0.92) / n), Math.floor((H - 10) / (8 + 1.6))));
     x0 = Math.round((W - n * B) / 2);
+    // A black key is as tall as its natural (F♯ = F), so free Build marks
+    // it ♯ on top: a sharp she played must look like a sharp.
     const column = (m, i, cls) => h('div', {
       class: 'w-col ' + cls,
       style: `left:${x0 + i * B}px;width:${B}px;height:${heightOf(m) * B}px;background-image:url(${material(m).url});background-size:${B}px ${B}px`,
-    });
+    }, mode.kind === 'free' && isSharp(m) ? h('span', { class: 'w-sharp', style: `font-size:${Math.max(12, Math.round(B * 0.6))}px` }, '♯') : null);
     // A blueprint's one clue: the first block's letter, just above it.
     const first = mode.kind === 'blueprint' ? mode.notes[0] : null;
     const clue = first == null ? null : h('div', {
       class: 'w-letter', style: `left:${x0}px;width:${B}px;bottom:${GROUND + heightOf(first) * B + 4}px;font-size:${Math.max(14, B * 0.5)}px`,
     }, noteName(first));
-    colsEl.replaceChildren(...built().map((m, i) => column(m, i, 'solid')), clue);
+    colsEl.replaceChildren(...built().map((m, i) => column(m, i, 'solid')), ...(clue ? [clue] : [])); // (a bare null would print "null")
     ghostsEl.replaceChildren(...planned().map((m, i) => (i < mode.cur ? null : column(m, i, 'ghost'))).filter(Boolean));
     placeChar(false);
   }

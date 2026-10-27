@@ -224,9 +224,12 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     },
     // Show the note she actually played, faintly, beside note i.
     ghost(i, midi) {
-      const hx = headXs[i] + s * 1.6, y = yOf(midi);
+      const hx = headXs[i] + s * (isSharp(midi) ? 2.6 : 1.6), y = yOf(midi); // room for its ♯
       const g = svg('g', { class: 'ghost' });
       ledgers(g, midi, hx);
+      // A black key shows its ♯ in every label mode (blueprints have no
+      // letters), so a heard F♯ never looks like an F being refused.
+      if (isSharp(midi)) g.append(svg('text', { x: hx - s * 1.25, y: y + s * 0.5, class: 'acc', 'font-size': s * 1.7 }, '♯'));
       g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: 'head' }));
       label(g, midi, hx, letterY - s * 1.3);
       fxs[systemOf[i]].append(g);

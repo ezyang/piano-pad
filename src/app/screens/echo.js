@@ -19,7 +19,7 @@ import { getState, save, meUrl } from '../store.js';
 import { createStaff } from '../staff.js';
 import { BIOMES } from '../build.js';
 import { material, texture, BAND, bandSprite } from '../pixels.js';
-import { sameNote, outOfRange } from '../music.js';
+import { sameNote, outOfRange, isSharp } from '../music.js';
 import { engine } from '../engine.js';
 import { renderVoice, renderJingle, renderYay } from '../instruments.js';
 import { testKeyboard } from '../keyboard.js';
@@ -101,9 +101,11 @@ export function echo(root) {
   scene.append(h('div', { class: 'hand-box' }, hand.el));
   const showHand = (m) => hand.show(labelMode() === 'fingers' && m != null ? fingerFor(m) : null, handFor(m) ?? 'right');
 
-  const block = (p, cls = '') => h('div', {
+  // played: a note she played (Answer me). A black key keeps its ♯ even
+  // with labels off, so it never looks like its natural.
+  const block = (p, cls = '', played = false) => h('div', {
     class: 'e-block ' + cls, style: p == null ? '' : `background-image:url(${material(p).url})`,
-  }, p == null ? '' : labelFor(p).text);
+  }, p == null ? '' : labelFor(p).text || (played && isSharp(p) ? '♯' : ''));
 
   function setPartner(i) {
     partnerIdx = i;
@@ -186,7 +188,7 @@ export function echo(root) {
     if (mode === 'answer') {
       round.heard.push({ time: n.time, midi: n.midi });
       log.event('answer', { midi: n.midi });
-      const b = block(n.midi);
+      const b = block(n.midi, '', true);
       myBubble.append(b);
       flash(b, 'drop', 250);
       flash(meImg, 'hop', 300);
