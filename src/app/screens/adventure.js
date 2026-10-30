@@ -417,12 +417,13 @@ function piece(root, id) {
 
   // Each played note's attack level (engine.attackLevel, dB) goes on its
   // judge event as `lvl` once it's known (~0.1 s later) and into her
-  // typical level for the lion (lion.js; not while a grown-up is playing).
+  // typical level for the lion (lion.js, normalized by the note's octave
+  // there; `lvl` stays raw; not while a grown-up is playing).
   function attack(n, data) {
     engine.attackLevel(n).then((db) => {
       if (db == null) return;
       if (data) data.lvl = db;
-      if (!isGrownup()) rememberLevel(db);
+      if (!isGrownup()) rememberLevel(db, n.midi);
     });
   }
   function onNote(n) {

@@ -20,6 +20,14 @@
 // note, no more (no "too loud" message: there's no banging in the logs to
 // calibrate it on). Lion notes don't go into her typical level.
 //
+// OCTAVE (2026-10-29, piano-audio's review): the attack level reads louder
+// for low keys at the same strike (octave 2 +4.7, 3 +4.0, 5 +2.0 dB vs
+// octave 4), so every level is normalized by its octave (firm.js
+// normLevel: -4.5 for octave 2 and below, -4 octave 3, 0 octave 4, -2
+// octave 5 and up) both when it goes into her typical level and when a lion
+// note is judged. Stored levels from before have no octave and are kept
+// as-is (mostly octave 4). Lion notes log both: raw and db (normalized).
+//
 // Notes count only from when the moment opens (the mic is listening by
 // then); a chord or a bounce (notes within CHORD_S) is one strike. With the
 // mic off (mic switch) or dead (mic-health's warning), or if it won't
@@ -33,28 +41,29 @@ import { renderRoar } from './instruments.js';
 import { heard, micOff, onMicToggle } from './mic-off.js';
 import { deadSince } from './mic-health.js';
 import { grownupGestures } from './grownup.js';
+import { FIRM_DB, normLevel, median, firmLine, judgeFirm } from './firm.js';
 
-export const FIRM_DB = 5;
+export { FIRM_DB };
 export const PAWS = 3;
 const DEFAULT_DB = -32; // her sessions' median attack, 10/26-10/28
 const MIN_NOTES = 8;
 const KEEP = 60;
-const TYPICAL_KEY = 'pianopad.attackLevels'; // [dB, ...], newest last (scrap paper)
+const TYPICAL_KEY = 'pianopad.attackLevels'; // [dB normalized by octave, ...], newest last (scrap paper)
 const CHORD_S = 0.15;
 const ROAR_MS = 1800, JOIN_MS = 2200;
 
 const loadLevels = () => { try { const v = JSON.parse(localStorage.getItem(TYPICAL_KEY)); return Array.isArray(v) ? v.filter((x) => typeof x === 'number') : []; } catch { return []; } };
-// A homework note's attack level (screens/adventure.js).
-export function rememberLevel(db) {
-  if (typeof db !== 'number' || !isFinite(db)) return;
+// A homework note's raw attack level and its midi note (screens/adventure.js).
+export function rememberLevel(raw, midi) {
+  const db = normLevel(raw, midi);
+  if (db == null) return;
   const v = [...loadLevels(), db].slice(-KEEP);
   try { localStorage.setItem(TYPICAL_KEY, JSON.stringify(v)); } catch { /* storage unavailable */ }
 }
 export function typicalLevel() {
   const v = loadLevels();
   if (v.length < MIN_NOTES) return { db: DEFAULT_DB, n: v.length, default: true };
-  const s = [...v].sort((a, b) => a - b), m = s.length >> 1;
-  return { db: Math.round(10 * (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2)) / 10, n: v.length };
+  return { db: median(v), n: v.length };
 }
 
 // lionMoment(parent, { start(info), finish(stats), joins, then }):
@@ -64,7 +73,7 @@ export function typicalLevel() {
 // quit() for leaving first: returns the stats so far (null once awake).
 export function lionMoment(parent, { start, finish, joins, then }) {
   const t0 = Date.now(), opened = performance.now();
-  const typ = typicalLevel(), thr = Math.round(10 * (typ.db + FIRM_DB)) / 10;
+  const typ = typicalLevel(), thr = firmLine(typ.db);
   const lion = h('img', { class: 'lion-sprite', src: lionUrl('asleep'), alt: '' });
   const zzz = h('div', { class: 'lion-zzz' }, h('span', {}, 'Z'), h('span', {}, 'z'), h('span', {}, 'z'));
   const paws = Array.from({ length: PAWS }, () => h('span', { class: 'lion-paw' }, '🐾'));
@@ -112,10 +121,10 @@ export function lionMoment(parent, { start, finish, joins, then }) {
     if (state !== 'listening' || n.time < since || n.voice) return;
     if (n.time - lastT < CHORD_S) return; // the same strike (a chord, a bounce)
     lastT = n.time;
-    engine.attackLevel(n).then((db) => {
+    engine.attackLevel(n).then((raw) => {
       if (state !== 'listening') return;
-      const hard = db != null && db >= thr;
-      notes.push({ ms: Date.now() - t0, midi: n.midi, db, thr, firm: hard });
+      const j = judgeFirm(raw, n.midi, typ.db), hard = j.firm;
+      notes.push({ ms: Date.now() - t0, midi: n.midi, raw: j.raw, db: j.db, thr, firm: hard });
       if (hard) {
         firm++;
         const paw = paws[firm - 1];

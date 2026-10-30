@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-29 (the sleeping lion before Bell: firm notes relative to her own attack level wake Roary, who joins the band on timpani; engine.attackLevel), 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-29 (lion firm check normalized by octave, firm.js; the sleeping lion before Bell: firm notes relative to her own attack level wake Roary, who joins the band on timpani; engine.attackLevel), 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-23): Dot → Bell → party
@@ -140,7 +140,15 @@ As of 2026-10-29 (the sleeping lion before Bell: firm notes relative to her own 
   piece begins (~4 s; a replay's wake goes straight on). TYPICAL: median
   of her last 60 homework notes' attack levels, `pianopad.attackLevels`
   (scrap paper; not while ⚙︎ a grown-up is playing; lion notes excluded),
-  -32 dB until 8 notes. Evidence (2026-10-29, her recordings 10/26-10/28,
+  -32 dB until 8 notes. OCTAVE NORMALIZED (2026-10-29, piano-audio's
+  review: attackLevel reads louder for low keys at the same strike, oct 2
+  +4.7, oct 3 +4.0, oct 5 +2.0 dB vs oct 4): `firm.js` (pure, tested by
+  test/firm.mjs) subtracts a per-octave offset (oct ≤2 4.5, oct 3 4, oct 4
+  0, oct ≥5 2) both when a homework note goes into the typical
+  (`rememberLevel(raw, midi)`) and when a lion note is judged; offsets, not
+  per-octave medians, so it works with few notes. Same key: entries stored
+  before have no octave and are kept as-is (mostly octave 4). Judge `lvl`
+  stays raw (piano-audio reads it). Evidence (2026-10-29, her recordings 10/26-10/28,
   105 judged notes re-run offline, peak frame dB in 100 ms after the
   onset): session medians -35..-28 dB (so only relative works), Bell's
   LH f line +4.7 / +6.0 dB over its RH mf line, 15% of ordinary notes ≥
@@ -163,7 +171,9 @@ As of 2026-10-29 (the sleeping lion before Bell: firm notes relative to her own 
   rhythm pieces only feed the typical). Logs (adventure session, step
   'lion'): start { before, typical, typicalN, thr, mode: mic | tap |
   none, why? mic-off | mic-dead | no-mic }, finish { by: notes | tap |
-  grownup, ms, notes: [{ ms, midi, db, thr, firm }], firm, typical,
+  grownup, ms, notes: [{ ms, midi, raw?, db, thr, firm }] (since the
+  octave fix db is normalized and raw is engine.attackLevel's; no raw =
+  older, db raw), firm, typical,
   typicalN, thr, mode, why?, joined? }, quit (same, no by). logs.mjs:
   "lion notes 3/5 firm +4.1dB" (her lion notes' median over typical:
   watch it for firmer notes over time). Drop the lion when the teacher
