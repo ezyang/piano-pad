@@ -1,7 +1,7 @@
 // Today's adventure: a short practice with a beginning and an end, the same
 // path every day so she does all the material (the parent's call). This
 // week's homework:
-//   Dot → Bell → party
+//   Dot → (the sleeping lion) Bell → party
 // (Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14,
 // Reading → Sea → Cats 2026-10-15..22; those are in the party now, with
 // the other earlier homework.)
@@ -121,7 +121,7 @@ export const pickable = (a) => PICKS.filter((id) => !a.band.includes(id));
 export function pick(id) {
   const a = current();
   if (!pickPending(a) || !pickable(a).includes(id)) return;
-  a.band.splice(1 + picked(a).length, 0, id); // lineup: her, her picks, the headliner
+  a.band.splice(1 + picked(a).length, 0, id); // lineup: her, her picks, Roary, the headliner
   a.joined = id;
   event('pick', { member: id });
 }
@@ -164,6 +164,29 @@ export function endJewel(how, stats) {
 // ms } when she taps (ms: shown → tap; logs before 2026-10-13 may have by:
 // 'grownup', a grown-up's step that skipped it), or quit { before, ms } if she leaves first.
 export function bunny(how, before, data = {}) { current(); event(how, { step: 'bunny', before, ...data }); }
+
+// The sleeping lion (lion.js): before LION_BEFORE (Bell, since 2026-10-29),
+// every time it opens. Her firm notes (three) wake Roary, who joins the
+// band the first time (a.band: her, her picks, Roary, the headliner; never
+// in `done`, no pick). Step events with step 'lion': start { before,
+// typical (her median attack, dB), typicalN (notes it's from; default -32
+// under 8), thr (firm from here: typical + 5), mode: 'mic' | 'tap' (mic
+// off/dead/not starting: a tap wakes it) | 'none', why? (mic-off | mic-dead
+// | no-mic) }, then finish { before, by: 'notes' | 'tap' | 'grownup', ms,
+// notes: [{ ms, midi, db, thr, firm }], firm (count), typical, typicalN,
+// thr, mode, why?, joined?: 'lion' }, or quit (same, no by) if she leaves.
+export const LION_BEFORE = 'bell';
+export const LION_ID = 'lion';
+export function lion(how, data = {}) {
+  const a = current();
+  let joined;
+  if (how === 'finish' && !a.band.includes(LION_ID)) {
+    const at = a.band.indexOf(a.guest);
+    a.band.splice(at >= 0 ? at : a.band.length, 0, LION_ID);
+    joined = LION_ID;
+  }
+  event(how, { step: 'lion', before: LION_BEFORE, ...data, ...(joined ? { joined } : {}) });
+}
 
 // Anything else worth a line in the adventure's log (e.g. a skip).
 export function note(what, data = {}) { current(); event(what, data); }

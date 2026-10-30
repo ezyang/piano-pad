@@ -270,8 +270,19 @@ export const GUESTS = [
     art: ['...nnnn...', '..nnnnnn..', '.nwwnnwwn.', '.nwknnwkn.', '.nnnoonnn.', 'nnnwoownnn', 'nnwwwwwwnn', 'nnwwwwwwnn', '.nwwwwwwn.', '.nwwwwwwn.', '..nwwwwn..', '..oo..oo..'],
   },
 ];
+// Roary the lion (lion.js, 2026-10-29): asleep before Bell until her heavy
+// lion paws wake it, then in the band on a big low drum ('timpani'). Kept
+// out of BAND/GUESTS like the guests. LION_ART: awake (the band sprite),
+// asleep (eyes shut) and roaring (mouth open).
+const LION_ROWS = {
+  awake: ['.OoOoOoOo.', 'OoOoOoOoOo', 'oOyyyyyyOo', 'Oywkyywkyo', 'oyyyyyyyyO', 'Oyyykkyyyo', 'oOykyykyOo', '.OoyyyyoO.', '..yyyyyy.O', '.yyyyyyyyO', '.yy....yy.'],
+  asleep: ['.OoOoOoOo.', 'OoOoOoOoOo', 'oOyyyyyyOo', 'Oykkyykkyo', 'oyyyyyyyyO', 'Oyyykkyyyo', 'oOyyyyyyOo', '.OoyyyyoO.', '..yyyyyy.O', '.yyyyyyyyO', '.yy....yy.'],
+  roar: ['.OoOoOoOo.', 'OoOoOoOoOo', 'oOyyyyyyOo', 'Oywkyywkyo', 'oyyyyyyyyO', 'Oyyykkyyyo', 'oOyrrrryOo', '.OoyrryoO.', '..yyyyyy.O', '.yyyyyyyyO', '.yy....yy.'],
+};
+export const LION = { id: 'lion', name: 'Roary', instrument: 'timpani', hi: 'ROAR! Boom boom!', art: LION_ROWS.awake };
+export const lionUrl = (face = 'awake') => sprite(LION_ROWS[face], P, 'lion:' + face);
 // Any band member or guest, by id.
-export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id);
+export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id) ?? (id === 'lion' ? LION : undefined);
 
 // --- The bunny house (adventure.js, before Reading; 2026-10-08): the
 // teacher's "tall round bunny house" hand. A bunny, and a hand seen from

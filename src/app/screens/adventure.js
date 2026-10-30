@@ -1,5 +1,6 @@
-// Today's adventure (see adventure.js): a map of the four stops, always in
-// the same order, and the band she's gathering; plus the pieces and party.
+// Today's adventure (see adventure.js): a map of the stops, always in
+// the same order, and the band she's gathering (with Roary the lion, woken
+// before Bell: lion.js); plus the pieces and party.
 //   #/adventure             the map
 //   #/adventure/piece/<id>  a piece played the whole way (see piece())
 //   #/adventure/party       her band plays a piece (this week's last first),
@@ -10,7 +11,7 @@ import { createStaff, systemHeight, roomBelow } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout, meter } from '../music.js';
 import { rhythmBars } from '../rhythm-bars.js';
-import { bandMember, bandSprite, texture, pieceGem, jewelStyle } from '../pixels.js';
+import { bandMember, bandSprite, texture, pieceGem, jewelStyle, lionUrl } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle, renderYay, renderDrumroll } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
@@ -21,6 +22,8 @@ import { PIECES } from '../homework.js';
 import * as adv from '../adventure.js';
 import { jewelTurn, gem, PAIR } from '../jewels.js';
 import { bunnyHouse } from '../bunny.js';
+import { lionMoment, rememberLevel } from '../lion.js';
+import { isGrownup } from '../player.js';
 import { heard, onMicToggle } from '../mic-off.js';
 
 const member = bandMember;
@@ -98,14 +101,16 @@ function greetMember(parent, box, id, then) {
 }
 
 // Her, her picks (one per picking piece, adventure.js PICKING; mysteries
-// until she picks), the headliner.
+// until she picks), Roary the lion (asleep until she wakes it before Bell),
+// the headliner.
 function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
   // The guest stays a ⭐ box (no silhouette) until it joins.
-  const slots = [['piano', true], ...adv.PICKING.map((_, k) => [picked[k], !!picked[k]]), [a.guest, a.band.includes(a.guest)]];
+  const slots = [['piano', true], ...adv.PICKING.map((_, k) => [picked[k], !!picked[k]]), [adv.LION_ID, a.band.includes(adv.LION_ID)], [a.guest, a.band.includes(a.guest)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
-    here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐') : h('div', { class: 'member-sprite adv-mystery' }, '?'),
-    h('div', { class: 'member-name' }, here ? member(id).name : '?'),
+    here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐')
+      : id === adv.LION_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: lionUrl('asleep') }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.LION_ID ? 'Zzz' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
 
@@ -232,7 +237,7 @@ function piece(root, id) {
   const rhythm = !!song.rhythm;
   const grain = rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(st.feedback) ? st.feedback : 'note';
   const labels = ['book', 'letters', 'first', 'fingers'].includes(st.bookLabels) ? st.bookLabels : 'book';
-  let session = null, finished = false, gen = 0, jeweling = null, bunnying = null;
+  let session = null, finished = false, gen = 0, jeweling = null, bunnying = null, lioning = null;
   const jewel = jewelOf(id);
 
   const pageBox = h('div', { class: 'staff-box book-box' });
@@ -397,7 +402,8 @@ function piece(root, id) {
   // --- melody pieces: one note at a time; by: 'detector' | 'grownup' ---
   function advance(by, got) {
     const k = session.cur;
-    log.event('judge', { k, want: want(k), ...(got != null ? { got } : {}), grade: 'hit', by });
+    const data = { k, want: want(k), ...(got != null ? { got } : {}), grade: 'hit', by };
+    log.event('judge', data);
     hideSetup();
     if (grain === 'note') page.mark(seq[k].i, 'hit');
     session.cur++;
@@ -406,16 +412,27 @@ function piece(root, id) {
     else if (grain === 'note' && barEnd && session.cur < N) hop(); // a bar, not a note
     if (session.cur >= N) setTimeout(finish, 600);
     else showCurrent();
+    return data;
   }
 
+  // Each played note's attack level (engine.attackLevel, dB) goes on its
+  // judge event as `lvl` once it's known (~0.1 s later) and into her
+  // typical level for the lion (lion.js; not while a grown-up is playing).
+  function attack(n, data) {
+    engine.attackLevel(n).then((db) => {
+      if (db == null) return;
+      if (data) data.lvl = db;
+      if (!isGrownup()) rememberLevel(db);
+    });
+  }
   function onNote(n) {
     if (!session || n.time < session.tStart || session.cur >= N) return;
     if (session.between === 'on') { log.event('judge', { got: n.midi, grade: 'ignored', why: 'between' }); return; }
     if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
-    if (rhythm) return onRhythmNote(n);
+    if (rhythm) { attack(n, null); return onRhythmNote(n); }
     const k = session.cur;
-    if (sameNote(n.midi, want(k), false)) advance('detector', n.midi);
-    else log.event('judge', { k, want: want(k), got: n.midi, grade: 'other' });
+    if (sameNote(n.midi, want(k), false)) attack(n, advance('detector', n.midi));
+    else { const data = { k, want: want(k), got: n.midi, grade: 'other' }; log.event('judge', data); attack(n, data); }
   }
 
   // --- rhythm pieces, bar by bar (the judging is rhythm-bars.js) ---
@@ -604,17 +621,28 @@ function piece(root, id) {
 
   // The bunny house first (pieces with `bunny`: Dot), every time the piece
   // opens: a hand-shape reminder, a tap, the bunny hops in, then the piece.
+  // The sleeping lion before Bell (adventure.js LION_BEFORE, lion.js),
+  // every time the piece opens: three heavy lion paws wake Roary, who
+  // joins the band the first time; then the piece.
   if (song.bunny) {
     adv.bunny('start', step);
     bunnying = bunnyHouse(stageEl, {
       tap: (stats) => adv.bunny('finish', step, stats),
       then: () => { bunnying = null; if (screen.isConnected) begin(); },
     });
+  } else if (step === adv.LION_BEFORE) {
+    lioning = lionMoment(stageEl, {
+      joins: !a.band.includes(adv.LION_ID),
+      start: (info) => adv.lion('start', info),
+      finish: (stats) => adv.lion('finish', stats),
+      then: () => { lioning = null; if (screen.isConnected) begin(); },
+    });
   } else begin();
   return () => {
     gen++;
     offMicToggle();
     if (bunnying) { const stats = bunnying.quit(); if (stats) adv.bunny('quit', step, stats); bunnying = null; }
+    if (lioning) { const stats = lioning.quit(); if (stats) adv.lion('quit', stats); lioning = null; }
     removeEventListener('keydown', onKey);
     judge?.reset();
     clearBetween();
@@ -639,6 +667,7 @@ function piece(root, id) {
 //   played { piece, by, how: 'end' | 'left', soundMs, ignored, taps? }
 //     soundMs: tap → sound starting (null if it never did), ignored: taps
 //     while it played, taps: their [ms after the play, 'play' | piece id]
+const BEAT_HOPS = ['drums', 'timpani']; // these hop on the beat, the others on the tune's notes
 const BOOST = 6; // dB, through a clean limiter (instruments.js)
 // The party band plays an arrangement (arrange.js: bass on the chords,
 // music box a third under the tune), not everyone on the tune.
@@ -756,12 +785,12 @@ function party(root) {
       p.last = idx;
       staff.mark(idx, 'current');
       staff.show(idx);
-      ids.forEach((id, i) => { if (member(id).instrument !== 'drums') { flash(imgs[i], 'hop', 300); if (Math.random() < 0.5) cheer(i, 4); } });
+      ids.forEach((id, i) => { if (!BEAT_HOPS.includes(member(id).instrument)) { flash(imgs[i], 'hop', 300); if (Math.random() < 0.5) cheer(i, 4); } });
     }
     const whole = Math.floor(beat);
     if (whole !== p.lastBeat && beat >= 0) {
       p.lastBeat = whole;
-      ids.forEach((id, i) => { if (member(id).instrument === 'drums') flash(imgs[i], 'hop', 250); });
+      ids.forEach((id, i) => { if (BEAT_HOPS.includes(member(id).instrument)) flash(imgs[i], 'hop', 250); });
     }
     if (now > p.end) {
       stop('end');

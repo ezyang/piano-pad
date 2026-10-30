@@ -42,7 +42,7 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
-As of 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
+As of 2026-10-29 (the sleeping lion before Bell: firm notes relative to her own attack level wake Roary, who joins the band on timpani; engine.attackLevel), 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's
   homework in a fixed order (since 2026-10-23): Dot → Bell → party
@@ -54,7 +54,8 @@ As of 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build colu
   gives a "Who joins your band?" pick (Froggy / Beep Bot / Buzzy); the
   map's lineup has one slot per PICKING piece (so her, one pick, the
   guest this week); the last piece
-  (STEPS.at(-2), now Bell) brings the SURPRISE GUEST (below). The
+  (STEPS.at(-2), now Bell) brings the SURPRISE GUEST (below); the sleeping
+  lion before Bell adds Roary (below). The
   party plays the last piece first;
   buttons (screens/adventure.js PARTY: this week's in map order, then
   Reading / Sea / Cats / Zebra / Ode / Train / G / Stairs / Up and Down;
@@ -120,6 +121,53 @@ As of 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build colu
   no sign drawn (Train and Ode since 2026-10-04, Sea 2026-10-07, Cats; logs
   `repeat: true, twice: true`); `times: n` = played n times (Reading, 3;
   logs `repeat: true, times: 3`).
+  SLEEPING LION (2026-10-29, pedagogy: the teacher keeps asking for a
+  "heavy lion paw", arm weight into the key for a firm, full sound; her
+  soft pokes are also the notes the detector misses; Bell is marked mf /
+  f). `lion.js`, before LION_BEFORE (adventure.js; Bell) every time it
+  opens (the bunny stays on Dot): Roary (pixels.js `LION`, `lionUrl
+  ('asleep' | 'awake' | 'roar')`, kept out of BAND/GUESTS) asleep,
+  breathing, "Z z z" floating; "Wake the lion with a heavy lion paw!" /
+  "Drop your arm into the key." and three 🐾 slots. The mic listens from
+  the moment it opens (notes before that never count; a chord or bounce
+  within 150 ms is one strike; voice notes ignored). FIRM = attack level
+  ≥ her typical + 5 dB (`FIRM_DB`): the paw fills, "Yes! A lion paw!";
+  soft: the lion stirs, "A bit heavier!" (no sound while listening: the
+  mic would hear it). Any loudness above the line counts once (no "too
+  loud" message: no banging in the logs to calibrate it). 3 firm → the
+  roar sprite, "ROAR!", `renderRoar` (~1.6 s synthesized growl), sparkles,
+  then (first time this adventure) "Roary joined your band!" and the
+  piece begins (~4 s; a replay's wake goes straight on). TYPICAL: median
+  of her last 60 homework notes' attack levels, `pianopad.attackLevels`
+  (scrap paper; not while ⚙︎ a grown-up is playing; lion notes excluded),
+  -32 dB until 8 notes. Evidence (2026-10-29, her recordings 10/26-10/28,
+  105 judged notes re-run offline, peak frame dB in 100 ms after the
+  onset): session medians -35..-28 dB (so only relative works), Bell's
+  LH f line +4.7 / +6.0 dB over its RH mf line, 15% of ordinary notes ≥
+  median + 5, max +12. Live headless replay of 10/28's Bell read ~3 dB
+  lower overall but the same +7 between the lines. MIC OFF / DEAD
+  (mic switch, mic-health's `pianopad.micDead`, or listen() not running
+  in 1.5 s; also if it goes off/dead midway): "Tap the lion to wake it
+  up!" and a tap (primary finger) wakes it. Grown-up two-finger tap / →
+  wakes it (a touch that began before it opened is ignored). The band:
+  a.band = her, picks, 'lion', guest (adventure.js `lion('finish')`
+  inserts it); the map's lineup has a Roary slot (dim asleep sprite,
+  "Zzz") between the pick and the ⭐. In the party Roary plays
+  `timpani` (instruments.js `boom`: tuned kettle drum on the bass line's
+  chord roots, G2..F♯3; unarranged: a boom per bar) and hops on the beat
+  like the drums. ATTACK LEVEL: engine.js `attackLevel(note, ms=100)` →
+  Promise<dB> = the loudest detector frame `db` from the attack to 100 ms
+  later (engine keeps ~3 s of frames), and `simulate(midi, { level })`
+  for tests (piano-audio's file: an additive change, tell them). Homework
+  judge events get `lvl` (dB) filled in ~0.1 s later (hit and other;
+  rhythm pieces only feed the typical). Logs (adventure session, step
+  'lion'): start { before, typical, typicalN, thr, mode: mic | tap |
+  none, why? mic-off | mic-dead | no-mic }, finish { by: notes | tap |
+  grownup, ms, notes: [{ ms, midi, db, thr, firm }], firm, typical,
+  typicalN, thr, mode, why?, joined? }, quit (same, no by). logs.mjs:
+  "lion notes 3/5 firm +4.1dB" (her lion notes' median over typical:
+  watch it for firmer notes over time). Drop the lion when the teacher
+  moves on (LION_BEFORE).
   BUNNY HOUSE (2026-10-08, pedagogy: the teacher's goal is hand shape,
   a "tall round bunny house": curved fingers, high knuckle, room
   underneath). A reminder ritual, never a check: pieces with `bunny:
@@ -518,7 +566,7 @@ As of 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build colu
   detector was actually told. Only the root app passes it; old /v/
   versions always run the default (agreed with audio).
 - Testing without the Chrome extension: headless Chrome + a small CDP script
-  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi)` (goes
+  (Node's WebSocket), fake silent mic, and `__engine.simulate(midi, { level })` (level: dB for attackLevel, e.g. the lion; goes
   straight to onNote listeners, bypassing the detector, since 9d268ae).
   Chrome flags: `--headless=new --remote-debugging-port=9333
   --use-fake-ui-for-media-stream --use-fake-device-for-media-stream

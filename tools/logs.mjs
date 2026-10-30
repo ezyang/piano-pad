@@ -30,6 +30,13 @@ const brief = (s) => {
     count('error') ? `ERRORS ${count('error')}` : '',
     s.jewels && Object.keys(s.jewels).length ? `jewels ${Object.entries(s.jewels).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     s.kind === 'me' ? `strokes ${s.strokes ?? 0}${s.wipes?.length ? ` wipes ${s.wipes.join(',')}` : ''}${s.undos ? ` undos ${s.undos}` : ''}` : '',
+    // The sleeping lion (lion.js): each wake, how (notes / tap / grownup),
+    // firm notes of all, and her notes' median over her typical level.
+    ...ev.filter((e) => e[1] === 'step' && e[2].step === 'lion' && e[2].what !== 'start').map(({ 2: d }) => {
+      const rel = (d.notes ?? []).filter((n) => n.db != null).map((n) => n.db - d.typical).sort((x, y) => x - y);
+      const med = rel.length ? rel[rel.length >> 1] : null;
+      return `lion ${d.what === 'quit' ? 'quit' : d.by} ${d.firm ?? 0}/${d.notes?.length ?? 0} firm${med != null ? ` ${med >= 0 ? '+' : ''}${med.toFixed(1)}dB` : ''}${d.why ? ` (${d.why})` : ''}`;
+    }),
     s.guest ? `guest ${s.guest}${s.band?.includes(s.guest) ? ' (came)' : ''}` : '',
     s.drawn && Object.keys(s.drawn).length ? `drawn ${Object.entries(s.drawn).map(([k, n]) => `${k}:${n}`).join(' ')}` : '',
     silent ? 'NO MIC INPUT (-120 dB)' : '',

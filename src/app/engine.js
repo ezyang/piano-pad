@@ -18,8 +18,16 @@
 //   micDevices(), useMic(deviceId|null)   list / pick the microphone (grown-up tools)
 //   startCapture(), stopCapture()         exact detector input + live events (diagnostics)
 //   play(audio, opts), stopAll()
-//   simulate(midi)      a pretend key press: onNote fires right away (the
-//                       detector isn't involved)
+//   simulate(midi, {level})  a pretend key press: onNote fires right away
+//                       (the detector isn't involved); `level` (dB) is what
+//                       attackLevel() reports for it (tests)
+//   attackLevel(note, ms=100) -> Promise<dB|null>  how loud a note's attack
+//                       was: the loudest detector frame level (the frames'
+//                       `db`, whole-band) from its attack to `ms` later.
+//                       Resolves once those frames are in (~100-150 ms
+//                       after onNote), null if there are none. Firm vs soft
+//                       is relative (mic placement moves it by ~7 dB from
+//                       day to day), so compare with her own recent notes.
 //   configure()         re-apply detectorOptions() after settings change
 //   expect(midis|null)  the note(s) the app is waiting for next (homework
 //                       targets); pitch events are marked `expected` (no
@@ -115,6 +123,7 @@ class Engine {
       if (e.type === 'frames') {
         if (e.skips !== undefined) this.skips = e.skips;
         this.level = e.frames[e.frames.length - 1].db;
+        this._frameDbs(e.frames, ctx);
         for (const L of [this.levelStats, this.wdStats]) {
           for (const f of e.frames) { L.min = Math.min(L.min, f.db); L.max = Math.max(L.max, f.db); L.sum += f.db; L.n++; }
         }
@@ -290,6 +299,38 @@ class Engine {
     return () => this.rawListeners.delete(fn);
   }
 
+  // Recent frame levels [time (s), dB] for attackLevel(), ~3 s, this context's.
+  _frameDbs(frames, ctx) {
+    if (this.dbCtx !== ctx) { this.dbCtx = ctx; this.dbs = []; }
+    for (const f of frames) if (f.sample != null) this.dbs.push([f.sample / ctx.sampleRate, f.db]);
+    const t = this.dbs.length ? this.dbs[this.dbs.length - 1][0] : 0;
+    let cut = 0;
+    while (cut < this.dbs.length && this.dbs[cut][0] < t - 3) cut++;
+    if (cut) this.dbs.splice(0, cut);
+    for (const w of [...(this.dbWait ?? [])]) if (t >= w.until) w.done();
+  }
+
+  attackLevel(note, ms = 100) {
+    if (note.level != null) return Promise.resolve(note.level);
+    const until = note.time + ms / 1000;
+    return new Promise((resolve) => {
+      const w = {
+        until,
+        done: () => {
+          this.dbWait.delete(w);
+          clearTimeout(w.timer);
+          let m = null;
+          for (const [t, db] of this.dbs ?? []) if (t >= note.time && t <= until && (m === null || db > m)) m = db;
+          resolve(m === null ? null : Math.round(m * 10) / 10);
+        },
+      };
+      (this.dbWait ??= new Set()).add(w);
+      w.timer = setTimeout(w.done, ms + 600); // no frames coming (mic gone): what there is
+      const last = this.dbs?.at(-1);
+      if (last && last[0] >= until && this.dbCtx === this.ctx) w.done();
+    });
+  }
+
   // Input level summary (dB) since the last call.
   takeLevelStats() {
     const L = this.levelStats;
@@ -338,7 +379,7 @@ class Engine {
   // goes straight to onNote listeners. It used to be synthesized into the
   // detector, but the default detector is trained on her piano and misses
   // most synth notes; the detector has its own tests (jig, bench).
-  async simulate(midi, { audible = !this.listening } = {}) {
+  async simulate(midi, { audible = !this.listening, level } = {}) {
     await this.start();
     for (const fn of this.simListeners) fn(midi);
     let time = this.ctx.currentTime;
@@ -349,7 +390,7 @@ class Engine {
       renderNote(audio, 0, { midi, vel: 0.7, dur: 0.5 }, sr, Math.random);
       time = this.play(audio).startTime;
     }
-    const note = { time, midi, clarity: 1, voice: false };
+    const note = { time, midi, clarity: 1, voice: false, ...(level != null ? { level } : {}) };
     for (const fn of this.listeners) fn(note);
   }
 }

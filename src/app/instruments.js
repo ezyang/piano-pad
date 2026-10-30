@@ -89,8 +89,30 @@ function drums(out, sr, beats, beat, t0, rng, perBar = 4) {
   }
 }
 
+// Roary's big low drum (timpani): a tuned boom, the strike's thump, then
+// the ringing partials of a kettle drum (1, 1.5, 2, 2.4 × f), dropping a
+// little in pitch as it starts.
+function boom(out, start, sr, midi, len) {
+  const f0 = midiToHz(midi), n = Math.min(out.length - start, Math.round(Math.min(len + 0.5, 1.6) * sr));
+  const parts = [[1, 1, 0.8], [1.5, 0.45, 0.45], [1.98, 0.25, 0.3], [2.44, 0.12, 0.2]];
+  const ph = parts.map(() => 0);
+  let lp = 0, seed = 7;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr, glide = 1 + 0.03 * Math.exp(-t / 0.04);
+    let v = 0;
+    parts.forEach(([r, a, d], k) => { ph[k] += (2 * Math.PI * f0 * r * glide) / sr; v += a * Math.exp(-t / d) * Math.sin(ph[k]); });
+    seed = (seed * 16807) % 2147483647;
+    lp += 0.08 * ((seed / 2147483647) * 2 - 1 - lp); // the mallet's thump: low noise
+    v += 2.5 * lp * Math.exp(-t / 0.02);
+    const atk = Math.min(1, i / (0.003 * sr)), rel = i > n - 0.05 * sr ? (n - i) / (0.05 * sr) : 1;
+    out[start + i] += 0.22 * v * atk * rel;
+  }
+}
+// Timpani range: G2..F♯3.
+const kettle = (p) => 43 + ((((p - 43) % 12) + 12) % 12);
+
 // Mix levels: brings each instrument alone to about -22 dB RMS.
-const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8 };
+const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8, timpani: 1.25 };
 
 // Voices that play the tune an octave up (the guests and Blobby's chip).
 const HIGH_TUNE = ['chip', 'meow', 'xylo'];
@@ -126,6 +148,12 @@ export function renderBand(song, members, sr, { boost = 0, arrange: arranged = f
     const buf = new Float32Array(out.length);
     const at = (n) => [lead + n.start * beat, n.d * beat];
     if (inst === 'drums') drums(buf, sr, beats, beat, lead, rng, perBar);
+    else if (inst === 'timpani') {
+      // The chords' roots (the bass line's notes) in the party; elsewhere
+      // a boom on each bar's first note.
+      const hits = parts ? parts.bass : laid.filter((n, i) => i === 0 || Math.floor(n.start / perBar + 1e-9) !== Math.floor(laid[i - 1].start / perBar + 1e-9));
+      for (const n of hits) { const [t, len] = at(n); boom(buf, Math.round(t * sr), sr, kettle(n.p), len); }
+    }
     else if (parts && inst === 'bass') for (const n of parts.bass) {
       const [t, len] = at(n);
       renderNote(buf, Math.round(t * sr), { midi: n.p, vel: 0.8, dur: len * 0.9 }, sr, rng);
@@ -222,6 +250,29 @@ export function renderBunnyHop(sr) {
   const out = new Float32Array(Math.round(1.4 * sr));
   [[0, 74], [0.05, 81], [0.32, 76], [0.37, 83]].forEach(([t, m]) => addTone(out, Math.round(t * sr), sr, 0.12, midiToHz(m), 0.09, 0.05, 'square'));
   [84, 88, 91, 96].forEach((m, i) => addTone(out, Math.round((0.7 + i * 0.07) * sr), sr, 0.5, midiToHz(m), 0.16, 0.18, 'bell'));
+  return out;
+}
+
+// The lion waking up (lion.js): a big, friendly ROAR, about 1.6 s. A
+// buzzy low voice that swoops up and back down, rumbling (a fast wobble in
+// its loudness), with breath noise on top, then a little happy grumble.
+export function renderRoar(sr) {
+  const T = 1.6, out = new Float32Array(Math.round((T + 0.3) * sr));
+  const rng = mulberry32(13);
+  let ph = 0, lp = 0, bp = 0;
+  for (let i = 0; i < T * sr; i++) {
+    const t = i / sr, u = t / T;
+    const f = 95 + 110 * Math.sin(Math.PI * Math.min(1, u * 1.25)) ** 1.5; // up, then down
+    ph += (2 * Math.PI * f) / sr;
+    let saw = 0;
+    for (let k = 1; k <= 12; k++) saw += Math.sin(k * ph) / k;
+    const env = Math.min(1, t / 0.12) * (u < 0.7 ? 1 : (1 - u) / 0.3);
+    const rumble = 0.6 + 0.4 * Math.sin(2 * Math.PI * 27 * t);
+    const x = rng() * 2 - 1;
+    lp += 0.25 * (x - lp); bp = lp - bp * 0.3;
+    out[i] += env * (0.22 * saw * rumble + 0.1 * bp * (0.4 + u));
+  }
+  for (let i = 0; i < out.length; i++) out[i] = Math.tanh(1.6 * out[i]) * 0.8;
   return out;
 }
 

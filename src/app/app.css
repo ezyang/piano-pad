@@ -646,3 +646,38 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .btn.primary.bunny-ok { min-width: 160px; font: 64px/1 system-ui, sans-serif; padding: 14px 40px; }
 .bunny-house.hopping .bunny-ok { opacity: 0.4; }
 .restore-box { font-family: ui-monospace, Menlo, monospace; font-size: 16px; line-height: 1.2; width: 14em; display: block; margin: 6px 0; }
+
+/* ---------- The sleeping lion, before Bell (lion.js) ---------- */
+.lion-moment { position: absolute; left: 50%; top: 46%; translate: -50% -50%; z-index: 12; width: min(88%, 620px); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 22px 22px 26px;
+  background: #241a44; border: 4px solid var(--gold); color: #fff; text-shadow: 3px 3px 0 #000;
+  animation: pop 0.35s ease-out; touch-action: manipulation; }
+.lion-moment.tap { cursor: pointer; }
+.lion-text { font: clamp(18px, 3.6vw, 30px) var(--pixel); text-align: center; line-height: 1.4; }
+.lion-sub { font: clamp(13px, 2.4vw, 20px) var(--pixel); text-align: center; line-height: 1.4; color: #ffe9a8; min-height: 1em; }
+.lion-scene { position: relative; width: 70%; aspect-ratio: 1; display: flex; align-items: flex-end; justify-content: center; }
+.lion-sprite { width: 72%; image-rendering: pixelated; transform-origin: 50% 100%; animation: lion-breathe 2.4s ease-in-out infinite; }
+@keyframes lion-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, 1.06); } }
+.lion-sprite.lion-stir { animation: lion-stir 0.7s ease-in-out; }
+@keyframes lion-stir { 0%, 100% { transform: none; } 20% { transform: rotate(-4deg); } 45% { transform: rotate(4deg); } 70% { transform: rotate(-2deg); } }
+.lion-sprite.lion-jolt { animation: lion-jolt 0.5s ease-out; }
+@keyframes lion-jolt { 0% { transform: none; } 30% { transform: translateY(-10%) scale(1.06); } 100% { transform: none; } }
+.lion-sprite.lion-roar { animation: lion-roar 1.2s ease-out; }
+@keyframes lion-roar { 0% { transform: scale(1); } 15% { transform: scale(1.25) rotate(-3deg); } 30% { transform: scale(1.2) rotate(3deg); }
+  45% { transform: scale(1.22) rotate(-3deg); } 60% { transform: scale(1.18) rotate(2deg); } 100% { transform: scale(1); } }
+.lion-moment.waking .lion-sprite { animation-iteration-count: 1; }
+.lion-zzz { position: absolute; right: 4%; top: 6%; width: 30%; height: 50%; font: clamp(18px, 4vw, 34px) var(--pixel); color: #cfe3ff; pointer-events: none; }
+.lion-zzz span { position: absolute; left: 0; bottom: 0; opacity: 0; animation: lion-z 3s linear infinite; }
+.lion-zzz span:nth-child(2) { animation-delay: 1s; font-size: 0.8em; }
+.lion-zzz span:nth-child(3) { animation-delay: 2s; font-size: 0.6em; }
+@keyframes lion-z { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(60%, -260%); } }
+.lion-hint { position: absolute; left: 50%; top: 4%; translate: -50% 0; white-space: nowrap; font: clamp(14px, 2.8vw, 22px) var(--pixel);
+  background: rgba(0, 0, 0, 0.55); border: 2px solid #000; padding: 6px 10px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.lion-hint.show { opacity: 1; }
+.lion-paws { display: flex; gap: 22px; }
+.lion-paw { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; font-size: 38px; border: 4px dashed #ffd84a; border-radius: 32px; filter: grayscale(1) opacity(0.35); }
+.lion-paw.on { border-style: solid; background: rgba(255, 216, 74, 0.25); filter: none; box-shadow: 0 0 14px #ffd84a; }
+.lion-moment.tap .lion-paws { display: none; }
+.lion-roar-text { font-size: clamp(36px, 9vw, 72px); color: var(--gold); animation: pop 0.4s ease-out; }
+.adv-lion-asleep { image-rendering: pixelated; filter: brightness(0.55) saturate(0.6); }
+.lion-sprite.hop { animation: hop 0.35s ease-out; }
