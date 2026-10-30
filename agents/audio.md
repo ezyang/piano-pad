@@ -662,3 +662,11 @@ As of 2026-09-26:
   371 -> 355, none new. Parent has been told the piano needs tuning: AFTER
   TUNING, re-measure with tools/tuning.mjs and reset (an in-tune F4 at
   ~+10 would still round right, but the margin to E4 shrinks).
+- **engine.attackLevel (app, 095bd99, Oct 29; reviewed OK).** Lion "firm"
+  = attack >= her median + 5 dB. The frame db is whole-band above lowCutHz
+  150, so low fundamentals are excluded. Measured (scratch/attack.mjs, Kong
+  single notes, dB relative to each recording's median): at Kong vel 50-69,
+  octave 2 +4.7, octave 3 +4.0, octave 4 +0.2, octave 5 +2.0. dB per 10 vel:
+  octave 4 1.7, octaves 3/5 about 3. So LH notes read ~4 dB louder at the
+  same strike, and octave 4 is the least sensitive. Suggested a per-octave
+  median to the app. Judge events now carry lvl: use it to track soft LH.
