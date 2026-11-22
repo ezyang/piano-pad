@@ -683,3 +683,8 @@ As of 2026-09-26:
   exact audio). Possible fix (needs parent/pedagogy OK): an
   expected-pair spectral check at the onset. Script:
   scratchpad chord.mjs (synth grid), easy to rewrite.
+  piano-app b209f0d (Nov 21): a chord passes on any one of its notes, any
+  octave; a second chord note within 0.15 s is ignored (judge why: 'chord');
+  expect() gets the pair; a missed chord waits for the grown-up tap. The
+  recording request and the chord-support offer went to the parent; the
+  answer comes back via maildog-d9.
