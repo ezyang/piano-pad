@@ -743,3 +743,12 @@ button.name-tag { background: none; border: 0; padding: 14px 18px; margin: -14px
 .car-light.whole { width: 30px; }
 .car-light.on { background: #ffd84a; border-color: #fff3a0; box-shadow: 0 0 8px #ffd84a; }
 .car-hint.calm { background: rgba(40, 60, 110, 0.85); color: #cfe8ff; }
+
+/* Sparkly gems (holds.js): a held-notes bonus */
+.gem.gem-star { animation: gem-star 1.2s ease-in-out infinite; }
+@keyframes gem-star { 0%, 100% { filter: brightness(1) drop-shadow(0 0 2px #fff); } 50% { filter: brightness(1.35) drop-shadow(0 0 10px #fff); } }
+.adv-star-moment { position: absolute; left: 50%; top: 40%; translate: -50% -50%; z-index: 14; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 30px; background: rgba(20, 16, 40, 0.88); border: 4px solid #fff3a0; box-shadow: 0 0 24px #fff3a0; animation: pop 0.45s ease-out; pointer-events: none; }
+.adv-star-moment .gem.big { width: 84px; height: 84px; }
+.adv-star-text { font: clamp(26px, 6vw, 44px) var(--pixel); color: #fff3a0; text-shadow: 3px 3px 0 #000; }
+.adv-star-sub { font: clamp(15px, 3vw, 22px) var(--pixel); color: #fff; }
+.burst.twinkle circle { stroke: #fff3a0; }

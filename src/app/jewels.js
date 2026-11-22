@@ -31,13 +31,18 @@ export const gem = (m, cls = '') => h('span', { class: 'gem ' + cls, style: jewe
 // How many gems a turn gives.
 export const PAIR = 2;
 
-// done({ ms, cells, unplaced, moves, removed }) when she taps ✓. cells: the
+// `bonus`: one more gem after the pair, a different kind (the sparkly gem
+// for held long notes, holds.js); it's placed like the others.
+// done({ ms, cells, unplaced, moves, removed, gems }) when she taps ✓. cells: the
 // ones she placed (first, second; fewer if she finished early), unplaced:
 // how many she didn't.
 // removed: [{ i, m }] the earlier jewels she took off (and didn't bring back).
 // quit() for leaving: keeps the ones she placed and returns the same
 // stats, without calling done.
-export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
+export function jewelTurn(parent, { m, n = PAIR, bonus = null, icon = '', done }) {
+  const kinds = [...Array(n).fill(m), ...(bonus ? [bonus] : [])];
+  n = kinds.length;
+  const mOf = (k) => kinds[k];
   const st = getState();
   const t0 = Date.now();
   const placed = Array(n).fill(null); // cell of each new gem
@@ -46,7 +51,6 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
   const gone = new Map(); // cell → earlier jewel she removed this turn
   const restored = new Set(); // cells whose removal she has undone once
   let undo = null; // cell she just removed a jewel from (one tap to bring it back)
-  const { c, l } = jewelColors(m);
   const nextUp = () => placed.indexOf(null); // -1 once all are placed
 
   const cells = st.character.map(() => h('div', { class: 'cell' }));
@@ -57,11 +61,11 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
     const ghost = !j && k < 0 && undo === i;
     const el = cells[i];
     el.className = 'cell' + (j || k >= 0 ? ' gem' : v < 0 ? ' clear' : '') + (k >= 0 ? ' gem-new' : '') + (k >= 0 && k === sel ? ' gem-sel' : '') + (ghost ? ' gem-ghost' : '');
-    el.style.cssText = (j ? jewelStyle(j.m) : k >= 0 ? jewelStyle(m) : v < 0 ? '' : `background:${CHAR_PALETTE[v]}`) + (ghost ? ';' + jewelStyle(gone.get(i).m) : '');
+    el.style.cssText = (j ? jewelStyle(j.m) : k >= 0 ? jewelStyle(mOf(k)) : v < 0 ? '' : `background:${CHAR_PALETTE[v]}`) + (ghost ? ';' + jewelStyle(gone.get(i).m) : '');
   };
   cells.forEach((_, i) => paintCell(i));
   const board = h('div', { class: 'board jewel-board', style: `grid-template-columns:repeat(${CHAR_W}, 1fr)` }, cells);
-  const waiting = placed.map(() => gem(m, 'jewel-waiting'));
+  const waiting = placed.map((_, k) => gem(mOf(k), 'jewel-waiting' + (k >= PAIR && bonus ? ' gem-star' : '')));
   const showWaiting = () => {
     const k = nextUp();
     waiting.forEach((w, i) => { w.classList.toggle('placed', placed[i] != null); w.classList.toggle('next', i === k); });
@@ -84,6 +88,7 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
     showWaiting();
     doneBtn.classList.toggle('ready', nextUp() < 0);
     const r = cells[i].getBoundingClientRect(), b = box.getBoundingClientRect();
+    const { c, l } = jewelColors(mOf(k));
     sparkle(box, r.left - b.left + r.width / 2, r.top - b.top + r.height / 2, [c, '#ffffff', l, c], 14);
   }
   const centre = (i) => {
@@ -181,10 +186,10 @@ export function jewelTurn(parent, { m, n = PAIR, icon = '', done }) {
   const keep = () => {
     const left = st.jewels.filter((j) => gone.get(j.i) !== j);
     st.jewels.splice(0, st.jewels.length, ...left);
-    for (const i of placed) if (i != null) st.jewels.push({ i, m });
+    placed.forEach((i, k) => { if (i != null) st.jewels.push({ i, m: mOf(k) }); });
     save();
   };
-  const stats = () => ({ ms: Date.now() - t0, cells: placed.filter((i) => i != null), unplaced: placed.filter((i) => i == null).length, moves, removed: [...gone.values()].map(({ i, m }) => ({ i, m })) });
+  const stats = () => ({ ms: Date.now() - t0, cells: placed.filter((i) => i != null), unplaced: placed.filter((i) => i == null).length, moves, removed: [...gone.values()].map(({ i, m }) => ({ i, m })), gems: placed.map((i, k) => (i != null ? mOf(k) : null)).filter(Boolean) });
 
   function close() {
     if (over) return;

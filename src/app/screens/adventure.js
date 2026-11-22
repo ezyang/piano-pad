@@ -11,7 +11,7 @@ import { createStaff, systemHeight, roomBelow, roomAbove } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout, meter } from '../music.js';
 import { rhythmBars } from '../rhythm-bars.js';
-import { bandMember, bandSprite, texture, pieceGem, jewelStyle, lionUrl, carUrl } from '../pixels.js';
+import { bandMember, bandSprite, texture, pieceGem, jewelStyle, lionUrl, carUrl, starOf } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle, renderYay, renderDrumroll } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
@@ -25,6 +25,7 @@ import { bunnyHouse } from '../bunny.js';
 import { lionMoment, rememberLevel } from '../lion.js';
 import { carMoment } from '../car.js';
 import { nameTag } from '../name-picker.js';
+import { holdTracker } from '../holds.js';
 import { isGrownup } from '../player.js';
 import { heard, onMicToggle } from '../mic-off.js';
 
@@ -322,7 +323,7 @@ function piece(root, id) {
     if (myGen !== gen) return;
     adv.startStep(step, { grain, labels });
     const ps = seq.flatMap((x) => x.ps);
-    session = { cur: 0, cheered: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)) };
+    session = { cur: 0, cheered: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)), holds: rhythm ? null : holdTracker(seq) };
     log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(again ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}), ...(song.times ? { times } : {}),
       song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
     showCurrent();
@@ -411,6 +412,14 @@ function piece(root, id) {
     barRect = null;
   }
 
+  // A long note she held (holds.js): a ✨ on it, as she plays on.
+  function twinkle(i) {
+    const g = page.burst?.(i, 'twinkle');
+    if (!g) return;
+    const r = g.getBoundingClientRect(), b = pageBox.getBoundingClientRect();
+    sparkle(pageBox, r.left - b.left + r.width / 2, r.top - b.top + r.height / 2, ['#ffffff', '#fff3a0', '#d4f6ff'], 8);
+  }
+
   // --- melody pieces: one note at a time; by: 'detector' | 'grownup' ---
   function advance(by, got) {
     const k = session.cur;
@@ -453,7 +462,9 @@ function piece(root, id) {
     }
     if (fits(n.midi, k)) {
       session.chord = seq[k].ps.length > 1 ? { time: n.time, ps: seq[k].ps } : null;
+      const holds = session.holds;
       attack(n, advance('detector', n.midi));
+      if (holds) for (const j of holds.hit(k, n.time)) if (j.held) twinkle(seq[j.k].i);
     }
     else { const data = { k, want: want(k), got: n.midi, grade: 'other' }; log.event('judge', data); attack(n, data); }
   }
@@ -535,7 +546,7 @@ function piece(root, id) {
       return;
     }
     const end = grain === 'note' ? session.cur + 1 : grain === 'bar' ? bars[barIndexOf[session.cur]].at(-1) + 1 : seq.findIndex((x, k) => k >= session.cur && passEnd(k)) + 1;
-    while (session && session.cur < end) advance('grownup');
+    while (session && session.cur < end) { const k = session.cur; advance('grownup'); session?.holds?.hit(k, null); }
   }
   // ...and back: to the start of the bar she's partway through, else the
   // step before (one note / the bar before / the top at the piece grain).
@@ -600,13 +611,18 @@ function piece(root, id) {
   function finish() {
     if (!session) return;
     session.off();
+    // Held long notes (holds.js): the counts go in the log; a run that held
+    // them earns a sparkly gem after the pair. Nothing is said otherwise.
+    const holds = session.holds?.summary() ?? null;
     session = null;
     finished = true;
     hideSetup();
     engine.expect?.(null);
     engine.listen(false);
+    if (holds) log.event('holds', holds);
     log.endSession({ completed: true });
-    adv.finishStep(step, { grain, labels });
+    const bonus = holds?.bonus ? starOf(jewel) : null;
+    adv.finishStep(step, { grain, labels, ...(holds ? { held: holds.held, counted: holds.counted, stalls: holds.stalls, quarterMs: holds.quarterMs, bonus: !!bonus } : {}) });
     for (const i of page.targets) page.mark(i, 'hit');
     if (again) { setStars(times); flash(passLabel, 'pop', 400); }
     engine.play(renderJingle(engine.ctx.sampleRate));
@@ -625,11 +641,24 @@ function piece(root, id) {
       welcome(stageEl, joined, h('a', { class: 'btn primary huge', href: '#/adventure/party' }, '🎉 Party!'));
       warmParty(a); // render the party's first piece while she looks at the welcome
     };
+    let wait = 1600;
+    if (bonus) {
+      // The sparkly gem's moment: big, with sparkles, before the jewel turn.
+      wait = 3600;
+      setTimeout(() => {
+        if (!screen.isConnected) return;
+        const moment = h('div', { class: 'adv-star-moment' }, gem(bonus, 'gem-star big'), h('div', { class: 'adv-star-text' }, 'Sparkly gem!'), h('div', { class: 'adv-star-sub' }, 'You held your long notes!'));
+        stageEl.append(moment);
+        const r = stageEl.getBoundingClientRect();
+        for (let j = 0; j < 5; j++) setTimeout(() => moment.isConnected && sparkle(stageEl, r.width * (0.3 + 0.4 * Math.random()), r.height * (0.3 + 0.3 * Math.random()), ['#ffffff', '#fff3a0', '#d4f6ff', jewelStyle(bonus).match(/--c:([^;]+)/)?.[1] ?? '#ffd84a'], 16), j * 200);
+        setTimeout(() => moment.remove(), 1900);
+      }, 1500);
+    }
     setTimeout(() => {
       if (!screen.isConnected) return;
       adv.startJewel(step, jewel);
       jeweling = jewelTurn(stageEl, {
-        m: jewel, icon: STOPS[step][0],
+        m: jewel, bonus, icon: STOPS[step][0],
         done: (stats) => {
           jeweling = null;
           adv.endJewel('finish', stats);
@@ -639,7 +668,7 @@ function piece(root, id) {
           setTimeout(next, 1200);
         },
       });
-    }, 1600);
+    }, wait);
   }
 
   // The bunny house first (pieces with `bunny`: Dot), every time the piece

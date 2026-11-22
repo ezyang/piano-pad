@@ -42,6 +42,24 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
+SPARKLY BONUS GEM FOR HELD LONG NOTES (2026-11-22, pedagogy + parent: she
+cuts halves short, median 1.65 beats, and speeds up to farm gems). The
+normal pair is untouched. holds.js (pure, test/holds.mjs): each long note
+(d ≥ 2) is the time from its hit to the next hit vs HER median quarter
+in the run (quarters 0.15-2.5 s); held ≥ NEED {2: 1.7, 3: 2.6, 4: 3.5} ×
+q; a stall (> STALL_X 1.5 × d × q) is left out; grown-up steps and the
+change between times are left out; long notes wait until MIN_QUARTERS 2
+quarters are known. Each held note gets a ✨ burst + sparkle on the staff
+as she plays on (staff.js burst 'twinkle'). Bonus: ≥ MIN_LONG 3 counted
+and ≥ SHARE 0.75 held → a "Sparkly gem!" moment, then the jewel turn has
+a third gem, '<gem>-star' (pixels.js STARS: brighter tones, bigger and
+quicker glint; kept out of GEMS/GEM_NAMES; older versions show gold).
+Nothing at all when not earned. Melody pieces only (not rhythm pieces).
+Logs: homework session event 'holds' { quarterMs, quarters, held,
+counted, stalls, unjudged, bonus, notes [{k, d, ms, ratio, held, stall}] };
+the adventure step finish also has held/counted/stalls/quarterMs/bonus;
+jewel turn stats have `gems`.
+
 PARTY LAYOUT (2026-11-21, parent via pedagogy: the band went off the top
 after b209f0d): the band row and button rows don't shrink; the staff box
 takes the rest (flex 1 1 0) and scrolls; bookPage sizes the staff to fit

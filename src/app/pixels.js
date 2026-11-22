@@ -163,11 +163,18 @@ export const GEMS = {
   pearl: gemTones('#ffffff', '#efe4d6', '#9c8670'), // creamy white (Friends, 2026-11-21)
 };
 export const GEM_NAMES = Object.keys(GEMS);
+// Sparkly gems (2026-11-22): '<gem>-star', a brighter version of each gem,
+// earned for HOLDING long notes in a homework run (holds.js). Kept out of
+// GEMS/GEM_NAMES (pieceGem's fallback order stays the same); drawn with a
+// bigger, quicker glint. Older versions don't know them and show gold.
+const STARS = Object.fromEntries(Object.entries(GEMS).map(([k, g]) => [k + '-star', gemTones('#ffffff', mix(g.c, '#ffffff', 0.3), g.c)]));
+export const starOf = (name) => (GEMS[name] ? name + '-star' : STARS[name] ? name : 'gold-star');
+export const isStar = (name) => !!STARS[name];
 // Jewels saved before gems (9041ed3) carry a Build block name: each becomes
 // a gem (planks were Train's, now ruby; stone was Ode's, now diamond).
 const OLD_GEM = { planks: 'ruby', stone: 'diamond', grass: 'emerald', brick: 'ruby' };
-export const gemName = (name) => (GEMS[name] ? name : OLD_GEM[name] ?? 'gold');
-export const jewelColors = (name) => GEMS[gemName(name)];
+export const gemName = (name) => (GEMS[name] || STARS[name] ? name : OLD_GEM[name] ?? 'gold');
+export const jewelColors = (name) => GEMS[gemName(name)] ?? STARS[gemName(name)];
 // A piece's gem: its own `gem` (homework.js), else by its place k in the list.
 export const pieceGem = (piece, k = 0) => (GEMS[piece?.gem] ? piece.gem : GEM_NAMES[k % GEM_NAMES.length]);
 // A CSS custom-property string for an element showing a jewel (.gem in app.css).
@@ -204,9 +211,10 @@ function characterSvg(grid, jewels) {
       + `<rect x="${x + o}" y="${y + o}" width="${e - o}" height="${e - o}" fill="${c}"/>`
       + `<rect x="${x + o + 0.06}" y="${y + o + 0.06}" width="0.14" height="0.14" fill="#fff" opacity="0.9"/>`
       + `<rect x="${x}" y="${y}" width="1" height="1" fill="#fff" opacity="0"><animate attributeName="opacity" values="0;0;0.55;0" keyTimes="0;0.6;0.8;1" dur="2.6s" begin="${beg}s" repeatCount="indefinite"/></rect>`;
-    const cx = x + 0.3, cy = y + 0.3, r = 0.55, q = 0.1;
+    // A sparkly gem: a bigger glint, twice as often.
+    const star = isStar(name), cx = x + 0.3, cy = y + 0.3, r = star ? 0.85 : 0.55, q = star ? 0.14 : 0.1;
     glints += `<path d="M${cx} ${cy - r}L${cx + q} ${cy - q}L${cx + r} ${cy}L${cx + q} ${cy + q}L${cx} ${cy + r}L${cx - q} ${cy + q}L${cx - r} ${cy}L${cx - q} ${cy - q}z" fill="#fff" opacity="0">`
-      + `<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.66;0.8;1" dur="2.6s" begin="${beg}s" repeatCount="indefinite"/></path>`;
+      + `<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.66;0.8;1" dur="${star ? 1.3 : 2.6}s" begin="${beg}s" repeatCount="indefinite"/></path>`;
   });
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CHAR_W}" height="${CHAR_H}" viewBox="0 0 ${CHAR_W} ${CHAR_H}"><g shape-rendering="crispEdges">${body}</g>${gems}${glints}</svg>`;
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
