@@ -688,3 +688,15 @@ As of 2026-09-26:
   expect() gets the pair; a missed chord waits for the grown-up tap. The
   recording request and the chord-support offer went to the parent; the
   answer comes back via maildog-d9.
+- **Real chords are fine (Nov 22 UTC, her 10 Driving/Friends sessions,
+  b209f0d, verified default; tonight's logs are local: this machine IS
+  autobox, ~/piano-logs).** The synthetic grid was wrong again: live, 98/100
+  chord steps advanced by the detector (2 grown-up taps), often as a C3
+  reading (42) that passes (loud chords, -17..-27 dB). Chord steps with a
+  rejected C/G reading before the advance: 20/95 vs singles 25/225, but
+  nearly all at normal tempo (ringing re-reads, or a net 'low' C3 followed by
+  the dsp C3 60-100 ms later); real stalls ~3/95. The pair check was NOT
+  built: no headroom on real data, and it adds speech risk (a voice at C3
+  has exactly the C4+G4 partials). Revisit if soft ('p') chords or the
+  parent's exact-audio take show misses. Scripts: scratchpad
+  chordsum.mjs / chordtries.mjs (judge-based; easy to rewrite).
