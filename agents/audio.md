@@ -670,3 +670,16 @@ As of 2026-09-26:
   octave 4 1.7, octaves 3/5 about 3. So LH notes read ~4 dB louder at the
   same strike, and octave 4 is the least sensitive. Suggested a per-octave
   median to the app. Judge events now carry lvl: use it to track soft LH.
+- **CHORDS (Nov 21, piano-app ask; homework has C4+G4 halves/whole, RH 1+5,
+  and LH C4 + RH G4).** Synthetic only (no real chord recordings;
+  ~/Dev/piano-audio-data is NOT on this machine any more, so find or restore
+  it before real-data work). Default verified detector: C4+G4 within 0-10 ms
+  -> NSDF reads the common period C3, which is mostly rejected (verifier/low):
+  45/108 strikes gave any note. 25-50 ms apart -> C4 every time (108/108).
+  Never two onNotes per chord. 'unverified' accepts the C3s (more false
+  notes overall). expect([60,67]) changes nothing (label only). Told
+  piano-app: accept C or G any octave incl. C3, expect misses, lean on the
+  grown-up tap. Asked for a real take (~10 chords + ~10 LH C4/RH G4, Save
+  exact audio). Possible fix (needs parent/pedagogy OK): an
+  expected-pair spectral check at the onset. Script:
+  scratchpad chord.mjs (synth grid), easy to rewrite.
