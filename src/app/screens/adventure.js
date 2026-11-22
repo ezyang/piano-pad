@@ -24,6 +24,7 @@ import { jewelTurn, gem, PAIR } from '../jewels.js';
 import { bunnyHouse } from '../bunny.js';
 import { lionMoment, rememberLevel } from '../lion.js';
 import { carMoment } from '../car.js';
+import { nameTag } from '../name-picker.js';
 import { isGrownup } from '../player.js';
 import { heard, onMicToggle } from '../mic-off.js';
 
@@ -114,7 +115,7 @@ function lineup(a, big = false) {
     here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐')
       : id === adv.LION_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: lionUrl('asleep') })
       : id === adv.CAR_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: carUrl() }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
-    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.LION_ID ? 'Zzz' : id === adv.CAR_ID ? 'Beep?' : '?'),
+    id === 'piano' ? nameTag() : h('div', { class: 'member-name' }, here ? member(id).name : id === adv.LION_ID ? 'Zzz' : id === adv.CAR_ID ? 'Beep?' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
 
@@ -195,8 +196,11 @@ export function bookPage(song, width, height, labels = 'book') {
   const handed = song.notes.some((x) => x.hand);
   const firsts = new Set(handed ? ['R', 'L'].map((hd) => song.notes.findIndex((x) => x.hand === hd)).filter((i) => i >= 0) : (song.setup ?? []).map((x) => x.at));
   const rows = [...(song.rhythm ? ['rhythm'] : []), ...(labels === 'letters' ? ['letters'] : [])];
-  const size = Math.max(14, Math.min(22, Math.round(width / 38)));
   const letters = rows.length ? rows : 'none';
+  // Staff spaces from the width, smaller if one line wouldn't fit the
+  // height (a grand staff in the party's box in landscape).
+  const fitH = Math.floor((height - 20) / systemHeight(1, song.clef, letters, roomBelow(song), roomAbove(song)));
+  const size = Math.max(10, Math.min(Math.max(14, Math.min(22, Math.round(width / 38))), fitH));
   return createStaff(song, {
     // The whole page at once when it fits, like the book.
     s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters, roomBelow(song), roomAbove(song)))),
@@ -715,7 +719,7 @@ function party(root) {
     class: 'btn big' + (PIECES[pid] === song ? ' on' : ''), 'data-piece': pid, title: STOPS[pid][1],
   }, STOPS[pid][0]));
   const members = ids.map((id, i) => h('div', { class: 'member' },
-    imgs[i], h('div', { class: 'member-name' }, member(id).name),
+    imgs[i], id === 'piano' ? nameTag() : h('div', { class: 'member-name' }, member(id).name),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` })));
   const scene = h('div', { class: 'band-stage' }, members);
   const partyEl = h('div', { class: 'screen band adv-party' },
@@ -730,7 +734,7 @@ function party(root) {
   let staff;
   function drawStaff() {
     for (const b of pieceBtns) b.classList.toggle('on', PIECES[b.dataset.piece] === song);
-    staff = bookPage(song, staffBox.clientWidth - 12, innerHeight * 0.42);
+    staff = bookPage(song, staffBox.clientWidth - 12, Math.max(120, staffBox.clientHeight - 12));
     staffBox.replaceChildren(staff.el);
   }
   drawStaff();

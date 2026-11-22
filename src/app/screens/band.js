@@ -1,4 +1,5 @@
 import { h, flash } from '../dom.js';
+import { nameTag } from '../name-picker.js';
 import { getSong, getState, save, meUrl } from '../store.js';
 import { createStaff, systemHeight, resolveClef } from '../staff.js';
 import { BAND, bandSprite, texture } from '../pixels.js';
@@ -26,7 +27,7 @@ export function band(root, id) {
         save();
         el.classList.toggle('muted', k < 0);
       },
-    }, img, h('div', { class: 'member-name' }, unlocked ? m.name : '?'),
+    }, img, i === 0 ? nameTag() : h('div', { class: 'member-name' }, unlocked ? m.name : '?'),
       h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }));
     return { m, el, img, unlocked };
   });

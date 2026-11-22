@@ -42,6 +42,24 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
+PARTY LAYOUT (2026-11-21, parent via pedagogy: the band went off the top
+after b209f0d): the band row and button rows don't shrink; the staff box
+takes the rest (flex 1 1 0) and scrolls; bookPage sizes the staff to fit
+one line in the box's height (min s 10). Piece buttons compact (13 fit on
+one row at 1024 wide, two rows in portrait). Checked headless at 820×1180,
+1180×820, 768×1024, 1024×768: every sprite and button on screen.
+
+HER BAND NAME (2026-11-21, pedagogy; she asked): BAND[0].name is a getter
+on name.js `playerName()` ('Princess' unless she picked one; own key
+`pianopad.name`, kept across clean slates like her character). She taps
+her name (map lineup, party, band screen: name-picker.js `nameTag`) and a
+big A-Z board opens (␣, ⌫, ✓, ✕; 12 max; ✓ empty = Princess). ⚙︎ "Her band
+name" for grown-ups. Logged as sessions of kind 'rename' with lengths
+only ({ from/to: 'default' | 'own', fromLen, len, by? }): NOT the name
+itself, which may be her real name (logging it = new data collection,
+asked pedagogy/parent). Never put her chosen name in the repo, tests or
+committed screenshots.
+
 NEW HOMEWORK 2026-11-21 (parent via the relay session; Remote Control was
 down): Driving → Friends → party (Dot, Bell to the party's buttons; gems
 peridot (lime) and pearl (cream); 🚗 / 👭). Driving is PICKING (one band

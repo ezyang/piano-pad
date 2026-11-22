@@ -697,3 +697,28 @@ body.rec-audio::after { content: 'REC'; position: fixed; top: max(6px, env(safe-
 .car-moment .lion-paws { gap: 12px; }
 .car-moment.tap .lion-paws { display: flex; }
 
+
+/* ---------- Her band name (name-picker.js) ---------- */
+button.name-tag { background: none; border: 0; padding: 14px 18px; margin: -14px -18px; position: relative; z-index: 1; cursor: pointer; text-decoration: underline dotted rgba(255, 255, 255, 0.6); text-underline-offset: 3px; }
+.name-picker { position: fixed; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); }
+.name-panel { background: #241b3f; border: 4px solid var(--gold, #ffd84a); padding: 16px; width: min(94vw, 760px); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.name-title { font: clamp(18px, 3.6vw, 28px) var(--pixel); color: #fff; }
+.name-shown { font: clamp(28px, 7vw, 54px) var(--pixel); color: #ffd84a; min-height: 1.3em; letter-spacing: 0.08em; text-align: center; word-break: break-all; }
+.name-shown.empty { color: #776f99; }
+.name-keys { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; width: 100%; }
+.name-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1.4fr; gap: 8px; width: 100%; }
+.name-key { font: clamp(22px, 5vw, 40px) var(--pixel); min-height: clamp(56px, 9vw, 80px); background: #fff; color: #1b1b1b; border: 3px solid #000; box-shadow: 0 4px 0 #000; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.name-key:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+.name-key.done { background: #5fc24a; }
+.name-key.cancel { background: #e8433a; color: #fff; }
+.name-key.back { background: #ffd84a; }
+
+/* Party layout (2026-11-21: a tall grand staff, Friends, and 13 piece
+   buttons squeezed the band off the top). The band and the buttons keep
+   their size; the staff box takes what's left and scrolls inside. Piece
+   buttons are compact so more old pieces still wrap into few rows. */
+.adv-party .band-stage { flex: 0 0 auto; }
+.adv-party > .row { flex: 0 0 auto; }
+.adv-party > .staff-box.book-box { flex: 1 1 0; min-height: 120px; }
+.adv-party .btn.big[data-piece] { min-height: 52px; min-width: 60px; padding: 4px 10px; font-size: 26px; }
+.adv-party > .row { gap: 8px; }

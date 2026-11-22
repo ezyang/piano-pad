@@ -7,6 +7,8 @@ import { engine } from '../engine.js';
 import { EXPERIMENTS, enabledExperiments, setExperimentEnabled } from '../experiments.js';
 import { labelMode } from '../labels.js';
 import { isGrownup, setGrownup } from '../player.js';
+import { playerName, setPlayerName, hasOwnName, NAME_MAX, DEFAULT_NAME } from '../name.js';
+import { record as recordRename } from '../telemetry.js';
 
 export function home(root) {
   const st = getState();
@@ -78,9 +80,23 @@ export function home(root) {
       },
     }, 'Restore'),
     restoreMsg);
+  // ⚙︎ Her band name (name.js; she can change it herself by tapping it).
+  // Logged like her own renames, lengths only (name-picker.js).
+  const nameBox = h('input', { type: 'text', maxlength: NAME_MAX, value: hasOwnName() ? playerName() : '', placeholder: DEFAULT_NAME, autocapitalize: 'characters', autocomplete: 'off', spellcheck: false });
+  const nameMsg = h('span', { class: 'hint' });
+  const nameRow = h('label', { class: 'check' }, 'Her band name: ', nameBox,
+    h('button', { class: 'menu-btn', onclick: (e) => {
+      e.preventDefault();
+      const was = hasOwnName(), fromLen = was ? playerName().length : 0;
+      setPlayerName(nameBox.value);
+      nameBox.value = hasOwnName() ? playerName() : '';
+      try { recordRename({ ...sessionHeader('rename'), events: [[0, 'rename', { from: was ? 'own' : 'default', fromLen, to: hasOwnName() ? 'own' : 'default', len: hasOwnName() ? playerName().length : 0, by: 'grownup' }]] }); } catch { /* best-effort */ }
+      nameMsg.textContent = ` Now: ${playerName()}`;
+    } }, 'Save'), nameMsg);
   const parent = h('details', { class: 'parent', ontoggle: (e) => { if (e.target.open) listMics(); } },
     h('summary', {}, '⚙︎'),
     h('div', { class: 'parent-menu' },
+      nameRow,
       h('label', { class: 'check' },
         h('input', { type: 'checkbox', checked: isGrownup() || null, onchange: (e) => setGrownup(e.target.checked) }),
         'A grown-up is playing (tags the logs; turns off on reload or after an hour idle)'),
