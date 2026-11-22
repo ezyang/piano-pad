@@ -42,6 +42,36 @@ parent's direction into things she wants to open.
 
 (Keep this section up to date. It's what the next instance of you reads.)
 
+NEW HOMEWORK 2026-11-21 (parent via the relay session; Remote Control was
+down): Driving → Friends → party (Dot, Bell to the party's buttons; gems
+peridot (lime) and pearl (cream); 🚗 / 👭). Driving is PICKING (one band
+pick), Friends brings the guest. FIRST CHORDS: a note may carry `also:
+[{p, hand?, f?}]` (homework.js `chord()`): drawn on the same stem (same
+hand) or with its own stem on the other hand's staff, the book's stacked
+fingers (5 over 1, `roomAbove`), stacked letters; the band's piano plays
+them; it counts when she plays ANY of its notes (any octave); another of
+its notes within CHORD_SPREAD (0.15 s) after is ignored (`why: 'chord'`).
+DETECTION CAVEAT (piano-audio, synth only): truly simultaneous C4+G4 gives
+a note only ~40% of the time (it reads C3, the verifier rejects it);
+25-50 ms apart → C4 always. So expect stalls on chords; the grown-up
+two-finger tap is the fallback. Audio offered a real fix (a pair check on
+the spectrum) pending the parent's OK, and wants a recording (~10 C+G
+chords, ~10 LH C + RH G, "Save exact audio"); asked the parent. A grand
+piece with `staff: true` is a real grand staff (staff.js), not the
+pre-staff book page; notes go on their HAND's staff (LH middle C on the
+bass's ledger line). Friends: LH 3 on middle C, RH 3 on G; bars 2/6 both
+hands together; once through (bars 5-8 already repeat 1-4); Driving twice.
+THE LION IS RETIRED (parent): LION_BEFORE = null (code kept; its map slot
+shows only if it's in the band). HONK CAR instead (parent picked it,
+car.js): before Driving, every strike (any key; chords one) honks and
+lights one of 5 horns (notes ignored 0.55 s after each honk, the mic
+hears it); then "Honky joined your band!" and in the party it honks the
+chord roots near middle C (instruments.js 'honk'). Mic off/dead: tap the
+car. Grown-up step finishes it. Logs: adventure step 'car' start/finish
+(by notes|tap|grownup, notes, honks, joined: 'car')/quit. Map slot "Beep?"
+until it joins. Not built: the book's finger challenge / Discovery
+(parent: leave them to the book).
+
 As of 2026-10-29 (lion firm check normalized by octave, firm.js; the sleeping lion before Bell: firm notes relative to her own attack level wake Roary, who joins the band on timpani; engine.attackLevel), 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):
 - **Today's adventure** leads the home screen. It's LINEAR (parent: "choose
   your own adventure is bad, we want to do all the material"), this week's

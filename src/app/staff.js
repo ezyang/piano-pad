@@ -30,10 +30,12 @@ export function resolveClef(song) {
 const labelMode = (letters) => (letters === true ? 'letters' : letters === false ? 'none' : Array.isArray(letters) ? letters[0] ?? 'none' : letters);
 const labelRows = (letters) => (Array.isArray(letters) ? letters : [labelMode(letters)]).filter((m) => m !== 'none');
 const ROW = 1.7; // label row pitch, in staff spaces
+const CHORD_ROW = 1.25; // a chord's letters, stacked (staff spaces)
 
 // below: extra staff spaces under the staff (left-hand fingers under down stems).
-function metrics(s, clef, letters, below = 0) {
-  const top = s * 3.2; // room for ledger lines above
+// above: extra staff spaces over the staff (stacked chord fingers).
+function metrics(s, clef, letters, below = 0, above = 0) {
+  const top = s * (3.2 + above); // room for ledger lines above
   const staves = [];
   if (clef === 'grand') {
     staves.push({ clef: 'treble', bottom: top + 4 * s });
@@ -46,11 +48,15 @@ function metrics(s, clef, letters, below = 0) {
   const rows = labelRows(letters).length;
   return { staves, letterY, height: rows ? letterY + s * 1.1 + (rows - 1) * s * ROW : last + s * (3 + below) };
 }
-export const systemHeight = (s, clef, letters, below = 0) => metrics(s, clef, letters, below).height;
+export const systemHeight = (s, clef, letters, below = 0, above = 0) => metrics(s, clef, letters, below, above).height;
+// Room a song needs over the staff for a chord's stacked fingers (5 over 1).
+export const roomAbove = (song) => (song.notes.some((n) => n.f != null && n.also?.some((o) => o.f != null && (o.hand ?? n.hand) === n.hand)) ? 1.4 : 0);
 // Notes may carry `hand: 'R' | 'L'` (as the book draws them: right hand
 // stems up, fingers above; left hand stems down, fingers below the stem).
 // Otherwise stems go by pitch. Room a song needs for that under the staff:
-export const roomBelow = (song) => (song.notes.some((n) => n.hand === 'L' && n.p != null) ? 3.6 : 0);
+export const roomBelow = (song) => (song.notes.some((n) => (n.hand === 'L' || n.also?.some((o) => o.hand === 'L')) && n.p != null) ? 3.6 : 0);
+// Extra rows for a chord's stacked letters.
+const chordRows = (song) => Math.max(0, ...song.notes.map((n) => n.also?.length ?? 0));
 
 // Book extras: song.sharps (a key signature: letters, e.g. ['F']),
 // song.repeat (an end-repeat sign), and `fingersAbove` (finger numbers above
@@ -64,9 +70,13 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   });
   const clef = resolveClef(song);
   const laid = layout(song.notes);
-  const { staves, letterY, height: H } = metrics(s, clef, letters, roomBelow(song));
-  const staffOf = (m) => (clef === 'grand' ? staves[m >= 60 ? 0 : 1] : staves[0]);
-  const yOf = (m) => { const st = staffOf(m); return st.bottom - (step(m) - REF[st.clef]) * (s / 2); };
+  const m0 = metrics(s, clef, letters, roomBelow(song), roomAbove(song));
+  const { staves, letterY } = m0;
+  const H = m0.height + (rows.length ? chordRows(song) * s * CHORD_ROW : 0);
+  // On a grand staff a note with a hand goes on that hand's staff (the
+  // left hand's middle C on its ledger line above the bass), else by pitch.
+  const staffOf = (m, hand) => (clef !== 'grand' ? staves[0] : staves[hand === 'R' ? 0 : hand === 'L' ? 1 : m >= 60 ? 0 : 1]);
+  const yOf = (m, hand) => { const st = staffOf(m, hand); return st.bottom - (step(m) - REF[st.clef]) * (s / 2); };
 
   // Horizontal: engraving-style spacing, bars grouped greedily into systems.
   const unit = s * 3.2;
@@ -133,21 +143,21 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
   const fxs = svgs.map(() => svg('g', { class: 'fx' }));
 
   // Ledger lines for pitch m at x.
-  const ledgers = (g, m, x) => {
-    const st = staffOf(m), ref = REF[st.clef], sp = step(m);
+  const ledgers = (g, m, x, hand) => {
+    const st = staffOf(m, hand), ref = REF[st.clef], sp = step(m);
     const line = (k) => g.append(svg('line', { x1: x - s, x2: x + s, y1: st.bottom - ((k - ref) * s) / 2, y2: st.bottom - ((k - ref) * s) / 2, class: 'ledger' }));
     for (let k = ref - 2; k >= sp; k -= 2) line(k);
     for (let k = ref + 10; k <= sp; k += 2) line(k);
   };
-  const byPitch = (m) => step(m) < REF[staffOf(m).clef] + 4;
-  const stemUp = (n) => (n.hand === 'R' ? true : n.hand === 'L' ? false : byPitch(n.p));
+  const byPitch = (m, hand) => step(m) < REF[staffOf(m, hand).clef] + 4;
+  const stemUp = (n) => (n.hand === 'R' ? true : n.hand === 'L' ? false : byPitch(n.p, n.hand));
 
   // Beamed ti-ti pairs (same staff, same line).
   const beamed = new Set(), pairs = [];
   for (let i = 0; i + 1 < laid.length; i++) {
     const a = laid[i], b = laid[i + 1];
     if (a.d === 0.5 && b.d === 0.5 && a.p != null && b.p != null && a.start % 1 === 0 &&
-        staffOf(a.p) === staffOf(b.p) && systemOf[i] === systemOf[i + 1]) {
+        !a.also && !b.also && staffOf(a.p, a.hand) === staffOf(b.p, b.hand) && systemOf[i] === systemOf[i + 1]) {
       beamed.add(i); beamed.add(i + 1); pairs.push(i); i++;
     }
   }
@@ -170,17 +180,33 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
       }
       return;
     }
-    restStaff = staffOf(n.p);
-    const y = yOf(n.p);
-    ledgers(g, n.p, hx);
-    if (k === 0) g.append(svg('circle', { cx: hx, cy: y, r: s * 1.15, class: 'halo' }));
-    if (k === 0 && isSharp(n.p)) g.append(svg('text', { x: hx - s * 1.3, y: y + s * 0.45, class: 'acc', 'font-size': s * 1.5 }, '♯'));
-    g.append(svg('ellipse', { cx: hx, cy: y, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${y})`, class: d >= 2 ? 'head hollow' : 'head' }));
+    restStaff = staffOf(n.p, n.hand);
+    const y = yOf(n.p, n.hand);
+    const head = (p, hand) => {
+      const hy = yOf(p, hand);
+      ledgers(g, p, hx, hand);
+      if (k === 0) g.append(svg('circle', { cx: hx, cy: hy, r: s * 1.15, class: 'halo' }));
+      if (k === 0 && isSharp(p)) g.append(svg('text', { x: hx - s * 1.3, y: hy + s * 0.45, class: 'acc', 'font-size': s * 1.5 }, '♯'));
+      g.append(svg('ellipse', { cx: hx, cy: hy, rx: s * 0.68, ry: s * 0.5, transform: `rotate(-20 ${hx} ${hy})`, class: d >= 2 ? 'head hollow' : 'head' }));
+      return hy;
+    };
+    head(n.p, n.hand);
     const up = stemUp(n);
+    // Notes played with it (`also`): on its stem when they're on its staff
+    // in the same hand, else (the other hand) with a stem of their own.
+    let y2 = y;
+    for (const o of n.also ?? []) {
+      const hand = o.hand ?? n.hand, oy = head(o.p, hand);
+      if (staffOf(o.p, hand) === staffOf(n.p, n.hand) && (hand ?? null) === (n.hand ?? null)) y2 = up ? Math.max(y2, oy) : Math.min(y2, oy);
+      else if (d < 4) {
+        const oup = stemUp({ p: o.p, hand }), ox = oup ? hx + s * 0.62 : hx - s * 0.62;
+        g.append(svg('line', { x1: ox, x2: ox, y1: oy, y2: oup ? oy - s * 3.4 : oy + s * 3.4, class: 'stem' }));
+      }
+    }
     const sx = up ? hx + s * 0.62 : hx - s * 0.62, sy = up ? y - s * 3.4 : y + s * 3.4;
-    if (d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y, y2: sy, class: 'stem' }));
+    if (d < 4 && !beamed.has(i)) g.append(svg('line', { x1: sx, x2: sx, y1: y2, y2: sy, class: 'stem' }));
     if (d === 0.5 && !beamed.has(i)) g.append(svg('path', { d: up ? `M${sx} ${sy} q${s * 0.9} ${s * 0.9} ${s * 0.5} ${s * 2}` : `M${sx} ${sy} q${s * 0.9} ${-s * 0.9} ${s * 0.5} ${-s * 2}`, class: 'flag' }));
-    if (d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
+    if (d === 3) g.append(svg('circle', { cx: hx + s * 1.1, cy: y - (step(n.p) % 2 === REF[staffOf(n.p, n.hand).clef] % 2 ? s * 0.5 : 0), r: s * 0.17, class: 'dot' }));
     // Tie to the next piece (on the far side of the head from the stem);
     // across a line break, out to the line's end / in from its start.
     const next = piecesOf[i][k + 1], tieY = y + (up ? s * 0.75 : -s * 0.75), bow = up ? s * 0.9 : -s * 0.9;
@@ -188,16 +214,31 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     if (next) tie(hx + s * 0.5, next.sys === pc.sys ? next.x - s * 0.5 : hx + s * 2.6);
     if (k > 0 && piecesOf[i][k - 1].sys !== pc.sys) tie(hx - s * 2.6, hx - s * 0.5);
     if (k > 0) return; // labels and fingers once, on the note itself
-    label(g, n.p, hx, letterY, n.f, n.d);
+    // A chord's letters stack under it, top note first (as the heads stand).
+    const ps = [n.p, ...(n.also ?? []).map((o) => o.p)].sort((a, b) => b - a);
+    ps.forEach((p, j) => label(g, p, hx, letterY + j * s * CHORD_ROW, p === n.p ? n.f : null, n.d));
+    const fingerAt = (f, p, hand, yy, j) => {
+      if (f == null) return;
+      if (hand === 'L') g.append(svg('text', { x: hx, y: Math.max(staffOf(p, hand).bottom + 2 * s, yy + s * (n.d < 4 ? 3.4 : 0.5)) + s * 1.6 + j * s * 1.3, class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
+      else g.append(svg('text', { x: hx, y: Math.min(staffOf(p, hand).bottom - 5.4 * s, yy - s * 4.2) + j * s * 1.4, class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
+    };
     const f = typeof fingersAbove === 'function' ? fingersAbove(i) : fingersAbove ? n.f : null;
-    if (f != null && n.hand === 'L') g.append(svg('text', { x: hx, y: Math.max(staffOf(n.p).bottom + 2 * s, y + s * (n.d < 4 ? 3.4 : 0.5)) + s * 1.6, class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
-    else if (f != null) g.append(svg('text', { x: hx, y: Math.min(staffOf(n.p).bottom - 5.4 * s, y - s * 4.2), class: 'letter finger-above', 'font-size': s * 1.3 }, String(f)));
+    // A chord's other fingers: under the note's own (5 over 1, the pair
+    // raised a row), or on the other hand's side.
+    const fn = typeof fingersAbove === 'function';
+    const sameHand = (o) => (o.hand ?? n.hand ?? null) === (n.hand ?? null);
+    const stacked = f != null && (n.also ?? []).some((o) => o.f != null && sameHand(o));
+    fingerAt(f, n.p, n.hand, y, stacked ? -1 : 0);
+    if (fingersAbove) (n.also ?? []).forEach((o) => {
+      const hand = o.hand ?? n.hand, same = sameHand(o);
+      fingerAt(fn && f == null ? null : o.f, o.p, hand, same ? y : yOf(o.p, hand), 0);
+    });
   }));
   for (const i of pairs) {
     const a = laid[i], b = laid[i + 1];
-    const up = a.hand ? stemUp(a) : (step(a.p) + step(b.p)) / 2 < REF[staffOf(a.p).clef] + 4;
+    const up = a.hand ? stemUp(a) : (step(a.p) + step(b.p)) / 2 < REF[staffOf(a.p, a.hand).clef] + 4;
     const off = up ? s * 0.62 : -s * 0.62;
-    const ax = headXs[i] + off, bx = headXs[i + 1] + off, ay = yOf(a.p), by = yOf(b.p);
+    const ax = headXs[i] + off, bx = headXs[i + 1] + off, ay = yOf(a.p, a.hand), by = yOf(b.p, b.hand);
     const beamY = up ? Math.min(ay, by) - s * 3.4 : Math.max(ay, by) + s * 3.4;
     groups[i].append(svg('line', { x1: ax, x2: ax, y1: ay, y2: beamY, class: 'stem' }),
       svg('line', { x1: ax, x2: bx, y1: beamY, y2: beamY, class: 'beam', 'stroke-width': s * 0.45 }));
@@ -240,7 +281,7 @@ export function createStaff(song, { s = 20, width = 1000, letters = 'letters', v
     burst(i, kind = 'hit') {
       const n = laid[i];
       if (n.p == null) return;
-      const hx = headXs[i], y = yOf(n.p);
+      const hx = headXs[i], y = yOf(n.p, n.hand);
       const g = svg('g', { class: 'burst ' + kind });
       g.append(svg('circle', { cx: hx, cy: y, r: s * 1.1 }),
         svg('text', { x: hx, y: y - s * 1.8, 'font-size': s * 1.5 }, kind === 'miss' ? '✕' : '✓'));

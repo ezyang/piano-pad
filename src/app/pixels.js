@@ -158,6 +158,8 @@ export const GEMS = {
   sapphire: gemTones('#b0ccff', '#3170f4', '#102f94'),
   topaz: gemTones('#ffd6a6', '#ff7d12', '#9a3d00'), // orange (Dot, 2026-10-23)
   rose: gemTones('#ffd1ec', '#ff4fae', '#9b1061'), // pink (Bell, 2026-10-23)
+  peridot: gemTones('#f1ffb0', '#a6e01e', '#4d7300'), // lime (Driving, 2026-11-21)
+  pearl: gemTones('#ffffff', '#efe4d6', '#9c8670'), // creamy white (Friends, 2026-11-21)
 };
 export const GEM_NAMES = Object.keys(GEMS);
 // Jewels saved before gems (9041ed3) carry a Build block name: each becomes
@@ -281,8 +283,13 @@ const LION_ROWS = {
 };
 export const LION = { id: 'lion', name: 'Roary', instrument: 'timpani', hi: 'ROAR! Boom boom!', art: LION_ROWS.awake };
 export const lionUrl = (face = 'awake') => sprite(LION_ROWS[face], P, 'lion:' + face);
+// Honky the car (car.js, 2026-11-21): honked awake before Driving, then
+// in the band honking the chords' roots ('honk'). Kept out of BAND/GUESTS.
+const CAR_ROWS = ['...rrrrrr...', '..rcccrcccr.', '..rcwkrcwkr.', 'rrrrrrrrrrrr', 'rrrrrrrrrrry', 'rrrrkrrkrrrr', '.rkkrrrrkkr.', '..kk....kk..'];
+export const CAR = { id: 'car', name: 'Honky', instrument: 'honk', hi: 'Honk honk!', art: CAR_ROWS };
+export const carUrl = () => sprite(CAR_ROWS, P, 'car');
 // Any band member or guest, by id.
-export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id) ?? (id === 'lion' ? LION : undefined);
+export const bandMember = (id) => BAND.find((m) => m.id === id) ?? GUESTS.find((m) => m.id === id) ?? (id === 'lion' ? LION : id === 'car' ? CAR : undefined);
 
 // --- The bunny house (adventure.js, before Reading; 2026-10-08): the
 // teacher's "tall round bunny house" hand. A bunny, and a hand seen from

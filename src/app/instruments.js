@@ -112,7 +112,7 @@ function boom(out, start, sr, midi, len) {
 const kettle = (p) => 43 + ((((p - 43) % 12) + 12) % 12);
 
 // Mix levels: brings each instrument alone to about -22 dB RMS.
-const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8, timpani: 1.25 };
+const GAIN = { piano: 2.07, bass: 1.35, drums: 1.74, musicbox: 2.16, chip: 2.92, meow: 1.23, horn: 1.72, xylo: 2.8, timpani: 1.25, honk: 0.85 };
 
 // Voices that play the tune an octave up (the guests and Blobby's chip).
 const HIGH_TUNE = ['chip', 'meow', 'xylo'];
@@ -154,6 +154,12 @@ export function renderBand(song, members, sr, { boost = 0, arrange: arranged = f
       const hits = parts ? parts.bass : laid.filter((n, i) => i === 0 || Math.floor(n.start / perBar + 1e-9) !== Math.floor(laid[i - 1].start / perBar + 1e-9));
       for (const n of hits) { const [t, len] = at(n); boom(buf, Math.round(t * sr), sr, kettle(n.p), len); }
     }
+    else if (inst === 'honk') {
+      // Honky's horn: a short honk on the chords' roots in the party (as
+      // Roary's drum), elsewhere on each bar's first note; around middle C.
+      const hits = parts ? parts.bass : laid.filter((n, i) => i === 0 || Math.floor(n.start / perBar + 1e-9) !== Math.floor(laid[i - 1].start / perBar + 1e-9));
+      for (const n of hits) { const [t] = at(n); honk(buf, Math.round(t * sr), sr, 60 + ((((n.p - 60) % 12) + 12) % 12) - (((n.p % 12) + 12) % 12 > 7 ? 12 : 0), Math.min(0.28, beat * 0.45), 0.07); }
+    }
     else if (parts && inst === 'bass') for (const n of parts.bass) {
       const [t, len] = at(n);
       renderNote(buf, Math.round(t * sr), { midi: n.p, vel: 0.8, dur: len * 0.9 }, sr, rng);
@@ -164,7 +170,7 @@ export function renderBand(song, members, sr, { boost = 0, arrange: arranged = f
     } else for (const n of laid) {
       const [t, len] = at(n);
       const s = Math.round(t * sr);
-      if (inst === 'piano') renderNote(buf, s, { midi: n.p, vel: 0.7, dur: len * 0.95 }, sr, rng);
+      if (inst === 'piano') for (const p of [n.p, ...(n.also ?? []).map((o) => o.p)]) renderNote(buf, s, { midi: p, vel: 0.7, dur: len * 0.95 }, sr, rng); // with a chord's other notes
       else if (inst === 'bass') renderNote(buf, s, { midi: n.p - 24, vel: 0.8, dur: len * 0.9 }, sr, rng);
       else if (inst === 'musicbox') addTone(buf, s, sr, len + 0.4, midiToHz(n.p + 12), 0.12, 0.35, 'bell');
       else if (inst === 'chip') addTone(buf, s, sr, len * 0.9, midiToHz(n.p + 12), 0.08, 2, 'square');
@@ -250,6 +256,27 @@ export function renderBunnyHop(sr) {
   const out = new Float32Array(Math.round(1.4 * sr));
   [[0, 74], [0.05, 81], [0.32, 76], [0.37, 83]].forEach(([t, m]) => addTone(out, Math.round(t * sr), sr, 0.12, midiToHz(m), 0.09, 0.05, 'square'));
   [84, 88, 91, 96].forEach((m, i) => addTone(out, Math.round((0.7 + i * 0.07) * sr), sr, 0.5, midiToHz(m), 0.16, 0.18, 'bell'));
+  return out;
+}
+
+// A toy car horn (Honky, car.js): two buzzy tones a major third apart,
+// a little detuned, pressed for `len` s. honk(out, start, sr, midi, len, amp)
+// sounds midi and its third; renderHonk(sr) is one "beep" on F4+A4.
+function honk(out, start, sr, midi, len, amp = 0.1) {
+  const n = Math.min(out.length - start, Math.round(len * sr));
+  const fs = [midiToHz(midi), midiToHz(midi) * 1.004, midiToHz(midi + 4), midiToHz(midi + 4) * 0.996];
+  const ph = fs.map(() => 0);
+  for (let i = 0; i < n; i++) {
+    let v = 0;
+    fs.forEach((f, k) => { ph[k] += (2 * Math.PI * f) / sr; v += Math.sin(ph[k]) + 0.5 * Math.sin(2 * ph[k]) + 0.33 * Math.sin(3 * ph[k]) + 0.2 * Math.sin(4 * ph[k]); });
+    const atk = Math.min(1, i / (0.008 * sr)), rel = i > n - 0.03 * sr ? Math.max(0, (n - i) / (0.03 * sr)) : 1;
+    out[start + i] += amp * v * atk * rel;
+  }
+}
+export function renderHonk(sr) {
+  const out = new Float32Array(Math.round(0.45 * sr));
+  honk(out, 0, sr, 65, 0.3, 0.09);
+  for (let i = 0; i < out.length; i++) out[i] = Math.tanh(1.4 * out[i]) * 0.8;
   return out;
 }
 

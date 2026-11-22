@@ -1,13 +1,14 @@
 // Today's adventure: a short practice with a beginning and an end, the same
 // path every day so she does all the material (the parent's call). This
 // week's homework:
-//   Dot → (the sleeping lion) Bell → party
-// (Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14,
+//   Driving → Friends → party
+// (Dot → (the sleeping lion) Bell → party 2026-10-23..11-20;
+// Zebra → Train → Ode 2026-09-30..10-07, Zebra → Sea → Ode 2026-10-07..14,
 // Reading → Sea → Cats 2026-10-15..22; those are in the party now, with
 // the other earlier homework.)
-// Each step unlocks the next. Finishing Dot lets her pick a band member
+// Each step unlocks the next. Finishing Driving lets her pick a band member
 // (Froggy, Beep Bot or Buzzy; with three pieces the first two each gave a
-// pick); Bell, the last piece, brings the headliner,
+// pick); Friends, the last piece, brings the headliner,
 // a surprise guest (Blobby, Kitty, Sparky or Waddles: GUESTS), and the party
 // waits for it. "Finished"
 // means she got to the end, never how well she played. Build! and Copy me
@@ -26,13 +27,13 @@
 // goes; the pieces log their own sessions tagged with `adventure: <id>`.
 // The guest: session `guest` and open { guest } (drawn; before 2026-10-06
 // always Blobby, 'slime'), and the finish of the last piece (Ode until
-// 2026-10-14, Cats 10-15..22, Bell since) that brings it has
+// 2026-10-14, Cats 10-15..22, Bell 10-23..11-20, Friends since) that brings it has
 // joined: <id>.
 import * as log from './telemetry.js';
 import { characterSnapshot } from './store.js';
 
-export const STEPS = ['dot', 'bell', 'party'];
-export const PICKING = ['dot']; // finishing these earns a pick (the lineup has a slot per pick)
+export const STEPS = ['driving', 'friends', 'party'];
+export const PICKING = ['driving']; // finishing these earns a pick (the lineup has a slot per pick)
 // The last piece brings a surprise guest, a different one from the last
 // adventure's (2026-10-06: she asked why it was always Blobby). Drawn when
 // the adventure starts, kept secret on the map (⭐) until it joins; the one
@@ -165,7 +166,9 @@ export function endJewel(how, stats) {
 // 'grownup', a grown-up's step that skipped it), or quit { before, ms } if she leaves first.
 export function bunny(how, before, data = {}) { current(); event(how, { step: 'bunny', before, ...data }); }
 
-// The sleeping lion (lion.js): before LION_BEFORE (Bell, since 2026-10-29),
+// The sleeping lion (lion.js): before LION_BEFORE (Bell 2026-10-29..11-20;
+// retired by the parent with the new homework: null = no lion, and no
+// sleeping slot on the map),
 // every time it opens. Her firm notes (three) wake Roary, who joins the
 // band the first time (a.band: her, her picks, Roary, the headliner; never
 // in `done`, no pick). Step events with step 'lion': start { before,
@@ -175,7 +178,7 @@ export function bunny(how, before, data = {}) { current(); event(how, { step: 'b
 // | no-mic) }, then finish { before, by: 'notes' | 'tap' | 'grownup', ms,
 // notes: [{ ms, midi, db, thr, firm }], firm (count), typical, typicalN,
 // thr, mode, why?, joined?: 'lion' }, or quit (same, no by) if she leaves.
-export const LION_BEFORE = 'bell';
+export const LION_BEFORE = null;
 export const LION_ID = 'lion';
 export function lion(how, data = {}) {
   const a = current();
@@ -186,6 +189,27 @@ export function lion(how, data = {}) {
     joined = LION_ID;
   }
   event(how, { step: 'lion', before: LION_BEFORE, ...data, ...(joined ? { joined } : {}) });
+}
+
+// The honk car (car.js): before CAR_BEFORE (Driving, since 2026-11-21),
+// every time it opens. Each note she plays honks (HONKS of them); then
+// Honky joins the band the first time (where the lion went: after her
+// picks, before the headliner; never in `done`, no pick). Step events with
+// step 'car': start { before, mode: 'mic' | 'tap' | 'none', why? (mic-off |
+// mic-dead | no-mic) }, then finish { before, by: 'notes' | 'tap' |
+// 'grownup', ms, notes: [{ ms, midi }], honks, mode, why?, joined?: 'car' },
+// or quit (same, no by) if she leaves.
+export const CAR_BEFORE = 'driving';
+export const CAR_ID = 'car';
+export function car(how, data = {}) {
+  const a = current();
+  let joined;
+  if (how === 'finish' && !a.band.includes(CAR_ID)) {
+    const at = a.band.indexOf(a.guest);
+    a.band.splice(at >= 0 ? at : a.band.length, 0, CAR_ID);
+    joined = CAR_ID;
+  }
+  event(how, { step: 'car', before: CAR_BEFORE, ...data, ...(joined ? { joined } : {}) });
 }
 
 // Anything else worth a line in the adventure's log (e.g. a skip).

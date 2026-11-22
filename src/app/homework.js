@@ -18,7 +18,13 @@
 // with an F sharp). `beats`: beats per bar, 3 for 3/4 (default 4): bar
 // lines every 3 beats, and the party band plays a waltz. A dotted half is
 // d: 3. `dyn` on a note: the dynamic printed there ('mf', 'f'); data only
-// for now (not drawn, not judged).
+// for now (not drawn, not judged). `also` on a note: notes played together
+// with it, [{p, hand?, f?}] (a chord or both hands at once): drawn on the
+// note's stem (same hand) or on their own (the other hand), played by the
+// band's piano, and the note counts when she plays any one of them.
+// `staff`: a grand piece drawn as a real grand staff (staff.js) instead of
+// the pre-staff page (book.js); the left hand's notes go on the bass staff
+// whatever their pitch (middle C on its ledger line above the bass).
 const n = (d, ...ps) => ps.map((p) => ({ d, p }));
 // Put the book's finger numbers on notes (null: none printed).
 const fingers = (notes, fs) => notes.map((x, i) => (fs[i] != null ? { ...x, f: fs[i] } : x));
@@ -35,12 +41,62 @@ const stairs = (h) => [
   ...n(1, h.G, h.F, h.E, h.D), ...n(1, h.C, h.C), ...n(2, h.C),
 ];
 const _ = null;
+// Notes played together: the top note `p` with the others in `also`.
+const chord = (d, p, ...also) => ({ d, p, also: also.map((x) => (typeof x === 'number' ? { p: x } : x)) });
 const LEFT = { hand: 'left', finger: 5, text: 'Left hand: pinky on C' };
 const RIGHT = { hand: 'right', finger: 1, text: 'Right hand: thumb on C' };
 
 export const PIECES = {
-  // --- this week (lesson of 2026-10-21: 3/4 time and the dotted half note,
-  // counted "1-2-3"; Dot and Bell new) ---
+  // --- this week (lesson of 2026-11-18?: the treble (G) clef; first notes
+  // played together) ---
+  // Treble staff, right hand only: thumb on middle C, finger 5 on G (the
+  // book prints 5 over 1 on the first pair). "CG" pairs are played
+  // together. Played twice (no sign; repetition is the practice). Marked f.
+  driving: {
+    id: 'driving',
+    title: 'Homework: Driving',
+    gem: 'peridot', twice: true, by: 'teacher', bpm: 80, clef: 'treble',
+    position: { R: { 60: 1, 67: 5 }, L: {} },
+    notes: rh([
+      { ...chord(2, R.G, { p: R.C, f: 1 }), f: 5, dyn: 'f' }, chord(2, R.G, R.C), // m1
+      ...n(1, R.C, R.C), ...n(2, R.G), // m2
+      chord(2, R.G, R.C), chord(2, R.G, R.C), // m3
+      ...n(1, R.G, R.G), ...n(2, R.C), // m4
+      ...n(1, R.C, R.C, R.G, R.G), // m5
+      ...n(1, R.C, R.C), ...n(2, R.G), // m6
+      chord(2, R.G, R.C), chord(2, R.G, R.C), // m7
+      chord(4, R.G, R.C), // m8
+    ]).map((x) => (x.also ? { ...x, also: x.also.map((y) => ({ ...y, hand: 'R' })) } : x)),
+    setup: [{ at: 0, hand: 'right', finger: 1, text: 'Right hand: thumb on middle C, finger 5 on G. Play C and G together!' }],
+  },
+  // A real grand staff: the left hand's finger 3 on middle C, the right
+  // hand's finger 3 on the G above. Hands take turns, and in bars 2 and 6
+  // play together (G over C). Bars 5-8 are bars 1-4 again, marked p (bar 1
+  // is f). Played once (it's already twice through).
+  friends: {
+    id: 'friends',
+    title: 'Homework: Friends',
+    gem: 'pearl', by: 'teacher', bpm: 80, clef: 'grand', staff: true,
+    position: { R: { 67: 3 }, L: { 60: 3 } },
+    notes: [0, 1].flatMap((half) => {
+      const both = (d) => ({ ...chord(d, R.G, { p: 60, hand: 'L' }), hand: 'R' });
+      const line = [
+        ...lh(n(1, 60, 60)), ...rh(n(2, R.G)), // m1
+        both(1), both(1), both(2), // m2
+        ...lh(n(1, 60, 60)), ...rh(n(1, R.G, R.G)), // m3
+        ...lh([...n(1, 60, 60), ...n(2, 60)]), // m4
+      ];
+      line[0] = { ...line[0], dyn: half ? 'p' : 'f', ...(half ? {} : { f: 3 }) };
+      if (!half) line[2] = { ...line[2], f: 3 };
+      return line;
+    }),
+    setup: [
+      { at: 0, hands: [{ hand: 'left', finger: 3 }, { hand: 'right', finger: 3 }], text: 'Left hand: finger 3 on middle C. Right hand: finger 3 on G.' },
+    ],
+  },
+
+  // --- earlier homework (the party can still play these) ---
+  // (Dot, Bell: 2026-10-23..11-20.)
   // Left hand line, then right hand line. The left hand as in Sea (thumb on
   // the C below middle C, walking down: C3=1 B2=2 A2=3 G2=4), the right
   // thumb on middle C. A printed repeat sign: played twice.
@@ -80,7 +136,6 @@ export const PIECES = {
     ],
   },
 
-  // --- earlier homework (the party can still play these) ---
   // (Reading, Sea, Cats: 2026-10-15..21; Sea also 10-07..14.)
   // A left-hand reading exercise: the book prints only finger numbers (no
   // letters, no staff), so the point is reading the numbers. Finger 3 on

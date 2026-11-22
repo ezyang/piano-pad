@@ -7,11 +7,11 @@
 //                           then free Build! or Copy me
 import { h, flash, sparkle } from '../dom.js';
 import { getState, meUrl } from '../store.js';
-import { createStaff, systemHeight, roomBelow } from '../staff.js';
+import { createStaff, systemHeight, roomBelow, roomAbove } from '../staff.js';
 import { createBook } from '../book.js';
 import { sameNote, outOfRange, totalBeats, layout, meter } from '../music.js';
 import { rhythmBars } from '../rhythm-bars.js';
-import { bandMember, bandSprite, texture, pieceGem, jewelStyle, lionUrl } from '../pixels.js';
+import { bandMember, bandSprite, texture, pieceGem, jewelStyle, lionUrl, carUrl } from '../pixels.js';
 import { engine } from '../engine.js';
 import { renderBand, renderJingle, renderYay, renderDrumroll } from '../instruments.js';
 import { bandAudio } from '../band-render.js';
@@ -23,6 +23,7 @@ import * as adv from '../adventure.js';
 import { jewelTurn, gem, PAIR } from '../jewels.js';
 import { bunnyHouse } from '../bunny.js';
 import { lionMoment, rememberLevel } from '../lion.js';
+import { carMoment } from '../car.js';
 import { isGrownup } from '../player.js';
 import { heard, onMicToggle } from '../mic-off.js';
 
@@ -32,11 +33,12 @@ const spriteOf = (id) => (id === 'piano' ? meUrl() : bandSprite(member(id)));
 const memberImg = (a, id, cls = 'member-sprite') => h('img', { class: cls, src: spriteOf(id) });
 
 const STOPS = {
+  driving: ['🚗', 'Driving'], friends: ['👭', 'Friends'],
   dot: ['🐞', 'Dot'], bell: ['🔔', 'Bell'], party: ['🎉', 'Party!'],
   reading: ['🐿️', 'Reading'], sea: ['🌊', 'Sea'], cats: ['🐱', 'Cats'],
   zebra: ['🦓', 'Zebra'], ode: ['🎶', 'Ode'], train: ['🚂', 'Train'], g: ['🎵', 'G song'], stairs: ['🪜', 'Stairs'], updown: ['⛰️', 'Up and Down'], // earlier homework (party only)
 };
-const PARTY = ['dot', 'bell', 'reading', 'sea', 'cats', 'zebra', 'ode', 'train', 'g', 'stairs', 'updown'];
+const PARTY = ['driving', 'friends', 'dot', 'bell', 'reading', 'sea', 'cats', 'zebra', 'ode', 'train', 'g', 'stairs', 'updown'];
 // The jewel a piece earns: its gem (homework.js `gem`, pixels.js pieceGem).
 const jewelOf = (id) => pieceGem(PIECES[id], Object.keys(PIECES).indexOf(id));
 
@@ -101,16 +103,18 @@ function greetMember(parent, box, id, then) {
 }
 
 // Her, her picks (one per picking piece, adventure.js PICKING; mysteries
-// until she picks), Roary the lion (asleep until she wakes it before Bell),
+// until she picks), Honky the car (parked until she honks it before
+// Driving), Roary the lion (retired 2026-11-21; only if it's in the band),
 // the headliner.
 function lineup(a, big = false) {
   const picked = a.band.filter((id) => adv.PICKS.includes(id));
   // The guest stays a ⭐ box (no silhouette) until it joins.
-  const slots = [['piano', true], ...adv.PICKING.map((_, k) => [picked[k], !!picked[k]]), [adv.LION_ID, a.band.includes(adv.LION_ID)], [a.guest, a.band.includes(a.guest)]];
+  const slots = [['piano', true], ...adv.PICKING.map((_, k) => [picked[k], !!picked[k]]), ...(adv.LION_BEFORE || a.band.includes(adv.LION_ID) ? [[adv.LION_ID, a.band.includes(adv.LION_ID)]] : []), [adv.CAR_ID, a.band.includes(adv.CAR_ID)], [a.guest, a.band.includes(a.guest)]];
   return h('div', { class: 'adv-band' + (big ? ' big' : '') }, slots.map(([id, here]) => h('div', { class: 'member' },
     here ? memberImg(a, id) : id === a.guest ? h('div', { class: 'member-sprite adv-mystery adv-star' }, '⭐')
-      : id === adv.LION_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: lionUrl('asleep') }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
-    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.LION_ID ? 'Zzz' : '?'),
+      : id === adv.LION_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: lionUrl('asleep') })
+      : id === adv.CAR_ID ? h('img', { class: 'member-sprite adv-lion-asleep', src: carUrl() }) : h('div', { class: 'member-sprite adv-mystery' }, '?'),
+    h('div', { class: 'member-name' }, here ? member(id).name : id === adv.LION_ID ? 'Zzz' : id === adv.CAR_ID ? 'Beep?' : '?'),
     h('div', { class: 'member-block', style: `background-image:url(${texture('grass')})` }))));
 }
 
@@ -186,7 +190,7 @@ function map(root) {
 // staff page treats it as 'book') letters and every note's finger, from
 // the piece's hand position.
 export function bookPage(song, width, height, labels = 'book') {
-  if (song.clef === 'grand') return createBook(song, { width, height, labels });
+  if (song.clef === 'grand' && !song.staff) return createBook(song, { width, height, labels });
   // Each hand's first note: by the notes' `hand` when they have one, else the set-ups.
   const handed = song.notes.some((x) => x.hand);
   const firsts = new Set(handed ? ['R', 'L'].map((hd) => song.notes.findIndex((x) => x.hand === hd)).filter((i) => i >= 0) : (song.setup ?? []).map((x) => x.at));
@@ -195,7 +199,7 @@ export function bookPage(song, width, height, labels = 'book') {
   const letters = rows.length ? rows : 'none';
   return createStaff(song, {
     // The whole page at once when it fits, like the book.
-    s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters, roomBelow(song)))),
+    s: size, width, visible: Math.max(2, Math.floor((height - 20) / systemHeight(size, song.clef, letters, roomBelow(song), roomAbove(song)))),
     letters,
     fingersAbove: labels === 'book' || labels === 'fingers' ? true : (i) => (firsts.has(i) ? song.notes[i].f ?? null : null),
   });
@@ -231,13 +235,15 @@ export function bookPage(song, width, height, labels = 'book') {
 // pieces a time's last bar is judged like the piece's last bar (it doesn't
 // wait for the next time's first note).
 const BETWEEN_MS = 2600;
+// Notes of a chord heard within this long of each other (s) are one chord.
+const CHORD_SPREAD = 0.15;
 function piece(root, id) {
   const a = adv.current();
   const song = PIECES[id], step = id, st = getState();
   const rhythm = !!song.rhythm;
   const grain = rhythm ? 'bar' : ['note', 'bar', 'piece'].includes(st.feedback) ? st.feedback : 'note';
   const labels = ['book', 'letters', 'first', 'fingers'].includes(st.bookLabels) ? st.bookLabels : 'book';
-  let session = null, finished = false, gen = 0, jeweling = null, bunnying = null, lioning = null;
+  let session = null, finished = false, gen = 0, jeweling = null, bunnying = null, lioning = null, caring = null;
   const jewel = jewelOf(id);
 
   const pageBox = h('div', { class: 'staff-box book-box' });
@@ -271,7 +277,7 @@ function piece(root, id) {
   const seq = [];
   const times = song.times ?? (song.repeat || song.twice ? 2 : 1);
   for (let pass = 0; pass < times; pass++) {
-    for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / perBar + 1e-9) }); }
+    for (const i of page.targets) { const n = page.laid[i]; seq.push({ i, p: n.p, ps: [n.p, ...(n.also ?? []).map((x) => x.p)], d: n.d, pass, bar: pass * pageBars + Math.floor(n.start / perBar + 1e-9) }); }
   }
   const N = seq.length;
   const barKs = [];
@@ -280,6 +286,8 @@ function piece(root, id) {
   const barIndexOf = [];
   bars.forEach((ks, b) => { for (const k of ks) barIndexOf[k] = b; });
   const want = (k) => seq[k].p;
+  // Any note of a chord (`also`, homework.js) counts for it.
+  const fits = (midi, k) => seq[k].ps.some((p) => sameNote(midi, p, false));
   let barRect = null, doneRects = [];
   const again = times > 1;
   const passEnd = (k) => k + 1 >= N || seq[k + 1].pass !== seq[k].pass; // k: the last note of a time through
@@ -309,7 +317,7 @@ function piece(root, id) {
     }
     if (myGen !== gen) return;
     adv.startStep(step, { grain, labels });
-    const ps = seq.map((x) => x.p);
+    const ps = seq.flatMap((x) => x.ps);
     session = { cur: 0, cheered: 0, tStart: engine.now(), lo: Math.min(...ps), hi: Math.max(...ps), off: engine.onNote(heard(onNote)) };
     log.startSession('homework', { adventure: a.id, step, grain, labels, ...(rhythm ? { rhythm: true, pitched: !!song.pitched } : {}), ...(again ? { repeat: true } : {}), ...(song.twice ? { twice: true } : {}), ...(song.times ? { times } : {}),
       song: { id: song.id, title: song.title, by: song.by, clef: song.clef, bpm: song.bpm, notes: song.notes } });
@@ -330,7 +338,7 @@ function piece(root, id) {
   function showCurrent() {
     const k = session.cur;
     if (k >= N) { engine.expect?.(null); hideSetup(); return; }
-    engine.expect?.([want(k)]); // labels the detector's readings of the expected note (piano-audio)
+    engine.expect?.(seq[k].ps); // labels the detector's readings of the expected note (piano-audio)
     if (k > 0 && seq[k].pass !== seq[k - 1].pass) {
       if (session.cheered < seq[k].pass) { celebrateBetween(seq[k].pass); return; }
       nextTime(seq[k].pass);
@@ -432,7 +440,17 @@ function piece(root, id) {
     if (n.voice || outOfRange(n.midi, session.lo, session.hi)) { log.event('judge', { got: n.midi, grade: 'ignored', ...(n.voice ? { why: 'voice' } : {}) }); return; }
     if (rhythm) { attack(n, null); return onRhythmNote(n); }
     const k = session.cur;
-    if (sameNote(n.midi, want(k), false)) attack(n, advance('detector', n.midi));
+    // A chord's other note, heard just after the one that counted (both
+    // keys rarely land together), isn't the next note: C+G then C.
+    const ch = session.chord;
+    if (ch && n.time - ch.time < CHORD_SPREAD && ch.ps.some((p) => sameNote(n.midi, p, false))) {
+      log.event('judge', { k, got: n.midi, grade: 'ignored', why: 'chord' });
+      return;
+    }
+    if (fits(n.midi, k)) {
+      session.chord = seq[k].ps.length > 1 ? { time: n.time, ps: seq[k].ps } : null;
+      attack(n, advance('detector', n.midi));
+    }
     else { const data = { k, want: want(k), got: n.midi, grade: 'other' }; log.event('judge', data); attack(n, data); }
   }
 
@@ -622,7 +640,9 @@ function piece(root, id) {
 
   // The bunny house first (pieces with `bunny`: Dot), every time the piece
   // opens: a hand-shape reminder, a tap, the bunny hops in, then the piece.
-  // The sleeping lion before Bell (adventure.js LION_BEFORE, lion.js),
+  // The honk car before Driving (adventure.js CAR_BEFORE, car.js): her
+  // notes honk its horn; Honky joins the band the first time.
+  // The sleeping lion before Bell (adventure.js LION_BEFORE, lion.js; retired),
   // every time the piece opens: three heavy lion paws wake Roary, who
   // joins the band the first time; then the piece.
   if (song.bunny) {
@@ -631,7 +651,14 @@ function piece(root, id) {
       tap: (stats) => adv.bunny('finish', step, stats),
       then: () => { bunnying = null; if (screen.isConnected) begin(); },
     });
-  } else if (step === adv.LION_BEFORE) {
+  } else if (step === adv.CAR_BEFORE) {
+    caring = carMoment(stageEl, {
+      joins: !a.band.includes(adv.CAR_ID),
+      start: (info) => adv.car('start', info),
+      finish: (stats) => adv.car('finish', stats),
+      then: () => { caring = null; if (screen.isConnected) begin(); },
+    });
+  } else if (adv.LION_BEFORE && step === adv.LION_BEFORE) {
     lioning = lionMoment(stageEl, {
       joins: !a.band.includes(adv.LION_ID),
       start: (info) => adv.lion('start', info),
@@ -644,6 +671,7 @@ function piece(root, id) {
     offMicToggle();
     if (bunnying) { const stats = bunnying.quit(); if (stats) adv.bunny('quit', step, stats); bunnying = null; }
     if (lioning) { const stats = lioning.quit(); if (stats) adv.lion('quit', stats); lioning = null; }
+    if (caring) { const stats = caring.quit(); if (stats) adv.car('quit', stats); caring = null; }
     removeEventListener('keydown', onKey);
     judge?.reset();
     clearBetween();
