@@ -80,14 +80,22 @@ pre-staff book page; notes go on their HAND's staff (LH middle C on the
 bass's ledger line). Friends: LH 3 on middle C, RH 3 on G; bars 2/6 both
 hands together; once through (bars 5-8 already repeat 1-4); Driving twice.
 THE LION IS RETIRED (parent): LION_BEFORE = null (code kept; its map slot
-shows only if it's in the band). HONK CAR instead (parent picked it,
-car.js): before Driving, every strike (any key; chords one) honks and
-lights one of 5 horns (notes ignored 0.55 s after each honk, the mic
-hears it); then "Honky joined your band!" and in the party it honks the
-chord roots near middle C (instruments.js 'honk'). Mic off/dead: tap the
-car. Grown-up step finishes it. Logs: adventure step 'car' start/finish
-(by notes|tap|grownup, notes, honks, joined: 'car')/quit. Map slot "Beep?"
-until it joins. Not built: the book's finger challenge / Discovery
+shows only if it's in the band). HONKY THE CAR instead (car.js), before
+Driving. Since 2026-11-22 (pedagogy + parent: she RUSHES HALF NOTES, the
+app never checked her against a steady beat) it's a BEAT GAME: a fixed 80
+bpm click track (unpitched, instruments.js renderBeat; never follows her
+tempo), the road scrolls, Honky bobs each beat; count-in "1, 2", 12
+half-note honks (HONK - 2) then a bar's rest and 6 whole notes (HONK - 2 -
+3 - 4); beat boxes under Honky light through the hold (gold if she
+honked). Any key; within -0.2..+0.45 beat of a honk beat counts (Honky
+zooms, a progress light), earlier = 'early' ("wait for it…", calm blue,
+no zoom). Never red. ~45 s; then Honky joins the band (honks chord roots
+in the party). Times: the note's attack vs the click's scheduled time +
+outputLatency. Mic off/dead: tap the car on the beat. Logs: step 'car'
+finish { bpm, latency, strikes [{ms, midi, pattern, k, off ms, grade
+on|early|late}], honked, onTime, of }. Map slot "Beep?" until it joins.
+Real chords register fine (audio, 11-21 logs: 98/100; 42 as C3), so keep
+C3 in "any octave". Not built: the book's finger challenge / Discovery
 (parent: leave them to the book).
 
 As of 2026-10-29 (lion firm check normalized by octave, firm.js; the sleeping lion before Bell: firm notes relative to her own attack level wake Roary, who joins the band on timpani; engine.attackLevel), 2026-10-26 (a heard black key shows its ♯: staff ghosts, free Build columns, Answer me blocks), 2026-10-23 (new homework, 3/4 time: Dot → Bell → party; Reading, Sea, Cats to the party; a dead mic is remembered across loads: grown-up note on home and map, reopen only by tap, MediaRecorder chunk counts in logs), 2026-10-15 (new homework: Reading → Sea → Cats → party, `times: 3`, bunny house before Reading, LH-only pre-staff with `fingersOnly`; Zebra and Ode to the party), 2026-10-13 (her picture: undo history, safer wipes, backup in logs, ⚙︎ restore; grown-up step does nothing outside the piece: jewel turn, bunny house, reveal; jewel ✓ any time; song editor bars are real 4/4 with ties; rhythm bars pass on a pause; bunny house before Zebra; Copy me grown-up step = one note; mic switch):

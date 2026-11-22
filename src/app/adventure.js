@@ -191,14 +191,18 @@ export function lion(how, data = {}) {
   event(how, { step: 'lion', before: LION_BEFORE, ...data, ...(joined ? { joined } : {}) });
 }
 
-// The honk car (car.js): before CAR_BEFORE (Driving, since 2026-11-21),
-// every time it opens. Each note she plays honks (HONKS of them); then
-// Honky joins the band the first time (where the lion went: after her
-// picks, before the headliner; never in `done`, no pick). Step events with
-// step 'car': start { before, mode: 'mic' | 'tap' | 'none', why? (mic-off |
-// mic-dead | no-mic) }, then finish { before, by: 'notes' | 'tap' |
-// 'grownup', ms, notes: [{ ms, midi }], honks, mode, why?, joined?: 'car' },
-// or quit (same, no by) if she leaves.
+// Honky's beat game (car.js): before CAR_BEFORE (Driving, since 2026-11-21;
+// a honk count until 11-22, now a steady-beat game: honk on the beat and
+// hold half notes, then whole notes). Honky joins the band the first time
+// (where the lion went: after her picks, before the headliner; never in
+// `done`, no pick). Step events with step 'car': start { before, mode:
+// 'mic' | 'tap' | 'none', bpm, why? (mic-off | mic-dead | no-mic) }, then
+// finish { before, by: 'done' | 'grownup', ms, bpm, latency, strikes:
+// [{ ms, midi?, pattern: 'half' | 'whole', k, off (ms from its honk beat,
+// negative = early), grade: 'on' | 'early' | 'late', again? }], honked
+// (on or late) and onTime, each { half, whole }, of: { half, whole }, mode, why?, joined?: 'car' }, or
+// quit (same, no by) if she leaves. (11-21 logs: by notes | tap |
+// grownup, notes, honks.)
 export const CAR_BEFORE = 'driving';
 export const CAR_ID = 'car';
 export function car(how, data = {}) {

@@ -280,6 +280,28 @@ export function renderHonk(sr) {
   return out;
 }
 
+// Honky's beat (car.js): a click track of `beats` beats at `bpm`, starting
+// `lead` s in. Unpitched (filtered noise, like a woodblock-ish tick), so
+// the detector doesn't take it for a piano note. strong(k): a louder,
+// lower "tock" on beat k (count-in and the honk beats).
+export function renderBeat(sr, bpm, beats, strong = () => false, lead = 0.1) {
+  const beat = 60 / bpm;
+  const out = new Float32Array(Math.round((lead + beats * beat + 0.3) * sr));
+  const rng = mulberry32(21);
+  for (let k = 0; k < beats; k++) {
+    const s0 = Math.round((lead + k * beat) * sr), big = strong(k);
+    let lp = 0, prev = 0;
+    const a = big ? 0.5 : 0.28, tau = (big ? 0.03 : 0.015) * sr, cut = big ? 0.35 : 0.6;
+    for (let i = 0; i < 0.08 * sr && s0 + i < out.length; i++) {
+      const x = rng() * 2 - 1;
+      lp += cut * (x - lp); // brighter for the tick, darker for the tock
+      const hp = lp - prev; prev = lp;
+      out[s0 + i] += a * (big ? lp : hp * 2) * Math.exp(-i / tau);
+    }
+  }
+  return { audio: out, lead };
+}
+
 // The lion waking up (lion.js): a big, friendly ROAR, about 1.6 s. A
 // buzzy low voice that swoops up and back down, rumbling (a fast wobble in
 // its loudness), with breath noise on top, then a little happy grumble.
