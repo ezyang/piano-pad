@@ -59,6 +59,10 @@ Logs: homework session event 'holds' { quarterMs, quarters, held,
 counted, stalls, unjudged, bonus, notes [{k, d, ms, ratio, held, stall}] };
 the adventure step finish also has held/counted/stalls/quarterMs/bonus;
 jewel turn stats have `gems`.
+Tuning (pedagogy, 11-22): keep NEED 1.7 / SHARE 0.75. Replayed on that
+night's 10 real runs it would have given exactly one bonus (Friends, 3/4
+held; Driving's best 5/12). Pedagogy re-checks after a few days of logs and
+will ask to adjust if she never earns it; don't retune without that.
 
 PARTY LAYOUT (2026-11-21, parent via pedagogy: the band went off the top
 after b209f0d): the band row and button rows don't shrink; the staff box
